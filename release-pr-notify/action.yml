@@ -1,0 +1,76 @@
+name: "Notify Slack Channel about release PR"
+description: "Notify Slack Channel about release PR"
+inputs:
+  slack-token:
+    description: "Slack Bot Token"
+    required: true
+  slack-channel-id:
+    description: "Slack Channel ID"
+    required: true
+  github-token:
+    description: "GitHub Token"
+    required: false
+
+runs:
+  using: "composite"
+  steps:
+      - name: Generate Slack Message
+        id: generate-slack-message
+        uses: actions/github-script@v6
+        with:
+          retries: 5
+          result-encoding: string
+          github-token: ${{ inputs.github-token }}
+          script: |
+            const script = require("${{ github.action_path }}/generate-slack-message.js")
+            return await script({ github, context })
+
+      - name: Get a file with Slack message ID from GitHub Actions cache
+        uses: actions/cache/restore@v3
+        id: posted-message
+        with:
+          path: release-notify.json
+          key: release-pr-notify-${{ github.event.number }}.json
+
+      - name: Get Slack message ID from the file from GitHub Actions cache
+        id: message-id
+        shell: bash
+        run: |
+          UPDATE_TS=$(cat release-notify.json | jq --raw-output '.ts' || true)
+          echo "update-ts=${UPDATE_TS}" >> $GITHUB_OUTPUT
+
+      - name: Send Slack message
+        uses: slackapi/slack-github-action@v1
+        id: slack
+        env:
+          SLACK_BOT_TOKEN: ${{ inputs.slack-token }}
+        with:
+          channel-id: ${{ inputs.slack-channel-id }}
+          update-ts: ${{ steps.message-id.outputs.update-ts }}
+          payload: ${{ steps.generate-slack-message.outputs.result }}
+
+      - name: Prepare a file with Slack message ID for GitHub Actions cache
+        if: steps.posted-message.outputs.cache-hit != 'true'
+        shell: bash
+        run: |
+          echo '{"ts": "${{ steps.slack.outputs.ts }}"}' > release-notify.json
+
+      - name: Save a file with Slack message ID to GitHub Actions cache
+        uses: actions/cache/save@v3
+        if: steps.posted-message.outputs.cache-hit != 'true'
+        with:
+          path: release-notify.json
+          key: release-pr-notify-${{ github.event.number }}.json
+
+      - name: Delete a file with Slack message ID from GitHub Actions cache
+        uses: actions/github-script@v6
+        if: always() && github.event.action == 'closed'
+        with:
+          retries: 5
+          script: |
+            github.rest.actions.deleteActionsCacheByKey({
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              key: "release-pr-notify-${{ github.event.number }}.json"
+            });
+
