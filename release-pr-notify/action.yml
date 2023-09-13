@@ -29,7 +29,7 @@ runs:
         uses: actions/cache/restore@v3
         with:
           path: release-notify.json
-          key: release-pr-notify-${{ github.event.number }}-
+          key: release-pr-notify-${{ github.event.number }}.json
 
       - name: Get a file with Slack message ID from GitHub Actions cache (fallback)
         id: posted-message-fallback
@@ -45,12 +45,12 @@ runs:
               owner: context.repo.owner,
               repo: context.repo.repo,
               ref: "refs/pull/${{ github.event.number }}/merge",
-              key: "release-pr-notify-${{ github.event.number }}-",
+              key: "release-pr-notify-${{ github.event.number }}.json",
             })
             const caches = await github.paginate(args)
 
             const lastCacheEntry = caches[0]
-            const match = lastCacheEntry?.key.match(/^release-pr-notify-${{ github.event.number }}-(?<ts>.+)$/)?.groups
+            const match = lastCacheEntry?.key.match(/^release-pr-notify-${{ github.event.number }}.json(?<ts>.+)$/)?.groups
             if (match) {
                 ({ ts } = match)
             }
@@ -91,7 +91,7 @@ runs:
         uses: actions/cache/save@v3
         with:
           path: release-notify.json
-          key: release-pr-notify-${{ github.event.number }}-${{ steps.slack.outputs.ts }}
+          key: release-pr-notify-${{ github.event.number }}.json${{ steps.slack.outputs.ts }}
 
       - name: Delete a file with Slack message ID from GitHub Actions cache
         if: always() && github.event.action == 'closed'
@@ -103,10 +103,10 @@ runs:
               await github.rest.actions.deleteActionsCacheByKey({
                 owner: context.repo.owner,
                 repo: context.repo.repo,
-                key: "release-pr-notify-${{ github.event.number }}-${{ steps.slack.outputs.ts }}"
+                key: "release-pr-notify-${{ github.event.number }}.json${{ steps.slack.outputs.ts }}"
               });
             } catch (error) {
-              let msg =  `Cannot delete cache: "release-pr-notify-${{ github.event.number }}-${{ steps.slack.outputs.ts }}".\n`
+              let msg =  `Cannot delete cache: "release-pr-notify-${{ github.event.number }}.json${{ steps.slack.outputs.ts }}".\n`
                   msg += `Most likely, the workflow does not have required permissions ({actions: write}).\n`
                   msg += `The original error message is: '${error}'.`
 
