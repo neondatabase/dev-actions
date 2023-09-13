@@ -27,50 +27,88 @@ runs:
 
       - name: Get a file with Slack message ID from GitHub Actions cache
         uses: actions/cache/restore@v3
-        id: posted-message
         with:
           path: release-notify.json
-          key: release-pr-notify-${{ github.event.number }}.json
+          key: release-pr-notify-${{ github.event.number }}-
+
+      - name: Get a file with Slack message ID from GitHub Actions cache (fallback)
+        id: posted-message-fallback
+        uses: actions/github-script@v6
+        with:
+          retries: 5
+          result-encoding: string
+          github-token: ${{ inputs.github-token }}
+          script: |
+            let ts = ""
+
+            const args = github.rest.actions.getActionsCacheList.endpoint.merge({
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              ref: "refs/pull/${{ github.event.number }}/merge",
+              key: "release-pr-notify-${{ github.event.number }}-",
+            })
+            const caches = await github.paginate(args)
+
+            const lastCacheEntry = caches[0]
+            const match = lastCacheEntry?.key.match(/^release-pr-notify-${{ github.event.number }}-(?<ts>.+)$/)?.groups
+            if (match) {
+                ({ ts } = match)
+            }
+
+            return ts
 
       - name: Get Slack message ID from the file from GitHub Actions cache
-        id: message-id
+        id: message
         shell: bash
         run: |
           UPDATE_TS=$(cat release-notify.json | jq --raw-output '.ts' || true)
+
+          CACHE_HIT=${UPDATE_TS:+true}
+          CACHE_HIT=${CACHE_HIT:-false}
+          echo "cache-hit=${CACHE_HIT}" >> $GITHUB_OUTPUT
+
+          UPDATE_TS=${UPDATE_TS:-${{ steps.posted-message-fallback.outputs.result }}}
           echo "update-ts=${UPDATE_TS}" >> $GITHUB_OUTPUT
 
       - name: Send Slack message
-        uses: slackapi/slack-github-action@v1
         id: slack
-        env:
-          SLACK_BOT_TOKEN: ${{ inputs.slack-token }}
+        uses: slackapi/slack-github-action@v1
         with:
           channel-id: ${{ inputs.slack-channel-id }}
-          update-ts: ${{ steps.message-id.outputs.update-ts }}
+          update-ts: ${{ steps.message.outputs.update-ts }}
           payload: ${{ steps.generate-slack-message.outputs.result }}
+        env:
+          SLACK_BOT_TOKEN: ${{ inputs.slack-token }}
 
       - name: Prepare a file with Slack message ID for GitHub Actions cache
-        if: steps.posted-message.outputs.cache-hit != 'true'
+        if: steps.message.outputs.cache-hit != 'true'
         shell: bash
         run: |
           echo '{"ts": "${{ steps.slack.outputs.ts }}"}' > release-notify.json
 
       - name: Save a file with Slack message ID to GitHub Actions cache
+        if: steps.message.outputs.cache-hit != 'true'
         uses: actions/cache/save@v3
-        if: steps.posted-message.outputs.cache-hit != 'true'
         with:
           path: release-notify.json
-          key: release-pr-notify-${{ github.event.number }}.json
+          key: release-pr-notify-${{ github.event.number }}-${{ steps.slack.outputs.ts }}
 
       - name: Delete a file with Slack message ID from GitHub Actions cache
-        uses: actions/github-script@v6
         if: always() && github.event.action == 'closed'
+        uses: actions/github-script@v6
         with:
           retries: 5
           script: |
-            github.rest.actions.deleteActionsCacheByKey({
-              owner: context.repo.owner,
-              repo: context.repo.repo,
-              key: "release-pr-notify-${{ github.event.number }}.json"
-            });
+            try {
+              await github.rest.actions.deleteActionsCacheByKey({
+                owner: context.repo.owner,
+                repo: context.repo.repo,
+                key: "release-pr-notify-${{ github.event.number }}-${{ steps.slack.outputs.ts }}"
+              });
+            } catch (error) {
+              let msg =  `Cannot delete cache: "release-pr-notify-${{ github.event.number }}-${{ steps.slack.outputs.ts }}".\n`
+                  msg += `Most likely, the workflow does not have required permissions ({actions: write}).\n`
+                  msg += `The original error message is: '${error}'.`
 
+              core.warning(msg);
+            }
