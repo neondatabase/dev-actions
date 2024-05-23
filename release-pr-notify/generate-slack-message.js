@@ -30,12 +30,7 @@ module.exports = async ({ github, context }) => {
     const pullRequest = context.payload.pull_request
 
     // Prepare a header for the Slack message
-    const repoToProjectName = {
-        "neondatabase/neon": "Storage",
-        "neondatabase/cloud": "Console & Control Plane",
-    }
-    const project = repoToProjectName[pullRequest.base.repo.full_name] || pullRequest.base.repo.name.toUpperCase()
-    const header = `${project} release is coming: "${pullRequest.title}" :tada:`
+    const header = `New release is coming: "${pullRequest.title}" :tada:`
 
     // Fetch commits for the PR
     const listCommitsOpts = github.rest.pulls.listCommits.endpoint.merge({
