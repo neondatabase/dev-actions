@@ -1,0 +1,36 @@
+name: 'Docker registry login'
+description: 'Log in to a Docker registry, DockerHub or custom one, depending on inputs with retries'
+
+inputs:
+  registry:
+    description: 'Registry URL, if not provided defaults to DockerHub'
+    required: false
+  username:
+    description: 'Username for given registry or DockerHub'
+    requred: false
+  password:
+    description: 'Password or preferably PAT for "username"'
+    required: false
+  attempt_limit:
+    description: 'Maximum number of total attempts'
+    required: false
+    default: 3
+  attempt_delay:
+    description: 'Delay between attempts'
+    required: false
+    default: 3000
+
+runs:
+  using: 'composite'
+
+  steps:
+    - name: Log in to Docker registry
+      uses: Wandalen/wretry.action/main@8ceaefd717b7cdae4f2637f9a433242ade421a0a  # 3.7.2
+      with:
+        attempt_limit: ${{ inputs.attempt_limit }}
+        attempt_delay: ${{ inputs.attempt_delay }}
+        action: docker/login-action@9780b0c442fbb1117ed29e0efdff1e18412f7567  # 3.3.0
+        with: |
+          username: ${{ inputs.username }}
+          password: ${{ inputs.password }}
+          registry: ${{ inputs.registry }}
