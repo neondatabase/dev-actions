@@ -1,0 +1,59 @@
+name: "MutexBot Reserve"
+description: "Reserve a resource on MutexBot"
+inputs:
+  api-key:
+    description: "API Key"
+    required: true
+  resource-name:
+    description: "Name of the resource to reserve"
+    required: true
+  duration:
+    description: "Duration for the reservation"
+    required: false
+    default: 24h
+runs:
+  using: "composite"
+  steps:
+    - name: "Reserve resource"
+      shell: bash -euo pipefail {0}
+      env:
+        API_KEY: ${{ inputs.api-key }}
+        RESOURCE_NAME: ${{ inputs.resource-name }}
+        DURATION: ${{ inputs.duration }}
+      run: |
+        PAYLOAD=$(
+          jq \
+            --null-input \
+            --arg notes "Reserved by ${GITHUB_SERVER_URL}/${GITHUB_REPOSITORY}/actions/runs/${GITHUB_RUN_ID}" \
+            --arg duration "${DURATION}" \
+            '{"notes": $notes, "duration": $duration}'
+        )
+
+        handle_error() {
+          echo "Error: $1"
+          cat response.json
+          rm -f response.json
+          exit 1
+        }
+
+        while true; do
+          RESPONSE=$(curl -s --retry 5 -o response.json -w "%{http_code}" -X POST "https://mutexbot.com/api/resources/global/${RESOURCE_NAME}/reserve" \
+            -H "X-API-KEY: ${API_KEY}" \
+            -H "Content-Type: application/json" \
+            -d "${PAYLOAD}")
+
+          if [ "$RESPONSE" -eq 201 ]; then
+            echo "Resource reserved successfully."
+            rm response.json
+            break
+          elif [ "$RESPONSE" -eq 409 ]; then
+            echo "Resource already reserved, retrying..."
+            sleep 5  # Wait before retrying
+          elif [ "$RESPONSE" -eq 400 ]; then
+            handle_error "Bad request. Check your input data."
+          elif [ "$RESPONSE" -eq 404 ]; then
+            handle_error "Resource not found."
+          else
+            handle_error "Unexpected status code: $RESPONSE"
+          fi
+        done
