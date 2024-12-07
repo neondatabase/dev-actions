@@ -1,0 +1,78 @@
+name: "GitHub Actions linters"
+description: "A set of linters for GitHub Actions workflows"
+
+inputs:
+  enable-actionlint:
+    description: "Enable actionlint"
+    required: false
+    default: "true"
+    type: "string"
+  enable-zizmor:
+    description: "Enable zizmor"
+    required: false
+    default: "true"
+    type: "string"
+  enable-disallow-latest:
+    description: "Enable disallowing *-latest runners"
+    required: false
+    default: "true"
+    type: "string"
+
+runs:
+  using: "composite"
+  steps:
+    - name: actionlint
+      if: inputs.enable-actionlint == 'true' && !cancelled()
+      shell: bash -euo pipefail {0}
+      env:
+        # SC2046 - Quote this to prevent word splitting. - https://www.shellcheck.net/wiki/SC2046
+        # SC2086 - Double quote to prevent globbing and word splitting. - https://www.shellcheck.net/wiki/SC2086
+        SHELLCHECK_OPTS: --exclude=SC2046,SC2086
+      run: |
+        echo "::group::actionlint"
+        echo "::add-matcher::${GITHUB_ACTION_PATH}/actionlint-matcher.json"
+        actionlint || actionlint_exit_code=$?
+        echo "::remove-matcher owner=actionlint::"
+        echo "::endgroup::"
+
+        exit ${actionlint_exit_code:-0}
+
+    - name: zizmor
+      if: inputs.enable-zizmor == 'true' && !cancelled()
+      shell: bash -euo pipefail {0}
+      run: |
+        echo "::group::zizmor"
+        zizmor --format json . > zizmor.json || zizmor_exit_code=$?
+        jq --raw-output --arg GITHUB_WORKSPACE "$(pwd)" '
+          .[] as $item
+          | $item.locations[]
+          | select(.symbolic.annotation != "this step")
+          | "::error file=\(.symbolic.key.Local.given_path | sub("^" + $GITHUB_WORKSPACE; "")),line=\(.concrete.location.start_point.row),endLine=\(.concrete.location.end_point.row),title=\($item.determinations.severity): \($item.desc)::\(.symbolic.annotation) - \($item.url)"
+        ' zizmor.json
+
+        # Run `zizmor` one more time to get output in the console,
+        # in case of any bugs in json parsing above
+        zizmor --no-exit-codes .
+
+        echo "::endgroup::"
+
+        exit ${zizmor_exit_code:-0}
+
+    - name: Disallow *-latest runners
+      if: inputs.enable-disallow-latest == 'true' && !cancelled()
+      shell: bash -euo pipefail {0}
+      run: |
+        echo "::group::runs-on: *-latest"
+        PATTERN='^\s*runs-on:.*-latest'
+        if grep -ERq $PATTERN .github/workflows; then
+          grep -ERl $PATTERN .github/workflows |\
+          while read -r f; do
+            l=$(grep -nE $PATTERN $f | awk -F: '{print $1}' | head -1)
+            echo "::error file=$f,line=$l::Use verioned runner (like 'ubuntu-22.04' / 'macos-15') instead of '*-latest'"
+          done
+
+          exit_code=1
+        fi
+        echo "::endgroup::"
+
+        exit ${exit_code:-0}
