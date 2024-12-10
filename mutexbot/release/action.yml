@@ -39,6 +39,8 @@ runs:
           rm response.json
         elif [ "$RESPONSE" -eq 208 ]; then
           handle_error "Resource not reserved. Aborting."
+        elif [ "$RESPONSE" -eq 401 ]; then
+          handle_error "Unauthorized! Check your API keys."
         elif [ "$RESPONSE" -eq 404 ]; then
           handle_error "Resource not found."
         elif [ "$RESPONSE" -eq 409 ]; then
