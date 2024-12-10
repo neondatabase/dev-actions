@@ -51,6 +51,8 @@ runs:
             sleep 5  # Wait before retrying
           elif [ "$RESPONSE" -eq 400 ]; then
             handle_error "Bad request. Check your input data."
+          elif [ "$RESPONSE" -eq 401 ]; then
+            handle_error "Unauthorized! Check your API keys."
           elif [ "$RESPONSE" -eq 404 ]; then
             handle_error "Resource not found."
           else
