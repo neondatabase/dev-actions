@@ -29,7 +29,7 @@ runs:
         }
 
         ACTION=$([ "${FORCE_RELEASE}" == "true" ] && echo "force-release" || echo "release")
-        RESPONSE=$(curl -s --retry 5 -o response.json -w "%{http_code}" -X POST "https://mutexbot.com/api/resources/global/${RESOURCE_NAME}/${ACTION}" \
+        RESPONSE=$(curl -s --retry 15 --retry-delay 2 -o response.json -w "%{http_code}" -X POST "https://mutexbot.com/api/resources/global/${RESOURCE_NAME}/${ACTION}" \
           -H "X-API-KEY: ${API_KEY}" \
           -H "Content-Type: application/json" \
           -d "{}")
