@@ -5,9 +5,7 @@ edition = "2021"
 
 [dependencies]
 anyhow = "1.0.95"
-# Disabling default features doesn't work right now. A fix has been submitted upstream under https://github.com/42ByteLabs/ghactions/pull/148,
-# but that is still waiting for a merge. This matters for build times primarily.
-ghactions = { version = "0.12.0", features = ["log", "macros", "generate"], default-features = false }
+ghactions = { version = "0.13.0", features = ["log", "macros", "generate"], default-features = false }
 reqwest = { version = "0.12.12", features = ["json", "default-tls"], default-features = false }
 serde = { version = "1.0.217", features = ["derive"] }
-tokio = { version = "1.42.0", features = ["macros", "rt-multi-thread", "time"] }
+tokio = { version = "1.43.0", features = ["macros", "rt-multi-thread", "time"] }
