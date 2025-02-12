@@ -214,19 +214,23 @@ async fn main() -> Result<()> {
                                                                     == isolation_channel))
                                                 })
                                                 .context("Could not find resource!")?;
-                                            let user = resource.active_reservation_user_name.context("Resource doesn't have active_reservation_user_name!")?;
-                                            let reason = resource.active_reservation_reason.context("Resource doesn't have active_reservation_reason!")?;
+                                            if resource.active_reservation.is_none() {
+                                                info!("No active reservation.");
+                                            } else {
+                                                let user = resource.active_reservation_user_name.context("Resource doesn't have active_reservation_user_name!")?;
+                                                let reason = resource.active_reservation_reason.context("Resource doesn't have active_reservation_reason!")?;
 
-                                            if let Some(workflow_url) =
-                                                reason.split_whitespace().last()
-                                            {
-                                                if workflow_url.contains("/actions/runs/") {
-                                                    info!("Existing reservation by component {user} in {workflow_url}.");
+                                                if let Some(workflow_url) =
+                                                    reason.split_whitespace().last()
+                                                {
+                                                    if workflow_url.contains("/actions/runs/") {
+                                                        info!("Existing reservation by component {user} in {workflow_url}.");
+                                                    } else {
+                                                        info!("Existing reservation by user {user} with reason \"{reason}\"");
+                                                    }
                                                 } else {
                                                     info!("Existing reservation by user {user} with reason \"{reason}\"");
                                                 }
-                                            } else {
-                                                info!("Existing reservation by user {user} with reason \"{reason}\"");
                                             }
                                         }
                                         StatusCode::BAD_REQUEST => {
