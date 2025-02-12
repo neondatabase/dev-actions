@@ -215,7 +215,7 @@ async fn main() -> Result<()> {
                                                 })
                                                 .context("Could not find resource!")?;
                                             let user = resource.active_reservation_user_name.context("Resource doesn't have active_reservation_user_name!")?;
-                                            let reason = resource.active_reservation_reason.context("Resource doesn't have active_reservation_user_name!")?;
+                                            let reason = resource.active_reservation_reason.context("Resource doesn't have active_reservation_reason!")?;
 
                                             if let Some(workflow_url) =
                                                 reason.split_whitespace().last()
