@@ -224,7 +224,7 @@ async fn main() -> Result<()> {
                                                     reason.split_whitespace().last()
                                                 {
                                                     if workflow_url.contains("/actions/runs/") {
-                                                        info!("Existing reservation by component {user} in {workflow_url}.");
+                                                        info!("Existing reservation by component {user} in {workflow_url}");
                                                     } else {
                                                         info!("Existing reservation by user {user} with reason \"{reason}\"");
                                                     }
