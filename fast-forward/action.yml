@@ -1,0 +1,27 @@
+name: "Fast Forward Merge in Merge Group"
+description: "Automatically fast-forwards merge group PRs if possible."
+author: "Neon Inc."
+
+branding:
+  icon: 'arrow-up-right'
+  color: 'green'
+
+inputs:
+  github-token:
+    description: "GitHub Token to authenticate API requests"
+    required: true
+
+runs:
+  using: "composite"
+  steps:
+    - name: "Checkout repository"
+      uses: actions/checkout@v4
+      with:
+        fetch-depth: 0  # Ensures full history for merge-base check
+
+    - name: "Run Fast Forward Merge"
+      shell: bash
+      run: |
+        ${{ github.action_path }}/fast-forward
+      env:
+        GITHUB_TOKEN: ${{ inputs.github-token }}

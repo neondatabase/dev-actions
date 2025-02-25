@@ -1,0 +1,129 @@
+#!/usr/bin/env python3
+
+import os
+import sys
+import json
+import subprocess
+import urllib.request
+import re
+
+GITHUB_EVENT_PATH = os.getenv("GITHUB_EVENT_PATH")
+GITHUB_TOKEN = os.getenv("GITHUB_TOKEN")
+GITHUB_REPOSITORY = os.getenv("GITHUB_REPOSITORY")
+GITHUB_WORKSPACE = os.getenv("GITHUB_WORKSPACE", "/github/workspace")
+
+
+def run_git(*args, check=True):
+    """Runs a git command in the checked-out repository."""
+    result = subprocess.run(
+        ["git"] + list(args), cwd=GITHUB_WORKSPACE, text=True, capture_output=True
+    )
+    if check and result.returncode != 0:
+        raise RuntimeError(f"Git command failed: {' '.join(args)}\n{result.stderr}")
+    return result.stdout.strip()
+
+
+def load_github_event():
+    """Loads GitHub event data from the event path file once."""
+    if not GITHUB_EVENT_PATH or not os.path.exists(GITHUB_EVENT_PATH):
+        raise RuntimeError("GITHUB_EVENT_PATH must be set.")
+    with open(GITHUB_EVENT_PATH, "r") as f:
+        return json.load(f)
+
+
+def extract_pr_id(event_data):
+    """Extracts PR ID from the merge_group event."""
+    head_ref = event_data.get("merge_group", {}).get("head_ref", "")
+    match = re.search(
+        r"refs/heads/gh-readonly-queue/.*/pr-(\d+)-[0-9a-f]{40}", head_ref
+    )
+    if match:
+        return match.group(1)
+    raise RuntimeError("PR ID not found in merge_group event data.")
+
+
+def get_pr_url(event_data, pr_id):
+    """Constructs the PR API URL."""
+    pulls_url_template = event_data.get("repository", {}).get("pulls_url", "")
+    if not pulls_url_template:
+        raise RuntimeError("repository.pulls_url not found in event data.")
+    return pulls_url_template.replace("{/number}", f"/{pr_id}")
+
+
+def github_api_request(url):
+    """Performs an authenticated GitHub API request."""
+    request = urllib.request.Request(url)
+    request.add_header("Accept", "application/vnd.github+json")
+    request.add_header("Authorization", f"Bearer {GITHUB_TOKEN}")
+    request.add_header("X-GitHub-Api-Version", "2022-11-28")
+
+    with urllib.request.urlopen(request) as response:
+        return json.load(response)
+
+
+def get_pr_data(event_data):
+    """Fetches PR metadata from the GitHub API."""
+    pr_id = extract_pr_id(event_data)
+    pr_url = get_pr_url(event_data, pr_id)
+    return github_api_request(pr_url)
+
+
+def check_fast_forward(base_sha, pr_sha):
+    """Checks if a fast forward is possible."""
+    result = subprocess.run(
+        ["git", "merge-base", "--is-ancestor", base_sha, pr_sha],
+        cwd=GITHUB_WORKSPACE,
+        text=True,
+        capture_output=True,
+    )
+    return result.returncode == 0
+
+
+def perform_fast_forward(base_ref, pr_sha):
+    """Performs the fast forward merge."""
+    try:
+        # Get authenticated repository URL and set it
+        repo_url = f"https://{GITHUB_TOKEN}@github.com/{GITHUB_REPOSITORY}.git"
+        run_git("remote", "set-url", "origin", repo_url)
+
+        # Push the fast-forward merge
+        run_git("push", "origin", f"{pr_sha}:{base_ref}")
+        return True
+    except RuntimeError as e:
+        print(f"Error during git push: {str(e)}", file=sys.stderr)
+        return False
+
+
+def main():
+    """Main function to check and perform fast-forward merges in a merge_group."""
+    try:
+        event_data = load_github_event()
+        pr_data = get_pr_data(event_data)
+
+        base_ref = pr_data["base"]["ref"]
+        pr_ref = pr_data["head"]["ref"]
+        base_sha = pr_data["base"]["sha"]
+        pr_sha = pr_data["head"]["sha"]
+
+        if not all([base_ref, pr_ref, base_sha, pr_sha]):
+            raise RuntimeError("Required GitHub PR information is missing.")
+
+        can_ff = check_fast_forward(base_sha, pr_sha)
+
+        if can_ff:
+            if perform_fast_forward(base_ref, pr_sha):
+                print(f"Fast forwarded `{base_ref}` to `{pr_ref}` successfully.")
+            else:
+                raise RuntimeError("Fast forward failed. Check permissions.")
+        else:
+            raise RuntimeError(f"Can't fast forward `{base_ref}`. Needs rebase.")
+
+        sys.exit(0 if can_ff else 1)
+
+    except Exception as e:
+        print(f"Error: {str(e)}", file=sys.stderr)
+        sys.exit(1)
+
+
+if __name__ == "__main__":
+    main()
