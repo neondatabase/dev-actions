@@ -18,7 +18,7 @@ permissions:
   contents: read
 
 env:
-  DOCKERHUB_REPO: neondatabase/dev-actions
+  GHCR_REPO: ghcr.io/neondatabase/dev-actions
 
 jobs:
   build:
@@ -32,6 +32,9 @@ jobs:
         platform:
           - linux/amd64
           - linux/arm64
+    permissions:
+      contents: read
+      packages: write
     steps:
       - name: Harden the runner (Audit all outbound calls)
         uses: step-security/harden-runner@4d991eb9b905ef189e4c376166672c3f2f230481 # v2.11.0
@@ -47,16 +50,17 @@ jobs:
         id: meta
         uses: docker/metadata-action@902fa8ec7d6ecbf8d84d538b9b233a880e428804 # v5.7.0
         with:
-          images: ${{ env.DOCKERHUB_REPO }}
+          images: ${{ env.GHCR_REPO }}
 
       - name: Set up Docker Buildx
         uses: docker/setup-buildx-action@b5ca514318bd6ebac0fb2aedd5d36ec1b5c232a2 # v3.10.0
 
-      - name: Login to Docker Hub
+      - name: Login to GHCR
         uses: docker/login-action@74a5d142397b4f367a81961eba4e8cd7edddf772 # v3.4.0
         with:
-          username: ${{ secrets.NEON_DOCKERHUB_USERNAME }}
-          password: ${{ secrets.NEON_DOCKERHUB_PASSWORD }}
+          registry: ghcr.io
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
 
       - name: Build and push by digest
         id: build
@@ -65,7 +69,7 @@ jobs:
           context: mutexbot
           platforms: ${{ matrix.platform }}
           labels: ${{ steps.meta.outputs.labels }}
-          outputs: type=image,name=${{ env.DOCKERHUB_REPO }},push-by-digest=true,name-canonical=true,push=true
+          outputs: type=image,name=${{ env.GHCR_REPO }},push-by-digest=true,name-canonical=true,push=true
 
       - name: Export digest
         id: export_digest
@@ -78,17 +82,21 @@ jobs:
     runs-on: ["self-hosted", "small"]
     needs:
       - build
+    permissions:
+      contents: read
+      packages: write
     steps:
       - name: Harden the runner (Audit all outbound calls)
         uses: step-security/harden-runner@4d991eb9b905ef189e4c376166672c3f2f230481 # v2.11.0
         with:
           egress-policy: audit
 
-      - name: Login to Docker Hub
+      - name: Login to GHCR
         uses: docker/login-action@74a5d142397b4f367a81961eba4e8cd7edddf772 # v3.4.0
         with:
-          username: ${{ secrets.NEON_DOCKERHUB_USERNAME }}
-          password: ${{ secrets.NEON_DOCKERHUB_PASSWORD }}
+          registry: ghcr.io
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
 
       - name: Set up Docker Buildx
         uses: docker/setup-buildx-action@b5ca514318bd6ebac0fb2aedd5d36ec1b5c232a2 # v3.10.0
@@ -97,7 +105,7 @@ jobs:
         id: meta
         uses: docker/metadata-action@902fa8ec7d6ecbf8d84d538b9b233a880e428804 # v5.7.0
         with:
-          images: ${{ env.DOCKERHUB_REPO }}
+          images: ${{ env.GHCR_REPO }}
           tags: |
             # branch event
             type=ref,enable=true,priority=600,prefix=mutexbot-,suffix=,event=branch
@@ -110,8 +118,8 @@ jobs:
         run: |
           docker buildx imagetools create \
             $(jq -cr '.tags | map("-t " + .) | join(" ")' <<< "$DOCKER_METADATA_OUTPUT_JSON") \
-            ${{ env.DOCKERHUB_REPO }}@sha256:${{ needs.build.outputs.digest_arm64 }} \
-            ${{ env.DOCKERHUB_REPO }}@sha256:${{ needs.build.outputs.digest_amd64 }}
+            ${{ env.GHCR_REPO }}@sha256:${{ needs.build.outputs.digest_arm64 }} \
+            ${{ env.GHCR_REPO }}@sha256:${{ needs.build.outputs.digest_amd64 }}
 
       - name: Inspect image
-        run: docker buildx imagetools inspect ${{ env.DOCKERHUB_REPO }}:${{ steps.meta.outputs.version }}
+        run: docker buildx imagetools inspect ${{ env.GHCR_REPO }}:${{ steps.meta.outputs.version }}
