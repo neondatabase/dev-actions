@@ -20,6 +20,9 @@ inputs:
     required: false
     default: '15'
 
+# NOTE: as short term fix we refer to commit in 'feat/add-retries' branch
+# Merging PR will lead to conflicts when we want to sync fork.
+# So for long term we should decide how to go there.
 runs:
   using: 'composite'
 
