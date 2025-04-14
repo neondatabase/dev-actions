@@ -2,7 +2,7 @@ use std::{env, str::FromStr, time::Duration};
 
 use anyhow::{Context, Result};
 use ghactions::prelude::*;
-use reqwest::{header, Client, StatusCode};
+use reqwest::{Client, StatusCode, header};
 use serde::{Deserialize, Serialize};
 use tokio::time::sleep;
 
@@ -186,120 +186,124 @@ async fn main() -> Result<()> {
                     .send()
                     .await
                 {
-                    Ok(resp) => {
-                        match resp.status() {
-                            StatusCode::CREATED => {
-                                info!("Resource reserved successfully");
-                                break;
-                            }
-                            StatusCode::CONFLICT => {
-                                info!("Resource already reserved, fetching reservation data.");
-                                match state
-                                    .http
-                                    .get("https://mutexbot.com/api/resources")
-                                    .send()
-                                    .await
-                                {
-                                    Ok(resp) => match resp.status() {
-                                        StatusCode::OK => {
-                                            let resource = resp
-                                                .json::<Vec<ResourceListItem>>()
-                                                .await?
-                                                .into_iter()
-                                                .find(|resource| {
-                                                    resource.name == mutexbot.resource_name
-                                                        && (isolation_channel.is_none()
-                                                            || (resource.isolated
-                                                                && resource.isolation_channel_name
-                                                                    == isolation_channel))
-                                                })
-                                                .context("Could not find resource!")?;
-                                            if resource.active_reservation.is_none() {
-                                                info!("No active reservation.");
-                                            } else {
-                                                let user = resource.active_reservation_user_name.context("Resource doesn't have active_reservation_user_name!")?;
-                                                let reason = resource.active_reservation_reason.context("Resource doesn't have active_reservation_reason!")?;
+                    Ok(resp) => match resp.status() {
+                        StatusCode::CREATED => {
+                            info!("Resource reserved successfully");
+                            break;
+                        }
+                        StatusCode::CONFLICT => {
+                            info!("Resource already reserved, fetching reservation data.");
+                            match state
+                                .http
+                                .get("https://mutexbot.com/api/resources")
+                                .send()
+                                .await
+                            {
+                                Ok(resp) => match resp.status() {
+                                    StatusCode::OK => {
+                                        let resource = resp
+                                            .json::<Vec<ResourceListItem>>()
+                                            .await?
+                                            .into_iter()
+                                            .find(|resource| {
+                                                resource.name == mutexbot.resource_name
+                                                    && (isolation_channel.is_none()
+                                                        || (resource.isolated
+                                                            && resource.isolation_channel_name
+                                                                == isolation_channel))
+                                            })
+                                            .context("Could not find resource!")?;
+                                        if resource.active_reservation.is_none() {
+                                            info!("No active reservation.");
+                                        } else {
+                                            let user = resource.active_reservation_user_name.context("Resource doesn't have active_reservation_user_name!")?;
+                                            let reason = resource.active_reservation_reason.context("Resource doesn't have active_reservation_reason!")?;
 
-                                                if let Some(workflow_url) =
-                                                    reason.split_whitespace().last()
-                                                {
-                                                    if workflow_url.contains("/actions/runs/") {
-                                                        info!("Existing reservation by component {user} in {workflow_url}");
-                                                    } else {
-                                                        info!("Existing reservation by user {user} with reason \"{reason}\"");
-                                                    }
+                                            if let Some(workflow_url) =
+                                                reason.split_whitespace().last()
+                                            {
+                                                if workflow_url.contains("/actions/runs/") {
+                                                    info!(
+                                                        "Existing reservation by component {user} in {workflow_url}"
+                                                    );
                                                 } else {
-                                                    info!("Existing reservation by user {user} with reason \"{reason}\"");
+                                                    info!(
+                                                        "Existing reservation by user {user} with reason \"{reason}\""
+                                                    );
                                                 }
+                                            } else {
+                                                info!(
+                                                    "Existing reservation by user {user} with reason \"{reason}\""
+                                                );
                                             }
                                         }
-                                        StatusCode::BAD_REQUEST => {
-                                            anyhow::bail!("Bad request. Check your input data.");
-                                        }
-                                        StatusCode::UNAUTHORIZED => {
-                                            anyhow::bail!("Unauthorized. Check your API keys.");
-                                        }
-                                        status_code => state
-                                            .status_code(status_code)
-                                            .await
-                                            .context("Failure creating missing resource")?,
-                                    },
-                                    Err(error) => state
-                                        .request_failure(error)
-                                        .await
-                                        .context("Failure fetching resource data")?,
-                                }
-                                info!("Retrying in 5 seconds.");
-                                sleep(BUSY_RETRY).await;
-                            }
-                            StatusCode::BAD_REQUEST => {
-                                anyhow::bail!("Bad request. Check your input data.");
-                            }
-                            StatusCode::UNAUTHORIZED => {
-                                anyhow::bail!("Unauthorized. Check your API keys.");
-                            }
-                            StatusCode::NOT_FOUND => {
-                                info!("Resource not found.");
-                                match state
-                                    .http
-                                    .post("https://mutexbot.com/api/resources")
-                                    .json(&CreatePayload {
-                                        name: mutexbot.resource_name.clone(),
-                                        isolation_channel: isolation_channel.clone(),
-                                    })
-                                    .send()
-                                    .await
-                                {
-                                    Ok(resp) => match resp.status() {
-                                        StatusCode::CREATED => {
-                                            info!("Resource created")
-                                        }
-                                        StatusCode::CONFLICT => {
-                                            info!("Resource already exists, trying again.");
-                                        }
-                                        StatusCode::BAD_REQUEST => {
-                                            anyhow::bail!("Bad request. Check your input data.");
-                                        }
-                                        StatusCode::UNAUTHORIZED => {
-                                            anyhow::bail!("Unauthorized. Check your API keys.");
-                                        }
-                                        status_code => state
-                                            .status_code(status_code)
-                                            .await
-                                            .context("Failure creating missing resource")?,
-                                    },
-                                    Err(error) => state
-                                        .request_failure(error)
+                                    }
+                                    StatusCode::BAD_REQUEST => {
+                                        anyhow::bail!("Bad request. Check your input data.");
+                                    }
+                                    StatusCode::UNAUTHORIZED => {
+                                        anyhow::bail!("Unauthorized. Check your API keys.");
+                                    }
+                                    status_code => state
+                                        .status_code(status_code)
                                         .await
                                         .context("Failure creating missing resource")?,
-                                }
+                                },
+                                Err(error) => state
+                                    .request_failure(error)
+                                    .await
+                                    .context("Failure fetching resource data")?,
                             }
-                            status_code => state
-                                .status_code(status_code)
-                                .await
-                                .context("Failure reserving resource")?,
+                            info!("Retrying in 5 seconds.");
+                            sleep(BUSY_RETRY).await;
                         }
-                    }
+                        StatusCode::BAD_REQUEST => {
+                            anyhow::bail!("Bad request. Check your input data.");
+                        }
+                        StatusCode::UNAUTHORIZED => {
+                            anyhow::bail!("Unauthorized. Check your API keys.");
+                        }
+                        StatusCode::NOT_FOUND => {
+                            info!("Resource not found.");
+                            match state
+                                .http
+                                .post("https://mutexbot.com/api/resources")
+                                .json(&CreatePayload {
+                                    name: mutexbot.resource_name.clone(),
+                                    isolation_channel: isolation_channel.clone(),
+                                })
+                                .send()
+                                .await
+                            {
+                                Ok(resp) => match resp.status() {
+                                    StatusCode::CREATED => {
+                                        info!("Resource created")
+                                    }
+                                    StatusCode::CONFLICT => {
+                                        info!("Resource already exists, trying again.");
+                                    }
+                                    StatusCode::BAD_REQUEST => {
+                                        anyhow::bail!("Bad request. Check your input data.");
+                                    }
+                                    StatusCode::UNAUTHORIZED => {
+                                        anyhow::bail!("Unauthorized. Check your API keys.");
+                                    }
+                                    status_code => state
+                                        .status_code(status_code)
+                                        .await
+                                        .context("Failure creating missing resource")?,
+                                },
+                                Err(error) => state
+                                    .request_failure(error)
+                                    .await
+                                    .context("Failure creating missing resource")?,
+                            }
+                        }
+                        status_code => state
+                            .status_code(status_code)
+                            .await
+                            .context("Failure reserving resource")?,
+                    },
 
                     Err(error) => state
                         .request_failure(error)
