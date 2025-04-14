@@ -20,4 +20,4 @@ inputs:
 outputs: {}
 runs:
   using: docker
-  image: docker://ghcr.io/neondatabase/dev-actions:mutexbot-v0.2.2
+  image: docker://docker.io/neondatabase/mutexbot:v0.2.2

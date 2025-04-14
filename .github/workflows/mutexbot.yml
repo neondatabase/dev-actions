@@ -19,6 +19,7 @@ permissions:
 
 env:
   GHCR_REPO: ghcr.io/neondatabase/dev-actions
+  DOCKERHUB_REPO: docker.io/neondatabase/mutexbot
 
 jobs:
   build:
@@ -85,6 +86,8 @@ jobs:
     permissions:
       contents: read
       packages: write
+    outputs:
+      version: ${{ steps.meta.outputs.version }}
     steps:
       - name: Harden the runner (Audit all outbound calls)
         uses: step-security/harden-runner@4d991eb9b905ef189e4c376166672c3f2f230481 # v2.11.0
@@ -123,3 +126,50 @@ jobs:
 
       - name: Inspect image
         run: docker buildx imagetools inspect ${{ env.GHCR_REPO }}:${{ steps.meta.outputs.version }}
+
+  copy_to_dockerhub:
+    runs-on: ["self-hosted", "small"]
+    needs:
+      - merge
+    permissions:
+      packages: read
+    steps:
+      - name: Harden the runner (Audit all outbound calls)
+        uses: step-security/harden-runner@4d991eb9b905ef189e4c376166672c3f2f230481 # v2.11.0
+        with:
+          egress-policy: audit
+
+      - name: Login to GHCR
+        uses: docker/login-action@74a5d142397b4f367a81961eba4e8cd7edddf772 # v3.4.0
+        with:
+          registry: ghcr.io
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Login to dockerhub
+        uses: docker/login-action@74a5d142397b4f367a81961eba4e8cd7edddf772 # v3.4.0
+        with:
+          registry: docker.io
+          username: ${{ secrets.NEON_DOCKERHUB_USERNAME }}
+          password: ${{ secrets.NEON_DOCKERHUB_PASSWORD }}
+          
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@b5ca514318bd6ebac0fb2aedd5d36ec1b5c232a2 # v3.10.0
+    
+      - name: Docker meta
+        uses: docker/metadata-action@902fa8ec7d6ecbf8d84d538b9b233a880e428804 # v5.7.0
+        with:
+          images: ${{ env.DOCKERHUB_REPO }}
+          tags: |
+            # branch event
+            type=ref,enable=true,priority=600,prefix=,suffix=,event=branch
+            # pull request event
+            type=ref,enable=true,priority=600,prefix=pr-,suffix=,event=pr
+            # tags event
+            type=match,pattern=mutexbot-(v.*),group=1
+
+      - name: Push to dockerhub
+        run: |
+          docker buildx imagetools create \
+            $(jq -cr '.tags | map("-t " + .) | join(" ")' <<< "$DOCKER_METADATA_OUTPUT_JSON") \
+            ${{ env.GHCR_REPO }}:${{ needs.merge.outputs.version }}
