@@ -1,0 +1,20 @@
+[project]
+name = "neon-release"
+version = "0.1.0"
+description = "CLI to help with neon releases."
+readme = "README.md"
+authors = [
+    { name = "Jan Christian Grünhage", email = "jc@neon.tech" }
+]
+requires-python = ">=3.13"
+dependencies = [
+    "rich>=14.0.0",
+    "typer[all]>=0.15.2",
+]
+
+[project.scripts]
+neon-release = "neon_release.cli:app"
+
+[build-system]
+requires = ["hatchling"]
+build-backend = "hatchling.build"
