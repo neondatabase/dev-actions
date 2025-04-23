@@ -1,0 +1,70 @@
+name: "Create release PR"
+description: "Create a release PR using neon-release-pr"
+inputs:
+  component:
+    description: "The component to release"
+    required: true
+  base:
+    description: "Base branch"
+    required: false
+  hotfix:
+    description: "Whether to treat this as a hotfix"
+    required: false
+  cherry-pick:
+    description: "JSON array of commits to cherry-pick"
+    required: false
+  auto-merge:
+    description: "Enable auto-merge after PR approval"
+    required: false
+  auto-approve:
+    description: "Automatically approve the PR"
+    required: false
+
+runs:
+  using: "composite"
+  steps:
+    - name: Install uv
+      uses: astral-sh/setup-uv@d4b2f3b6ecc6e67c4457f6d3e41ec42d3d0fcb86 # v5.4.2
+      with:
+        version: "0.6.16"
+
+    - name: Install neon-release-pr
+      shell: bash
+      run: |
+        cd ${{ github.action_path }}
+        uv sync
+        uv build
+        pip install dist/neon_release_pr-*-py3-none-any.whl
+
+
+    - name: Run neon-release-pr
+      shell: bash
+      run: |
+        set -euo pipefail
+
+        neon_release_pr_args=( "${{ inputs.component }}" )
+
+        if [[ -n "${{ inputs.base }}" ]]; then
+          neon_release_pr_args+=( --base "${{ inputs.base }}" )
+        fi
+
+        if [[ "${{ inputs.hotfix }}" == "true" ]]; then
+          neon_release_pr_args+=( --hotfix )
+        fi
+
+        if [[ -n "${{ inputs.cherry-pick }}" ]]; then
+          echo '${{ inputs.cherry-pick }}' | jq -r '.[]' | while read -r commit; do
+            neon_release_pr_args+=( --cherry-pick "$commit" )
+          done
+        fi
+
+        if [[ "${{ inputs.auto-merge }}" == "true" ]]; then
+          neon_release_pr_args+=( --auto-merge )
+        fi
+
+        if [[ "${{ inputs.auto-approve }}" == "true" ]]; then
+          neon_release_pr_args+=( --auto-approve )
+        fi
+
+        neon-release-pr new "${neon_release_pr_args[@]}"
+
