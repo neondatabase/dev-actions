@@ -52,8 +52,9 @@ runs:
           neon_release_pr_args+=( --hotfix )
         fi
 
-        if [[ -n "${{ inputs.cherry-pick }}" ]]; then
-          echo '${{ inputs.cherry-pick }}' | jq -r '.[]' | while read -r commit; do
+        if [[ -n '${{ inputs.cherry-pick }}' ]]; then
+          readarray -t commits < <(echo '${{ inputs.cherry-pick }}' | jq -r '.[]')
+          for commit in "${commits[@]}"; do
             neon_release_pr_args+=( --cherry-pick "$commit" )
           done
         fi
