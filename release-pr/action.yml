@@ -7,9 +7,6 @@ inputs:
   base:
     description: "Base branch"
     required: false
-  hotfix:
-    description: "Whether to treat this as a hotfix"
-    required: false
   cherry-pick:
     description: "JSON array of commits to cherry-pick"
     required: false
@@ -42,21 +39,10 @@ runs:
       run: |
         set -euo pipefail
 
-        neon_release_pr_args=( "${{ inputs.component }}" )
+        neon_release_pr_args=( )
 
         if [[ -n "${{ inputs.base }}" ]]; then
           neon_release_pr_args+=( --base "${{ inputs.base }}" )
-        fi
-
-        if [[ "${{ inputs.hotfix }}" == "true" ]]; then
-          neon_release_pr_args+=( --hotfix )
-        fi
-
-        if [[ -n '${{ inputs.cherry-pick }}' ]]; then
-          readarray -t commits < <(echo '${{ inputs.cherry-pick }}' | jq -r '.[]')
-          for commit in "${commits[@]}"; do
-            neon_release_pr_args+=( --cherry-pick "$commit" )
-          done
         fi
 
         if [[ "${{ inputs.auto-merge }}" == "true" ]]; then
@@ -67,5 +53,6 @@ runs:
           neon_release_pr_args+=( --auto-approve )
         fi
 
-        neon-release-pr new "${neon_release_pr_args[@]}"
+        read -ra commits <<< "${{ inputs.cherry-pick }}"
 
+        neon-release-pr new "${neon_release_pr_args[@]}" "${{ inputs.component }}" "${commits[@]}"

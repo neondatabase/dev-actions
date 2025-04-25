@@ -20,38 +20,36 @@ def main(
 ):
     """neon-release is a CLI tool for releasing components at neon"""
     ctx.dry_run = dry_run
+    git.ready()
 
 
 @app.command()
 def new(
-    component: Annotated[str, typer.Argument(envvar="NEON_RELEASE_PR_COMPONENT")],
+    component: Annotated[str, typer.Argument(metavar="COMPONENT", show_default=False)],
+    cherry_pick: Annotated[
+        Optional[list[str]],
+        typer.Argument(
+            metavar="COMMIT...",
+            show_default=False,
+            help="Commit(s) to cherry-pick onto the release branch. Implies --base set to the previous release.",
+        ),
+    ] = None,
     base: Annotated[
         Optional[str],
-        typer.Option(metavar="REF", help="Base to release from.", show_default="main"),
+        typer.Option(
+            "--base",
+            "--from-commit-sha",
+            metavar="REF",
+            help="Base to release from.",
+            show_default="main",
+        ),
     ] = None,
-    hotfix: Annotated[
-        bool,
-        typer.Option(
-            "--hotfix",
-            help="Shortcut: set base to <release-branch>.",
-            envvar="NEON_RELEASE_PR_HOTFIX",
-        ),
-    ] = False,
-    cherry_pick: Annotated[
-        list[str],
-        typer.Option(
-            "--cherry-pick",
-            metavar="COMMIT",
-            help="Cherry-pick commits (can be used multiple times).",
-            envvar="NEON_RELEASE_PR_CHERRY_PICK",
-        ),
-    ] = [],
     auto_merge: Annotated[
         bool,
         typer.Option(
             "--auto-merge",
+            "--automatic",
             help="Enable auto-merge after PR approval.",
-            envvar="NEON_RELEASE_PR_AUTO_MERGE",
         ),
     ] = False,
     auto_approve: Annotated[
@@ -59,21 +57,19 @@ def new(
         typer.Option(
             "--auto-approve",
             help="Automatically approve the PR.",
-            envvar="NEON_RELEASE_PR_AUTO_APPROVE",
         ),
     ] = False,
 ):
-    if hotfix and base is not None:
-        raise typer.BadParameter("--hotfix cannot be used together with --base")
-    elif hotfix:
-        base = f"release-{component}"
-    elif base is None:
-        base = "main"
-
     ctx.component = component
     ctx.reference_time = datetime.now(timezone.utc)
 
     ctx.validate()
+    gh.ready()
+
+    if cherry_pick and base is None:
+        base = git.release_branch_name()
+    elif base is None:
+        base = "main"
 
     branch_name = git.rc_branch_name()
 
@@ -86,8 +82,16 @@ def new(
         git.fetch_all()
         git.create_from_remote(base, branch_name)
         if cherry_pick:
-            typer.echo(f"[info] Applying {len(cherry_pick)} cherry-pick(s)...")
-            git.apply_commits(list(cherry_pick))
+            verified_commits = []
+            for commit in cherry_pick:
+                try:
+                    verified_commits.append(git.verify_commit(commit))
+                except Exception:
+                    raise typer.BadParameter(
+                        f'Invalid commit "{commit}" passed to cherry_pick!'
+                    )
+            typer.echo(f"[info] Applying {len(verified_commits)} cherry-pick(s)...")
+            git.apply_commits(verified_commits)
         git.create_release_merge_commit()
         git.push_current_branch_to_origin(branch_name)
         typer.echo("[success] RC branch pushed successfully")
@@ -97,7 +101,7 @@ def new(
         raise typer.Exit(code=1)
 
     pr_title = git.merge_message()
-    labels = ["release/hotfix"] if hotfix else []
+    labels = ["release/hotfix"] if cherry_pick else []
 
     try:
         pr_url = gh.create_pr(branch_name, git.release_branch_name(), pr_title, labels)

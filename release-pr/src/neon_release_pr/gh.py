@@ -1,7 +1,22 @@
 from neon_release_pr.context import ctx
 from os import environ
-from subprocess import run, PIPE
+from shutil import which
+from subprocess import run, PIPE, CalledProcessError, DEVNULL
 from typing import Optional
+
+
+def ready():
+    """Ensure GitHub CLI is installed and authenticated."""
+    if which("gh") is None:
+        raise RuntimeError(
+            "GitHub CLI (gh) is not installed. Please install it: https://cli.github.com/"
+        )
+
+    try:
+        run(["gh", "auth", "status"], check=True, stdout=DEVNULL, stderr=DEVNULL)
+    except CalledProcessError:
+        print("[info] GitHub CLI not authenticated, running 'gh auth login'...")
+        run(["gh", "auth", "login", "--hostname", "github.com"], check=True)
 
 
 def run_gh(
