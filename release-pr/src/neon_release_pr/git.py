@@ -1,8 +1,38 @@
 from datetime import datetime, timezone
 from neon_release_pr.context import ctx
-from subprocess import run, PIPE
+from shutil import which
+from subprocess import run, PIPE, CalledProcessError
 from typing import Optional
 import re
+
+
+def ready():
+    if which("git") is None:
+        raise RuntimeError("git CLI is not installed or not found in PATH")
+
+    try:
+        run_git(
+            ["config", "--get", "user.name"],
+            capture_output=True,
+            dry_run=False,
+            silent=True,
+        )
+    except CalledProcessError:
+        raise RuntimeError(
+            "git user.name is not configured. Please run: git config --global user.name 'Your Name'"
+        )
+
+    try:
+        run_git(
+            ["config", "--get", "user.email"],
+            capture_output=True,
+            dry_run=False,
+            silent=True,
+        )
+    except CalledProcessError:
+        raise RuntimeError(
+            "git user.email is not configured. Please run: git config --global user.email 'you@example.com'"
+        )
 
 
 def run_git(
@@ -11,11 +41,13 @@ def run_git(
     check: bool = True,
     capture_output: bool = False,
     dry_run: Optional[bool] = None,
+    silent: bool = False,
 ) -> Optional[str]:
     """Run a git command and return stdout as string (trimmed)."""
     if dry_run is None:
         dry_run = ctx.dry_run
-    print(f"[{'dry-run' if dry_run else 'running'}] git {' '.join(args)}")
+    if not silent:
+        print(f"[{'dry-run' if dry_run else 'running'}] git {' '.join(args)}")
     if dry_run:
         return ""
     result = run(
@@ -66,6 +98,16 @@ def get_tree_sha(commit: str) -> str:
 
 def get_commit_sha(ref: str) -> str:
     commit_sha = run_git(["rev-parse", ref], capture_output=True, dry_run=False)
+    assert isinstance(commit_sha, str)
+    return commit_sha
+
+
+def verify_commit(commit: str) -> str:
+    commit_sha = run_git(
+        ["rev-parse", "--verify", f"{commit}^{{commit}}"],
+        capture_output=True,
+        dry_run=False,
+    )
     assert isinstance(commit_sha, str)
     return commit_sha
 
