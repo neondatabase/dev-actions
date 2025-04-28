@@ -55,7 +55,7 @@ def new(
     auto_approve: Annotated[
         bool,
         typer.Option(
-            "--auto-approve",
+            "--approve",
             help="Automatically approve the PR.",
         ),
     ] = False,
