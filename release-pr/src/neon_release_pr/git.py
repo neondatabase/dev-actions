@@ -163,7 +163,7 @@ def release_branch_name() -> str:
 
 
 def merge_message() -> str:
-    return f"{ctx.component.capitalize()} release {ctx.reference_time.strftime('%Y/%m/%d %H:%M UTC')}"
+    return f"{ctx.component.capitalize()} release {ctx.reference_time.strftime('%Y-%m-%d %H:%M UTC')}"
 
 
 def parse_rc_branch_to_context(branch: str):
