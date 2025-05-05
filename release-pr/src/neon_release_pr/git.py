@@ -64,7 +64,12 @@ def fetch_all():
 
 
 def create_from_remote(base_branch: str, new_branch: str):
-    run_git(["switch", "-c", new_branch, f"origin/{base_branch}"])
+    # Assume the base_branch is a remote branch by default, fall back to local
+    # for branches not pushed to remote or commit hashes
+    try:
+        run_git(["switch", "-c", new_branch, f"origin/{base_branch}"])
+    except Exception:
+        run_git(["switch", "-c", new_branch, base_branch])
 
 
 def switch_to_branch(branch: str):
