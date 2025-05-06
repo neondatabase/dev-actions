@@ -187,5 +187,5 @@ def parse_rc_branch_to_context(branch: str):
 
     ctx.component = match.group("component")
     ctx.reference_time = datetime.strptime(
-        match.group("timestamp"), "%Y-%m-%dT%H:%MZ"
+        match.group("timestamp"), "%Y-%m-%dT%H-%MZ"
     ).replace(tzinfo=timezone.utc)

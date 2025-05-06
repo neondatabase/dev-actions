@@ -1,6 +1,7 @@
 from dataclasses import dataclass, field
 from datetime import datetime
 from typing import Optional
+from os import environ
 
 
 @dataclass
@@ -17,7 +18,7 @@ class ReleaseContext:
 
     @dry_run.setter
     def dry_run(self, value: bool):
-        if self._dry_run is not None:
+        if self._dry_run is not None and "PYTEST_CURRENT_TEST" not in environ:
             raise RuntimeError("ctx.dry_run is already set!")
         self._dry_run = value
 
@@ -29,7 +30,7 @@ class ReleaseContext:
 
     @component.setter
     def component(self, value: str):
-        if self._component is not None:
+        if self._component is not None and "PYTEST_CURRENT_TEST" not in environ:
             raise RuntimeError("ctx.component is already set!")
         self._component = value
 
@@ -41,7 +42,7 @@ class ReleaseContext:
 
     @reference_time.setter
     def reference_time(self, value: datetime):
-        if self._reference_time is not None:
+        if self._reference_time is not None and "PYTEST_CURRENT_TEST" not in environ:
             raise RuntimeError("ctx.reference_time is already set!")
         self._reference_time = value
 
