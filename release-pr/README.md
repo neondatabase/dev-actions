@@ -109,7 +109,12 @@ jobs:
 You can install the tool directly from the repository:
 
 ```bash
-pip install git+https://github.com/neondatabase/dev-actions.git#subdirectory=release-pr
+pipx install git+https://github.com/neondatabase/dev-actions.git#subdirectory=release-pr
+```
+
+Alternatively, if you're on macOS:
+```bash
+brew install neondatabase-labs/tap/neon-release-pr
 ```
 
 ## CLI Usage
