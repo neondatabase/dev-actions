@@ -25,7 +25,7 @@ runs:
 
   - uses: pyTooling/Actions/with-post-step@1c42072471b9bb10cbe1c25b3d31560bc4517161 # v1.1.0
     env:
-      DOCKER_CONFIG: .docker-custom-${{ github.run_id }}-${{ github.run_attempt }}
+      DOCKER_CONFIG: docker-config-custom-${{ github.run_id }}-${{ github.run_attempt }}
     with:
       main: |
         mkdir -p "${DOCKER_CONFIG}"
