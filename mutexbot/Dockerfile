@@ -10,9 +10,6 @@ FROM docker.io/library/debian:bookworm-slim
 WORKDIR /app
 
 RUN apt-get update && apt-get install -y \
-      libssl3 \
       ca-certificates
 
 COPY --from=builder /app/target/release/mutexbot /usr/local/bin/mutexbot
-
-CMD ["mutexbot"]

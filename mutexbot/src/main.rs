@@ -1,72 +1,14 @@
-use std::{env, str::FromStr, time::Duration};
+use std::time::Duration;
 
 use anyhow::{Context, Result};
-use ghactions::prelude::*;
+use clap::Parser;
+use cli::Mode;
+use log::info;
 use reqwest::{Client, StatusCode, header};
 use serde::{Deserialize, Serialize};
 use tokio::time::sleep;
 
-#[derive(Actions, Debug, Clone)]
-#[action(
-    name = "Mutexbot",
-    description = "Action to reserve and release resources on mutexbot.com",
-    // Commented out so that we can point to a pre-built container image in action.yml
-    // path = "./action.yml",
-    // image = "./Dockerfile",
-)]
-struct MutexBot {
-    #[input(description = "Mutexbot API key")]
-    api_key: String,
-    #[input(
-        description = "Whether to reserve or release or force-release",
-        default = "reserve"
-    )]
-    mode: String,
-    #[input(description = "Mutexbot resource name")]
-    resource_name: String,
-    #[input(description = "Duration for which to reserve", default = "")]
-    duration: String,
-    #[input(description = "Isolation channel of resource", default = "")]
-    isolation_channel: String,
-}
-
-enum Mode {
-    Reserve,
-    Release,
-    ForceRelease,
-}
-
-impl FromStr for Mode {
-    type Err = anyhow::Error;
-
-    fn from_str(input: &str) -> Result<Self> {
-        match input {
-            "reserve" => Ok(Self::Reserve),
-            "release" => Ok(Self::Release),
-            "force-release" => Ok(Self::ForceRelease),
-            other => anyhow::bail!("`mode` must be `reserve` or `release`, but got `{other}`"),
-        }
-    }
-}
-
-impl Mode {
-    fn api_endpoint(&self, resource_name: &str) -> String {
-        match self {
-            Mode::Reserve => format!(
-                "https://mutexbot.com/api/resources/global/{}/reserve",
-                resource_name,
-            ),
-            Mode::Release => format!(
-                "https://mutexbot.com/api/resources/global/{}/release",
-                resource_name,
-            ),
-            Mode::ForceRelease => format!(
-                "https://mutexbot.com/api/resources/global/{}/force-release",
-                resource_name,
-            ),
-        }
-    }
-}
+pub(crate) mod cli;
 
 struct State {
     http: Client,
@@ -147,41 +89,26 @@ const BUSY_RETRY: Duration = Duration::from_secs(5);
 
 #[tokio::main]
 async fn main() -> Result<()> {
-    let mutexbot = MutexBot::init().context("Failure to initialize action parameters")?;
-    let mut state = State::new(&mutexbot.api_key).context("Failure to initialize action state")?;
+    let log_env = env_logger::Env::default().filter_or("MUTEXBOT_LOG_LEVEL", "info");
+    env_logger::Builder::from_env(log_env).init();
+    let args = cli::Cli::parse();
+    let mut state = State::new(&args.api_key()?).context("Failure to initialize action state")?;
 
-    let isolation_channel = if mutexbot.isolation_channel.is_empty() {
-        None
-    } else {
-        Some(mutexbot.isolation_channel)
-    };
-
-    let mode = Mode::from_str(mutexbot.mode.as_str()).context("Failed to parse mode")?;
-
-    match mode {
-        Mode::Reserve => {
-            let notes = format!(
-                "Reserved by {}/{}/actions/runs/{}",
-                env::var("GITHUB_SERVER_URL")
-                    .context("Failure to load GITHUB_SERVER_URL env var")?,
-                env::var("GITHUB_REPOSITORY")
-                    .context("Failure to load GITHUB_REPOSITORY env var")?,
-                env::var("GITHUB_RUN_ID").context("Failure to load GITHUB_RUN_ID env var")?,
-            );
-            let duration = if mutexbot.duration.is_empty() {
-                None
-            } else {
-                Some(mutexbot.duration)
-            };
+    match &args.mode {
+        Mode::Reserve {
+            duration,
+            notes,
+            resource_name,
+        } => {
             let payload = ReservePayload {
-                notes,
-                duration,
-                isolation_channel: isolation_channel.clone(),
+                notes: notes.clone(),
+                duration: duration.clone(),
+                isolation_channel: args.isolation_channel.clone(),
             };
             loop {
                 match state
                     .http
-                    .post(mode.api_endpoint(&mutexbot.resource_name))
+                    .post(args.mode.api_endpoint())
                     .json(&payload)
                     .send()
                     .await
@@ -206,11 +133,11 @@ async fn main() -> Result<()> {
                                             .await?
                                             .into_iter()
                                             .find(|resource| {
-                                                resource.name == mutexbot.resource_name
-                                                    && (isolation_channel.is_none()
+                                                &resource.name == resource_name
+                                                    && (args.isolation_channel.is_none()
                                                         || (resource.isolated
                                                             && resource.isolation_channel_name
-                                                                == isolation_channel))
+                                                                == args.isolation_channel))
                                             })
                                             .context("Could not find resource!")?;
                                         if resource.active_reservation.is_none() {
@@ -269,8 +196,8 @@ async fn main() -> Result<()> {
                                 .http
                                 .post("https://mutexbot.com/api/resources")
                                 .json(&CreatePayload {
-                                    name: mutexbot.resource_name.clone(),
-                                    isolation_channel: isolation_channel.clone(),
+                                    name: resource_name.clone(),
+                                    isolation_channel: args.isolation_channel.clone(),
                                 })
                                 .send()
                                 .await
@@ -312,12 +239,14 @@ async fn main() -> Result<()> {
                 }
             }
         }
-        Mode::Release | Mode::ForceRelease => {
-            let payload = ReleasePayload { isolation_channel };
+        Mode::Release { .. } | Mode::ForceRelease { .. } => {
+            let payload = ReleasePayload {
+                isolation_channel: args.isolation_channel,
+            };
             loop {
                 match state
                     .http
-                    .post(mode.api_endpoint(&mutexbot.resource_name))
+                    .post(args.mode.api_endpoint())
                     .json(&payload)
                     .send()
                     .await
