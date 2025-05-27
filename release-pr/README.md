@@ -109,7 +109,14 @@ jobs:
 You can install the tool directly from the repository:
 
 ```bash
-pip install git+https://github.com/neondatabase/dev-actions.git#subdirectory=release-pr
+# via uv, automatically creates a virtual env per tool. You can
+# replace `uv tool` with `pip` to install using pip
+uv tool install git+https://github.com/neondatabase/dev-actions.git#subdirectory=release-pr
+```
+
+Alternatively, if you're on macOS:
+```bash
+brew install neondatabase-labs/tap/neon-release-pr
 ```
 
 ## CLI Usage

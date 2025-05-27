@@ -17,8 +17,8 @@ dependencies = [
 neon-release-pr = "neon_release_pr.cli:app"
 
 [build-system]
-requires = ["hatchling"]
-build-backend = "hatchling.build"
+requires = ["uv_build>=0.7,<0.8"]
+build-backend = "uv_build"
 
 [dependency-groups]
 dev = [
