@@ -9,10 +9,9 @@ RUN cargo build --release
 FROM docker.io/library/debian:bookworm-slim
 WORKDIR /app
 
-RUN apt-get update && apt-get install -y \
-      libssl3 \
-      ca-certificates
+RUN apt-get update && apt-get install -y ca-certificates
 
 COPY --from=builder /app/target/release/mutexbot /usr/local/bin/mutexbot
+COPY entrypoint.sh /usr/local/bin/entrypoint
 
-CMD ["mutexbot"]
+ENTRYPOINT /usr/local/bin/entrypoint
