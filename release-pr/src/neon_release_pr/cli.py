@@ -1,7 +1,6 @@
 from datetime import datetime, timezone
 from neon_release_pr import git, gh
 from neon_release_pr.context import ctx
-from typing import Optional
 from typing_extensions import Annotated
 import typer
 
@@ -27,7 +26,7 @@ def main(
 def new(
     component: Annotated[str, typer.Argument(metavar="COMPONENT", show_default=False)],
     cherry_pick: Annotated[
-        Optional[list[str]],
+        list[str] | None,
         typer.Argument(
             metavar="COMMIT...",
             show_default=False,
@@ -35,7 +34,7 @@ def new(
         ),
     ] = None,
     base: Annotated[
-        Optional[str],
+        str | None,
         typer.Option(
             "--base",
             "--from-commit-sha",
@@ -122,7 +121,7 @@ def new(
 @amend_app.command("start")
 def amend_start(
     branch: Annotated[
-        Optional[str],
+        str | None,
         typer.Option(
             metavar="REF",
             help="RC branch to amend",

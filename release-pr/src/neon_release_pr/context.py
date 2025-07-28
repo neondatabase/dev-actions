@@ -1,14 +1,13 @@
 from dataclasses import dataclass, field
 from datetime import datetime
-from typing import Optional
 from os import environ
 
 
 @dataclass
 class ReleaseContext:
-    _dry_run: Optional[bool] = field(default=None, repr=False)
-    _component: Optional[str] = field(default=None, repr=False)
-    _reference_time: Optional[datetime] = field(default=None, repr=False)
+    _dry_run: bool | None = field(default=None, repr=False)
+    _component: str | None = field(default=None, repr=False)
+    _reference_time: datetime | None = field(default=None, repr=False)
 
     @property
     def dry_run(self) -> bool:

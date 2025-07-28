@@ -2,7 +2,6 @@ from datetime import datetime, timezone
 from neon_release_pr.context import ctx
 from shutil import which
 from subprocess import run, PIPE, CalledProcessError
-from typing import Optional
 import re
 
 
@@ -40,9 +39,9 @@ def run_git(
     *,
     check: bool = True,
     capture_output: bool = False,
-    dry_run: Optional[bool] = None,
+    dry_run: bool | None = None,
     silent: bool = False,
-) -> Optional[str]:
+) -> str | None:
     """Run a git command and return stdout as string (trimmed)."""
     if dry_run is None:
         dry_run = ctx.dry_run

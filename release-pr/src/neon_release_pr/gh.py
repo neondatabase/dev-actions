@@ -2,7 +2,6 @@ from neon_release_pr.context import ctx
 from os import environ
 from shutil import which
 from subprocess import run, PIPE, CalledProcessError, DEVNULL
-from typing import Optional
 
 
 def ready():
@@ -24,8 +23,8 @@ def run_gh(
     *,
     check: bool = True,
     capture_output: bool = False,
-    token: Optional[str] = None,
-) -> Optional[str]:
+    token: str | None = None,
+) -> str | None:
     print(f"[{'dry-run' if ctx.dry_run else 'running'}] gh {' '.join(args)}")
     if ctx.dry_run:
         return ""
