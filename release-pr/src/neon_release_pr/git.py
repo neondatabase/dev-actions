@@ -3,6 +3,7 @@ from neon_release_pr.context import ctx
 from shutil import which
 from subprocess import run, PIPE, CalledProcessError
 import re
+import typer
 
 
 def ready():
@@ -160,10 +161,52 @@ def rc_branch_name() -> str:
 
 
 def release_branch_name() -> str:
-    if ctx.component == "storage":
-        return "release"
-    else:
-        return f"release-{ctx.component}"
+    return release_branch_name_override() or f"release-{ctx.component}"
+
+
+def release_branch_name_override() -> str | None:
+    overrides = {
+        "neondatabase/neon": {
+            "storage": "release",
+        },
+        "databricks-eng/hadron": {
+            "storage": "neon-release-storage",
+            "compute": "neon-release-compute",
+            "proxy": "neon-release-proxy",
+            "hcm": "release-compute",
+            "hadron": "release",
+        },
+    }
+
+    repo = github_repo()
+
+    if repo is None:
+        return None
+
+    if repo not in overrides:
+        typer.echo(f"[info] no repo override found for repo {repo}")
+        return None
+
+    return overrides[repo].get(ctx.component, None)
+
+
+def github_repo() -> str | None:
+    url = origin_url()
+    typer.echo(url)
+    if url is None:
+        return None
+
+    repo = re.findall(r"[:/]([^/]+/[^/]+)\.git", url)
+
+    assert len(repo) == 1, (
+        "There should be exactly one repo owner/name match in the url for remote origin"
+    )
+
+    return repo[0]
+
+
+def origin_url() -> str | None:
+    return run_git(["remote", "get-url", "origin"], capture_output=True, dry_run=False)
 
 
 def merge_message() -> str:
