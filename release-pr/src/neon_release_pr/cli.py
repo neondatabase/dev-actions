@@ -68,7 +68,7 @@ def new(
     if cherry_pick and base is None:
         base = git.release_branch_name()
     elif base is None:
-        base = "main"
+        base = git.base_branch_name()
 
     branch_name = git.rc_branch_name()
 

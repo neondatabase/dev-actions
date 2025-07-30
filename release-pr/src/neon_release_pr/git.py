@@ -164,6 +164,10 @@ def release_branch_name() -> str:
     return release_branch_name_override() or f"release-{ctx.component}"
 
 
+def base_branch_name() -> str:
+    return "neon-main" if release_branch_name().startswith("neon-release-") else "main"
+
+
 def release_branch_name_override() -> str | None:
     overrides = {
         "neondatabase/neon": {
