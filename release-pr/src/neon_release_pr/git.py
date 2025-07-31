@@ -182,7 +182,7 @@ def release_branch_name_override() -> str | None:
         },
     }
 
-    repo = github_repo()
+    repo = github_repo(origin_url())
 
     if repo is None:
         return None
@@ -194,19 +194,18 @@ def release_branch_name_override() -> str | None:
     return overrides[repo].get(ctx.component, None)
 
 
-def github_repo() -> str | None:
-    url = origin_url()
-    typer.echo(url)
-    if url is None:
+def github_repo(origin_url: str | None) -> str | None:
+    typer.echo(origin_url)
+    if origin_url is None:
         return None
 
-    repo = re.findall(r"[:/]([^/]+/[^/]+)\.git", url)
+    match = re.search(r"github.com[:\d/]+?(?P<repo>[^/]+?/[^/]+?)(\.git)?$", origin_url)
 
-    assert len(repo) == 1, (
+    assert match, (
         "There should be exactly one repo owner/name match in the url for remote origin"
     )
 
-    return repo[0]
+    return match.group("repo")
 
 
 def origin_url() -> str | None:
