@@ -90,7 +90,7 @@ def current_branch() -> str:
 
 def apply_commits(commits: list[str]):
     for commit in commits:
-        run_git(["cherry-pick", commit])
+        run_git(["cherry-pick", "--allow-empty", commit])
 
 
 def get_tree_sha(commit: str) -> str:
