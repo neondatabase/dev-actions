@@ -1,6 +1,6 @@
 [project]
 name = "neon-release-pr"
-version = "0.2.0"
+version = "0.2.1"
 description = "CLI to help with neon release PRs."
 readme = "README.md"
 authors = [
