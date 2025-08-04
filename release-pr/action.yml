@@ -25,16 +25,16 @@ runs:
       with:
         version: "0.6.16"
 
-    - name: Install neon-release-pr
+    - name: Build neon-release-pr
       shell: bash
       run: |
-        cd ${{ github.action_path }}
+        cd ${GITHUB_ACTION_PATH}
         uv sync
         uv build
-        pip install dist/neon_release_pr-*-py3-none-any.whl
-
 
     - name: Run neon-release-pr
+      env:
+        UV_PROJECT: ${{ github.action_path }}
       shell: bash
       run: |
         set -euo pipefail
