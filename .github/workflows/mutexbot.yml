@@ -195,15 +195,9 @@ jobs:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
 
       - name: Create or update pre-release
-        if: github.ref_type != 'tag'
+        if: github.event_name == 'pull_request'
         run: |
-          if [[ "${{ github.event_name }}" == "pull_request" ]]; then
-            TAG="mutexbot-pr-${{ github.event.pull_request.number }}"
-          elif [[ "${{ github.ref_name }}" == "main" ]]; then
-            TAG="mutexbot-main"
-          else
-            echo "Unsupported pre-release trigger" && exit 1
-          fi
+          TAG="mutexbot-pr-${{ github.event.pull_request.number }}"
 
           # Delete existing pre-release if it exists
           if gh release view "$TAG" --repo "$GITHUB_REPOSITORY" > /dev/null 2>&1; then
@@ -222,11 +216,11 @@ jobs:
             --notes "Pre-release for $TAG" \
             mutexbot-*.tar.zst
         env:
-          COMMIT_SHA: ${{ github.event.pull_request.head.sha || github.sha }}
+          COMMIT_SHA: ${{ github.event.pull_request.head.sha }}
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
 
   test-mutexbot-action:
-    if: github.event_name != 'pull_request' || github.event.action != 'closed'
+    if: github.event_name == 'pull_request' || github.ref_type == 'tag'
     needs: [create-release]
     runs-on: ubuntu-latest
     steps:
