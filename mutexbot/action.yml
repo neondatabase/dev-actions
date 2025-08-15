@@ -41,7 +41,7 @@ runs:
         if [[ "$REF" =~ ^[0-9a-f]{40}$ ]]; then
           echo "Ref is a commit SHA, resolving to release tag..."
     
-          tag=$(gh api repos/neondatabase/dev-actions/releases --paginate | jq -r --arg sha "$REF" 'map(select(.target_commitish == $sha)) | first | .tag_name // error("No release tag found for commit " + $sha)')
+          tag=$(gh api repos/neondatabase/dev-actions/git/matching-refs/tags --paginate | jq -r --arg sha "$REF" 'map(select(.object.sha == $sha)) | first | .ref | ltrimstr("refs/tags/") // error("No release tag found for commit " + $sha)')
     
           echo "tag=$tag" | tee -a "$GITHUB_OUTPUT"
         else
