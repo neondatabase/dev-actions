@@ -18,16 +18,16 @@ env:
 
 jobs:
   build-image:
-    runs-on: ${{ fromJson(format('["self-hosted", "{0}"]', matrix.platform == 'linux/arm64' && 'small-arm64' || 'small')) }}
+    runs-on: ${{ matrix.runner }}
     outputs:
-      digest_arm64: ${{ steps.export_digest.outputs.digest_arm64 }}
-      digest_amd64: ${{ steps.export_digest.outputs.digest_amd64 }}
+      digest_x86_64: ${{ steps.export_digest.outputs.digest_x86_64 }}
+      digest_aarch64: ${{ steps.export_digest.outputs.digest_aarch64 }}
     strategy:
       fail-fast: false
       matrix:
-        platform:
-          - linux/amd64
-          - linux/arm64
+        runner:
+          - ubuntu-24.04
+          - ubuntu-24.04-arm
     permissions:
       contents: read
       packages: write
@@ -63,16 +63,14 @@ jobs:
         uses: docker/build-push-action@471d1dc4e07e5cdedd4c2171150001c434f0b7a4 # v6.15.0
         with:
           context: mutexbot
-          platforms: ${{ matrix.platform }}
           labels: ${{ steps.meta.outputs.labels }}
           outputs: type=image,name=${{ env.GHCR_REPO }},push-by-digest=true,name-canonical=true,push=true
 
       - name: Export digest
         id: export_digest
         run: |
-          arch="$(echo -n ${{ matrix.platform }} | sed -e 's/linux\///')"
           digest="${{ steps.build.outputs.digest }}"
-          echo "digest_${arch}=${digest#sha256:}" >> "$GITHUB_OUTPUT"
+          echo "digest_$(uname -m)=${digest#sha256:}" | tee -a "$GITHUB_OUTPUT"
 
   merge-image:
     runs-on: ["self-hosted", "small"]
@@ -115,19 +113,19 @@ jobs:
         run: |
           docker buildx imagetools create \
             $(jq -cr '.tags | map("-t " + .) | join(" ")' <<< "$DOCKER_METADATA_OUTPUT_JSON") \
-            ${{ env.GHCR_REPO }}@sha256:${{ needs.build-image.outputs.digest_arm64 }} \
-            ${{ env.GHCR_REPO }}@sha256:${{ needs.build-image.outputs.digest_amd64 }}
+            ${{ env.GHCR_REPO }}@sha256:${{ needs.build-image.outputs.digest_aarch64 }} \
+            ${{ env.GHCR_REPO }}@sha256:${{ needs.build-image.outputs.digest_x86_64 }}
 
       - name: Inspect image
         run: docker buildx imagetools inspect ${{ env.GHCR_REPO }}:${{ steps.meta.outputs.version }}
 
   build-binary:
-    runs-on: ${{ fromJson(format('["{0}"]', matrix.platform == 'linux/arm64' && 'ubuntu-24.04-arm' || 'ubuntu-24.04')) }}
+    runs-on: ${{ matrix.runner }}
     strategy:
       matrix:
-        platform:
-          - linux/amd64
-          - linux/arm64
+        runner:
+          - ubuntu-24.04
+          - ubuntu-24.04-arm
     steps:
       - name: Harden the runner (Audit all outbound calls)
         uses: step-security/harden-runner@4d991eb9b905ef189e4c376166672c3f2f230481 # v2.11.0
@@ -143,21 +141,20 @@ jobs:
       - name: Generate archive name
         working-directory: mutexbot
         run: |
-          cargo install default-target
-          echo "ARCHIVE_NAME=mutexbot-$(default-target)" | tee -a "${GITHUB_ENV}"
+          echo "TARGET=$(uname -m)-unknown-linux-gnu" | tee -a "${GITHUB_ENV}"
 
       - name: Build
         working-directory: mutexbot
         run: |
           cargo build --release
           mv target/release/mutexbot assets
-          mv assets "${ARCHIVE_NAME}"
+          mv assets "mutexbot-${TARGET}"
 
       - name: Upload artifact
         uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4.6.2
         with:
-          name: ${{ env.ARCHIVE_NAME }}
-          path: mutexbot/${{ env.ARCHIVE_NAME }}
+          name: mutexbot-${{ env.TARGET }}
+          path: mutexbot/mutexbot-${{ env.TARGET }}
 
   create-release:
     needs: [build-binary]
