@@ -22,7 +22,7 @@ runs:
       id: triple
       shell: bash
       run: |
-        echo "triple=$(uname -m)-unknown-linux-gnu" | tee -a "$GITHUB_OUTPUT"
+        echo "triple=$(uname -m)-unknown-linux-musl" | tee -a "$GITHUB_OUTPUT"
 
     - name: Resolve action ref to tag
       id: tag

@@ -138,16 +138,15 @@ jobs:
           ref: ${{ github.event.pull_request.head.sha || github.sha }}
           sparse-checkout: mutexbot
 
-      - name: Generate archive name
+      - name: Build binary
         working-directory: mutexbot
         run: |
-          echo "TARGET=$(uname -m)-unknown-linux-gnu" | tee -a "${GITHUB_ENV}"
-
-      - name: Build
-        working-directory: mutexbot
-        run: |
-          cargo build --release
-          mv target/release/mutexbot assets
+          TARGET="$(uname -m)-unknown-linux-musl"
+          echo "TARGET=${TARGET}" | tee -a "${GITHUB_ENV}"
+          rustup target add "${TARGET}"
+          sudo apt-get update && sudo apt-get install -y musl-tools musl-dev
+          cargo build --release --target "${TARGET}"
+          cp "target/${TARGET}/release/mutexbot" assets/
           mv assets "mutexbot-${TARGET}"
 
       - name: Upload artifact
