@@ -64,6 +64,9 @@ jobs:
         with:
           context: mutexbot
           labels: ${{ steps.meta.outputs.labels }}
+          attests: |
+            type=provenance,mode=max
+            type=sbom,generator=docker.io/docker/buildkit-syft-scanner:1
           outputs: type=image,name=${{ env.GHCR_REPO }},push-by-digest=true,name-canonical=true,push=true
 
       - name: Export digest
@@ -145,7 +148,8 @@ jobs:
           echo "TARGET=${TARGET}" | tee -a "${GITHUB_ENV}"
           rustup target add "${TARGET}"
           sudo apt-get update && sudo apt-get install -y musl-tools musl-dev
-          cargo build --release --target "${TARGET}"
+          cargo install cargo-auditable --locked
+          cargo auditable build --release --target "${TARGET}"
           cp "target/${TARGET}/release/mutexbot" assets/
           mv assets "mutexbot-${TARGET}"
 
