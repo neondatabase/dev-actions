@@ -4,7 +4,7 @@ version = "0.2.2"
 description = "CLI to help with neon release PRs."
 readme = "README.md"
 authors = [
-    { name = "JC Grünhage", email = "jc@neon.tech" }
+    { name = "JC Grünhage", email = "jc.gruenhage@databricks.com" }
 ]
 # 3.10 is required for ubuntu-22.04
 requires-python = ">=3.10"
