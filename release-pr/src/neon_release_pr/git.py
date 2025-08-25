@@ -161,37 +161,13 @@ def rc_branch_name() -> str:
 
 
 def release_branch_name() -> str:
-    return release_branch_name_override() or f"release-{ctx.component}"
+    return f"release-{ctx.component}"
 
 
 def base_branch_name() -> str:
-    return "neon-main" if release_branch_name().startswith("neon-release-") else "main"
-
-
-def release_branch_name_override() -> str | None:
-    overrides = {
-        "neondatabase/neon": {
-            "storage": "release",
-        },
-        "databricks-eng/hadron": {
-            "storage": "neon-release-storage",
-            "compute": "neon-release-compute",
-            "proxy": "neon-release-proxy",
-            "hcm": "release-compute",
-            "hadron": "release",
-        },
-    }
-
-    repo = github_repo(origin_url())
-
-    if repo is None:
-        return None
-
-    if repo not in overrides:
-        typer.echo(f"[info] no repo override found for repo {repo}")
-        return None
-
-    return overrides[repo].get(ctx.component, None)
+    return (
+        "neon-main" if github_repo(origin_url()) == "databricks-eng/hadron" else "main"
+    )
 
 
 def github_repo(origin_url: str | None) -> str | None:
