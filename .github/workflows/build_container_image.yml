@@ -1,0 +1,259 @@
+name: Build Container Image
+
+on:
+  workflow_call:
+    inputs:
+      registry:
+        description: 'Container registry'
+        required: true
+        type: string
+      name:
+        description: 'Image name, without registry or tags (repo/name)'
+        required: true
+        type: string
+      tag:
+        description: 'Tag for manifest creation'
+        required: true
+        type: string
+      build-runners:
+        description: 'JSON array of runners to build on (e.g. ["ubuntu-24.04", "ubuntu-24.04-arm"])'
+        required: false
+        type: string
+        default: '["ubuntu-24.04", "ubuntu-24.04-arm"]'
+      merge-runner:
+        description: 'Runner for merge job'
+        required: false
+        type: string
+        default: 'ubuntu-24.04'
+      dockerfile:
+        description: 'Path to Dockerfile'
+        required: false
+        type: string
+        default: 'Dockerfile'
+      context:
+        description: 'Build context path'
+        required: false
+        type: string
+        default: '.'
+      build-args:
+        description: 'Build arguments as multi-line string (e.g. "ARG1=value1\nARG2=value2")'
+        required: false
+        type: string
+        default: ''
+      build-args-for-arch:
+        description: 'Architecture-specific build arguments as JSON object (e.g. {"x86_64": "ARG1=value1\nARG2=value2", "aarch64": "ARG3=value3"})'
+        required: false
+        type: string
+        default: '{}'
+      target:
+        description: 'Target stage in multi-stage Dockerfile'
+        required: false
+        type: string
+        default: ''
+      buildkit-config:
+        description: 'BuildKit daemon configuration'
+        required: false
+        type: string
+        default: ''
+      cache-prefix:
+        description: 'Prefix for cache image names'
+        required: false
+        type: string
+        default: ''
+      update-cache:
+        description: 'Enable cache-to for pushing updated cache layers'
+        required: false
+        type: boolean
+        default: false
+      artifact-name:
+        description: 'Name of the artifact to be downloaded before build'
+        required: false
+        type: string
+        default: ''
+      artifact-path:
+        description: 'Directory where the artifact should be unpacked'
+        required: false
+        type: string
+        default: '.'
+      checkout-submodules:
+        description: 'Whether to checkout git submodules'
+        required: false
+        type: boolean
+        default: false
+      checkout-ref:
+        description: 'Git ref to checkout'
+        required: false
+        type: string
+        default: ''
+      checkout-path:
+        description: 'Path to checkout'
+        required: false
+        type: string
+        default: '.'
+
+    outputs:
+      digest:
+        description: 'Digest of the multi-arch image'
+        value: ${{ jobs.merge.outputs.digest }}
+      ref-with-digest:
+        description: 'Full image reference with digest'
+        value: ${{ jobs.merge.outputs.ref-with-digest }}
+
+    secrets:
+      checkout-token:
+        description: 'GitHub token for checkout'
+        required: false
+      registry-user:
+        required: false
+      registry-password:
+        required: false
+      build-secrets:
+        description: 'Build secrets as a multi-line string (e.g. "SECRET1=value1\nSECRET2=value2")'
+        required: false
+
+permissions: {}
+
+defaults:
+  run:
+    shell: bash -euo pipefail {0}
+
+jobs:
+  build-image:
+    runs-on: ${{ matrix.runner }}
+    
+    strategy:
+      fail-fast: false
+      matrix:
+        runner: ${{ fromJSON(inputs.build-runners) }}
+
+    permissions:
+      contents: read
+      packages: write
+
+    outputs:
+      digest_x86_64: ${{ steps.digest.outputs.digest_x86_64 }}
+      digest_aarch64: ${{ steps.digest.outputs.digest_aarch64 }}
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4.2.2
+        with:
+          submodules: ${{ inputs.checkout-submodules }}
+          ref: ${{ inputs.checkout-ref }}
+          token: ${{ secrets.checkout-token != '' && secrets.checkout-token || github.token }}
+          path: ${{ inputs.checkout-path }}
+
+      - name: Download artifact
+        if: ${{ inputs.artifact-name != '' }}
+        uses: actions/download-artifact@v4
+        with:
+          name: ${{ inputs.artifact-name }}
+          path: ${{ inputs.artifact-path }}
+
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@b5ca514318bd6ebac0fb2aedd5d36ec1b5c232a2 # v3.10.0
+        with:
+          cache-binary: false
+          buildkitd-config-inline: ${{ inputs.buildkit-config || '' }}
+
+      - name: Login to Container Registry
+        uses: docker/login-action@74a5d142397b4f367a81961eba4e8cd7edddf772 # v3.4.0
+        with:
+          registry: ${{ inputs.registry }}
+          username: ${{ secrets.registry-user != '' && secrets.registry-user || (inputs.registry == 'ghcr.io' && github.actor) }}
+          password: ${{ secrets.registry-password != '' && secrets.registry-password || (inputs.registry == 'ghcr.io' && github.token) }}
+
+      - name: Detect architecture
+        id: arch
+        run: |
+          arch=$(uname -m)
+          echo "arch=${arch}" | tee -a "$GITHUB_OUTPUT"
+
+      - name: Build and push architecture-specific image
+        id: build
+        env:
+          CACHE_KEY: ${{ inputs.cache-prefix && format('type=registry,ref={0}/{1}:{2}-{3}', inputs.registry, inputs.name, inputs.cache-prefix, steps.arch.outputs.arch) || '' }}
+        uses: docker/build-push-action@263435318d21b8e681c14492fe198d362a7d2c83 # v6.18.0
+        with:
+          context: ${{ inputs.context }}
+          file: ${{ inputs.dockerfile }}
+          push: true
+          pull: true
+          target: ${{ inputs.target }}
+          build-args: ${{ format('{0}\n{1}', inputs.build-args, fromJson(inputs.build-args-for-arch)[steps.arch.outputs.arch] || '') }}
+          secrets: ${{ secrets.build-secrets }}
+          cache-from: ${{ env.CACHE_KEY }}
+          cache-to: ${{ inputs.update-cache == 'true' && format('{0},image-manifest=true,oci-mediatypes=true,mode=max', env.CACHE_KEY) || '' }}
+          attests: |
+            type=provenance,mode=max
+            type=sbom,generator=${{ contains(inputs.registry, 'databricks.com') && format('{0}/brickstore/neon/docker/buildkit-syft-scanner:1', inputs.registry) || 'docker.io/docker/buildkit-syft-scanner:1' }}
+          outputs: type=registry,name=${{ inputs.registry }}/${{ inputs.name }},push-by-digest=true,name-canonical=true
+
+      - name: Export digest for architecture
+        id: digest
+        run: |
+          digest="${{ steps.build.outputs.digest }}"
+          echo "digest_$(uname -m)=${digest}" | tee -a "$GITHUB_OUTPUT"
+
+  merge:
+    runs-on: ${{ inputs.merge-runner }}
+    needs: [build-image]
+    if: always() && !cancelled() && !failure()
+    
+    permissions:
+      contents: read
+      packages: write
+
+    env:
+      IMAGE_REF: ${{ inputs.registry }}/${{ inputs.name }}
+
+    outputs:
+      digest: ${{ steps.merge.outputs.digest }}
+      ref-with-digest: ${{ steps.merge.outputs.ref-with-digest }}
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4.2.2
+
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@b5ca514318bd6ebac0fb2aedd5d36ec1b5c232a2 # v3.10.0
+
+      - name: Login to Container Registry
+        uses: docker/login-action@74a5d142397b4f367a81961eba4e8cd7edddf772 # v3.4.0
+        with:
+          registry: ${{ inputs.registry }}
+          username: ${{ secrets.registry-user != '' && secrets.registry-user || (inputs.registry == 'ghcr.io' && github.actor) }}
+          password: ${{ secrets.registry-password != '' && secrets.registry-password || (inputs.registry == 'ghcr.io' && github.token) }}
+
+      - name: Prepare references
+        id: prepare
+        env:
+          DIGEST_X86_64: ${{ needs.build-image.outputs.digest_x86_64 }}
+          DIGEST_AARCH64: ${{ needs.build-image.outputs.digest_aarch64 }}
+        run: |
+          # Parse environment variables and create references in one go
+          references_data=$(printenv | jq -Rsc '[split("\n")[] | capture("^DIGEST_(?<arch>[^=]+)=(?<digest>.+)$") | .arch |= ascii_downcase]')
+          
+          # Verify we have at least one digest
+          if [[ "$(echo "$references_data" | jq -r 'length')" -eq 0 ]]; then
+            echo "::error::No digest values found! Cannot create manifest list without at least one input reference."
+            exit 1
+          fi
+          
+          # Log found architectures and their digests
+          echo "$references_data" | jq -r '.[] | "Found digest for \(.arch): \(.digest)"'
+          
+          # Create space-separated references string for the composite action
+          references_string=$(echo "$references_data" | jq -r --arg ref "$IMAGE_REF" 'map($ref + "@" + .digest) | join(" ")')
+          echo "references=${references_string}" >> "$GITHUB_OUTPUT"
+
+      - name: Merge OCI manifest lists
+        id: merge
+        uses: ./merge-oci-manifest-lists
+        with:
+          target: ${{ inputs.registry }}/${{ inputs.name }}:${{ inputs.tag }}
+          references: ${{ steps.prepare.outputs.references }}
+
+      - name: Fetch manifest digest references
+        id: digests
+        uses: ./fetch-oci-manifest-list-digest-references

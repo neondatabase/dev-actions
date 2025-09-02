@@ -1,0 +1,62 @@
+name: 'Merge OCI Manifest Lists'
+description: 'Creates multi-arch manifest from architecture-specific image references and uploads digest artifact'
+
+inputs:
+  target:
+    description: 'Target image reference (e.g., "ghcr.io/myorg/myapp:v1.2.3")'
+    required: true
+  references:
+    description: 'Space separated image references to merge (e.g., "ghcr.io/myorg/myapp@sha256:... ghcr.io/myorg/myapp@sha256:..." or "ghcr.io/myorg/myapp:v1.2.3-aarch64 ghcr.io/myorg/myapp:v1.2.3-x86_64")'
+    required: true
+
+outputs:
+  digest:
+    description: 'Manifest digest'
+    value: ${{ steps.create.outputs.digest }}
+  ref-with-digest:
+    description: 'Manifest reference with digest'
+    value: ${{ steps.create.outputs.ref-with-digest }}
+
+runs:
+  using: 'composite'
+  steps:
+    - name: Create multi-arch manifest and upload artifact
+      id: create
+      shell: bash
+      env:
+        TARGET: ${{ inputs.target }}
+        REFERENCES: ${{ inputs.references }}
+      run: |
+        # Calculate base64 key once for file naming
+        image_key=$(echo -n "${TARGET}" | base64)
+        
+        # Create multi-arch manifest and capture output
+        buildx_create_output_file="create_output_${image_key}.txt"
+        docker buildx imagetools create -t "${TARGET}" ${REFERENCES} 2>&1 | tee "${buildx_create_output_file}"
+        
+        # Extract digest and target from captured output using jq with regex
+        manifest_digest=$(cat "${buildx_create_output_file}" | jq -Rsr --arg target "${TARGET}" '
+          capture("pushing (?<digest>sha256:[a-f0-9]{64}) to (?<target>.+)") // ("Error: Found no pushing line in output\n" | halt_error(1))
+            | if .target == $target then .digest else "Error: Found no digest for \($target)\n" | halt_error(1) end')
+        
+        echo "digest=${manifest_digest}" | tee -a "$GITHUB_OUTPUT"
+        echo "ref-with-digest=${TARGET}@${manifest_digest}" | tee -a "$GITHUB_OUTPUT"
+        
+        # Create digest info JSON file for artifact
+        cat > "digest-info-${image_key}.json" << EOF
+        {
+          "digest": "${manifest_digest}",
+          "ref-with-digest": "${TARGET}@${manifest_digest}"
+        }
+        EOF
+
+        # Generate artifact name and store outputs
+        echo "image_key=${image_key}" | tee -a "$GITHUB_OUTPUT"
+        echo "Multi-arch image created: ${TARGET}@${manifest_digest}"
+
+    - name: Upload digest artifact
+      uses: actions/upload-artifact@v4
+      with:
+        name: container-image-digest-${{ steps.create.outputs.image_key }}
+        path: digest-info-${{ steps.create.outputs.image_key }}.json
+        retention-days: 1

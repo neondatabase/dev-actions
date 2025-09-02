@@ -4,123 +4,39 @@ on:
   pull_request:
     types: ["opened", "synchronize", "reopened"]
     branches: ["main"]
-    paths: ["mutexbot/**"]
+    paths: ["mutexbot/**", ".github/workflows/mutexbot*.yml"]
   push:
     branches: ["main"]
-    paths: ["mutexbot/**"]
+    paths: ["mutexbot/**", ".github/workflows/mutexbot*.yml"]
     tags: ["mutexbot-v*.*.*"]
 
 permissions:
   contents: read
 
-env:
-  GHCR_REPO: ghcr.io/neondatabase/dev-actions
-
 jobs:
   build-image:
-    runs-on: ${{ matrix.runner }}
-    outputs:
-      digest_x86_64: ${{ steps.export_digest.outputs.digest_x86_64 }}
-      digest_aarch64: ${{ steps.export_digest.outputs.digest_aarch64 }}
-    strategy:
-      fail-fast: false
-      matrix:
-        runner:
-          - ubuntu-24.04
-          - ubuntu-24.04-arm
+    uses: ./.github/workflows/build_container_image.yml
     permissions:
       contents: read
       packages: write
-    steps:
-      - name: Harden the runner (Audit all outbound calls)
-        uses: step-security/harden-runner@4d991eb9b905ef189e4c376166672c3f2f230481 # v2.11.0
-        with:
-          egress-policy: audit
-
-      - name: Fetch mutexbot folder
-        uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4.2.2
-        with:
-          sparse-checkout: mutexbot
-
-      - name: Docker meta
-        id: meta
-        uses: docker/metadata-action@902fa8ec7d6ecbf8d84d538b9b233a880e428804 # v5.7.0
-        with:
-          images: ${{ env.GHCR_REPO }}
-
-      - name: Set up Docker Buildx
-        uses: docker/setup-buildx-action@b5ca514318bd6ebac0fb2aedd5d36ec1b5c232a2 # v3.10.0
-
-      - name: Login to GHCR
-        uses: docker/login-action@74a5d142397b4f367a81961eba4e8cd7edddf772 # v3.4.0
-        with:
-          registry: ghcr.io
-          username: ${{ github.actor }}
-          password: ${{ secrets.GITHUB_TOKEN }}
-
-      - name: Build and push by digest
-        id: build
-        uses: docker/build-push-action@471d1dc4e07e5cdedd4c2171150001c434f0b7a4 # v6.15.0
-        with:
-          context: mutexbot
-          labels: ${{ steps.meta.outputs.labels }}
-          attests: |
-            type=provenance,mode=max
-            type=sbom,generator=docker.io/docker/buildkit-syft-scanner:1
-          outputs: type=image,name=${{ env.GHCR_REPO }},push-by-digest=true,name-canonical=true,push=true
-
-      - name: Export digest
-        id: export_digest
-        run: |
-          digest="${{ steps.build.outputs.digest }}"
-          echo "digest_$(uname -m)=${digest#sha256:}" | tee -a "$GITHUB_OUTPUT"
-
-  merge-image:
-    runs-on: ["self-hosted", "small"]
-    needs: [build-image]
-    permissions:
-      contents: read
-      packages: write
-    outputs:
-      version: ${{ steps.meta.outputs.version }}
-    steps:
-      - name: Harden the runner (Audit all outbound calls)
-        uses: step-security/harden-runner@4d991eb9b905ef189e4c376166672c3f2f230481 # v2.11.0
-        with:
-          egress-policy: audit
-
-      - name: Login to GHCR
-        uses: docker/login-action@74a5d142397b4f367a81961eba4e8cd7edddf772 # v3.4.0
-        with:
-          registry: ghcr.io
-          username: ${{ github.actor }}
-          password: ${{ secrets.GITHUB_TOKEN }}
-
-      - name: Set up Docker Buildx
-        uses: docker/setup-buildx-action@b5ca514318bd6ebac0fb2aedd5d36ec1b5c232a2 # v3.10.0
-
-      - name: Docker meta
-        id: meta
-        uses: docker/metadata-action@902fa8ec7d6ecbf8d84d538b9b233a880e428804 # v5.7.0
-        with:
-          images: ${{ env.GHCR_REPO }}
-          tags: |
-            # branch event
-            type=ref,enable=true,priority=600,prefix=mutexbot-,suffix=,event=branch
-            # pull request event
-            type=ref,enable=true,priority=600,prefix=mutexbot-pr-,suffix=,event=pr
-            # tags event
-            type=match,pattern=mutexbot-v(.*)
-
-      - name: Create manifest list and push
-        run: |
-          docker buildx imagetools create \
-            $(jq -cr '.tags | map("-t " + .) | join(" ")' <<< "$DOCKER_METADATA_OUTPUT_JSON") \
-            ${{ env.GHCR_REPO }}@sha256:${{ needs.build-image.outputs.digest_aarch64 }} \
-            ${{ env.GHCR_REPO }}@sha256:${{ needs.build-image.outputs.digest_x86_64 }}
-
-      - name: Inspect image
-        run: docker buildx imagetools inspect ${{ env.GHCR_REPO }}:${{ steps.meta.outputs.version }}
+      attestations: write
+      id-token: write
+    with:
+      registry: ghcr.io  
+      name: neondatabase/dev-actions
+      tag: >-
+        ${{
+          (github.event_name == 'pull_request' && format('mutexbot-pr-{0}', github.event.pull_request.number))
+          || (github.ref_type == 'tag' && github.ref_name)
+          || format('mutexbot-{0}', github.ref_name)
+        }}
+      context: mutexbot
+      dockerfile: mutexbot/Dockerfile
+      cache-prefix: mutexbot
+      update-cache: ${{ github.ref == 'refs/heads/main' }}
+    secrets:
+      registry-user: ${{ github.actor }}
+      registry-password: ${{ secrets.GITHUB_TOKEN }}
 
   build-binary:
     runs-on: ${{ matrix.runner }}
@@ -173,7 +89,7 @@ jobs:
       - name: Fetch artifacts
         uses: actions/download-artifact@d3f86a106a0bac45b974a628896c90dbdf5c8093 # v4.3.0
         with:
-          pattern: "!*.dockerbuild"
+          pattern: "mutexbot-*"
 
       - name: Create archives
         run: |
