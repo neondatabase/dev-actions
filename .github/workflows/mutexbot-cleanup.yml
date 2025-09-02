@@ -4,7 +4,7 @@ on:
   pull_request:
     types: ["closed"]
     branches: ["main"]
-    paths: ["mutexbot/**"]
+    paths: ["mutexbot/**", ".github/workflows/mutexbot*.yml"]
 
 permissions: {}
 
