@@ -1,0 +1,39 @@
+name: 'Fetch Manifest Digest References'
+description: 'Downloads container image digest artifacts and creates a map from tag to digest reference'
+
+outputs:
+  map:
+    description: 'JSON map from image tag to digest reference (e.g., {"ghcr.io/myorg/myapp:v1.2.3": "ghcr.io/myorg/myapp@sha256:..."})'
+    value: ${{ steps.create-map.outputs.map }}
+
+runs:
+  using: 'composite'
+  steps:
+    - name: Download container image digests
+      uses: actions/download-artifact@v4
+      with:
+        pattern: container-image-digest-*
+        merge-multiple: false
+
+    - name: Create tag to digest reference map
+      id: create-map
+      shell: bash
+      run: |
+        tag_digest_map=$(
+          find . -name "digest-info*.json" -type f -exec jq -c --arg filepath {} '
+            {
+              "tag": ($filepath | capture("container-image-digest-(?<base64_key>[^/]+)/")) | (.base64_key | @base64d),
+              "digest_ref": .["ref-with-digest"],
+            }
+          ' {} \; | jq -sc '
+            reduce .[] as $item ({};
+              .[$item.tag] = $item.digest_ref
+            )
+          '
+        )
+
+        # Log the mappings
+        echo "$tag_digest_map" | jq
+
+        # Set output
+        echo "map=$tag_digest_map" >> "$GITHUB_OUTPUT"
