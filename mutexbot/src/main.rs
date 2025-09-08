@@ -7,7 +7,7 @@ use log::info;
 use reqwest::{Client, StatusCode, header};
 use serde::{Deserialize, Serialize};
 use tokio::time::sleep;
-use tokio_postgres::{NoTls, Error as PgError};
+use sqlx::{postgres::PgPoolOptions, Pool, Postgres, Error as SqlxError};
 
 pub(crate) mod cli;
 
@@ -202,49 +202,49 @@ async fn main() -> Result<()> {
     Ok(())
 }
 
-/// Create a database connection and return the client
-async fn create_db_connection() -> Result<tokio_postgres::Client, PgError> {
-    // Database connection configuration
-    let db_config = "host=ep-tiny-bonus-a2qksa7f-pooler.eu-central-1.aws.neon.tech user=neondb_owner password=npg_RQzVs7DbYrU2 dbname=neondb";
-    
-    // Connect to the database
-    let (client, connection) = tokio_postgres::connect(db_config, NoTls).await?;
-    
-    // Spawn the connection on a separate task
-    tokio::spawn(async move {
-        if let Err(e) = connection.await {
-            eprintln!("Database connection error: {}", e);
-        }
-    });
-    
-    Ok(client)
+/// Create a database connection pool and return it
+async fn create_db_connection() -> Result<Pool<Postgres>, SqlxError> {
+    // Convert DSN to URL and require TLS (Neon requires TLS)
+    let database_url = "postgres://neondb_owner:npg_RQzVs7DbYrU2@ep-tiny-bonus-a2qksa7f-pooler.eu-central-1.aws.neon.tech/neondb?sslmode=require";
+
+    let pool = PgPoolOptions::new()
+        .max_connections(5)
+        .acquire_timeout(Duration::from_secs(10))
+        .connect(database_url)
+        .await?;
+
+    Ok(pool)
 }
 
 /// Insert a new deployment record into the PostgreSQL database and return the ID
 async fn insert_deployment_record(
-    client: &tokio_postgres::Client,
+    client: &Pool<Postgres>,
     note: &str,
     component: &str,
     region: &str,
-) -> Result<i64, PgError> {
+) -> Result<i64, SqlxError> {
     // Insert the deployment record and return the ID
     let query = "INSERT INTO deployments (note, component, region) VALUES ($1, $2, $3) RETURNING id";
-    
-    let row = client.query_one(query, &[&note, &component, &region]).await?;
-    let deployment_id: i64 = row.get(0);
-    
+
+    let deployment_id: i64 = sqlx::query_scalar::<_, i64>(query)
+        .bind(note)
+        .bind(component)
+        .bind(region)
+        .fetch_one(client)
+        .await?;
+
     log::info!("Successfully inserted deployment record: id={}, component={}, region={}", deployment_id, component, region);
-    
+
     Ok(deployment_id)
 }
 
 /// Check for blocking deployments in the same region
 async fn check_blocking_deployments(
-    client: &tokio_postgres::Client,
+    client: &Pool<Postgres>,
     deployment_id: i64,
     component: &str,
     region: &str,
-) -> Result<Vec<(i64, String)>, PgError> {
+) -> Result<Vec<(i64, String)>, SqlxError> {
     // Query for deployments in the same region by other components with smaller ID (queue position)
     // that haven't finished yet (finish_timestamp IS NULL)
     let query = "
@@ -256,17 +256,12 @@ async fn check_blocking_deployments(
           AND finish_timestamp IS NULL
         ORDER BY id ASC
     ";
-    
-    let rows = client.query(query, &[&region, &component, &deployment_id]).await?;
-    
-    let blocking_deployments: Vec<(i64, String)> = rows
-        .into_iter()
-        .map(|row| {
-            let id: i64 = row.get(0);
-            let component: String = row.get(1);
-            (id, component)
-        })
-        .collect();
-    
-    Ok(blocking_deployments)
+    let results: Vec<(i64, String)> = sqlx::query_as::<_, (i64, String)>(query)
+        .bind(region)
+        .bind(component)
+        .bind(deployment_id)
+        .fetch_all(client)
+        .await?;
+
+    Ok(results)
 }
