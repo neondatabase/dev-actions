@@ -1,5 +1,5 @@
 [package]
-name = "mutexbot"
+name = "deploy-queue"
 version = "0.3.2"
 edition = "2024"
 
