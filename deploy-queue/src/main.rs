@@ -161,7 +161,7 @@ async fn main() -> Result<()> {
 
             loop {
                 // Check for blocking deployments in the same region
-                match check_blocking_deployments(&db_client, deployment_id, resource_name, &region).await {
+                match check_blocking_deployments(&db_client, deployment_id, resource_name, region).await {
                     Ok(blocking_deployments) => {
                         if blocking_deployments.is_empty() {
                             info!("No blocking deployments found. Resource can be reserved.");
