@@ -2,7 +2,7 @@ use std::time::Duration;
 use std::env;
 use std::fs::OpenOptions;
 use std::io::Write;
-use chrono::{DateTime, Utc};
+use time::OffsetDateTime;
 
 use anyhow::{Context, Result};
 use clap::Parser;
@@ -22,7 +22,7 @@ struct PendingDeployment {
     component: String, 
     url: Option<String>, 
     note: Option<String>, 
-    start_timestamp: Option<DateTime<Utc>>
+    start_timestamp: Option<OffsetDateTime>
 }
 
 enum DeploymentState {
