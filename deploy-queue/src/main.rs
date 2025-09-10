@@ -1,4 +1,7 @@
 use std::time::Duration;
+use std::env;
+use std::fs::OpenOptions;
+use std::io::Write;
 use chrono::{DateTime, Utc};
 
 use anyhow::{Context, Result};
@@ -265,6 +268,26 @@ async fn insert_deployment_record(
         .await?;
 
     log::info!("Successfully inserted deployment record: id={}, component={}, region={}", deployment_id, component, region);
+
+    // Store the deployment_id as a GitHub output if running in GitHub Actions
+    if let Ok(github_output_path) = env::var("GITHUB_OUTPUT") {
+        match OpenOptions::new()
+            .create(true)
+            .append(true)
+            .open(&github_output_path) 
+        {
+            Ok(mut file) => {
+                if let Err(e) = writeln!(file, "deployment-id={}", deployment_id) {
+                    log::warn!("Failed to write to GitHub output file: {}", e);
+                } else {
+                    log::info!("Successfully wrote deployment-id={} to GitHub output", deployment_id);
+                }
+            }
+            Err(e) => {
+                log::warn!("Failed to open GitHub output file '{}': {}", github_output_path, e);
+            }
+        }
+    }
 
     Ok(deployment_id)
 }
