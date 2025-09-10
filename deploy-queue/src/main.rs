@@ -236,8 +236,7 @@ async fn main() -> Result<()> {
 
 /// Create a database connection pool and return it
 async fn create_db_connection() -> Result<Pool<Postgres>, SqlxError> {
-    // Convert DSN to URL and require TLS (Neon requires TLS)
-    let database_url = "postgres://neondb_owner:npg_RQzVs7DbYrU2@ep-tiny-bonus-a2qksa7f-pooler.eu-central-1.aws.neon.tech/neondb?sslmode=require";
+    let database_url = "postgres://user:password@hostname:port/db-name";
 
     let pool = PgPoolOptions::new()
         .max_connections(5)
