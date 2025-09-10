@@ -1,4 +1,5 @@
 use std::time::Duration;
+use chrono::{DateTime, Utc};
 
 use anyhow::{Context, Result};
 use clap::Parser;
@@ -85,6 +86,35 @@ struct ResourceListItem {
     active_reservation_reason: Option<String>,
 }
 
+#[derive(sqlx::FromRow)]
+// We don't read all of the fields
+#[allow(dead_code)]
+struct PendingDeployment {
+    id: i64,
+    component: String, 
+    url: Option<String>, 
+    note: Option<String>, 
+    start_timestamp: Option<DateTime<Utc>>
+}
+
+enum DeploymentState {
+    Queued,
+    Started,
+    Finished,
+    Cancelled
+}
+
+impl std::fmt::Display for DeploymentState {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        match self {
+            DeploymentState::Queued => write!(f, "QUEUED"),
+            DeploymentState::Started => write!(f, "RUNNING"),
+            DeploymentState::Finished => write!(f, "FINISHED"),
+            DeploymentState::Cancelled => write!(f, "CANCELLED"),
+        }
+    }
+}
+
 const FAILURE_RETRY: Duration = Duration::from_secs(2);
 const BUSY_RETRY: Duration = Duration::from_secs(5);
 
@@ -139,8 +169,10 @@ async fn main() -> Result<()> {
                             // Print information about blocking deployments
                             info!("Found {} blocking deployment(s) in region '{}' with smaller queue positions:", 
                                 blocking_deployments.len(), region);
-                            for (id, component) in &blocking_deployments {
-                                info!("  - Deployment ID: {}, Component: {}", id, component);
+                            for pending_deployment in &blocking_deployments {
+                                let deployment_state = if pending_deployment.start_timestamp.is_some() { DeploymentState::Running } else { DeploymentState::Queued };
+                                let deployment_note = pending_deployment.url.or(pending_deployment.note).unwrap_or_else(|| String::new());
+                                info!("  - Deployment ID: {}, Component: {}, State: {}, Note: {}", pending_deployment.id, pending_deployment.component, deployment_state, deployment_note);
                             }
                             info!("Retrying in 5 seconds.");
                             sleep(BUSY_RETRY).await;
@@ -244,19 +276,20 @@ async fn check_blocking_deployments(
     deployment_id: i64,
     component: &str,
     region: &str,
-) -> Result<Vec<(i64, String)>, SqlxError> {
+) -> Result<Vec<PendingDeployment>, SqlxError> {
     // Query for deployments in the same region by other components with smaller ID (queue position)
     // that haven't finished yet (finish_timestamp IS NULL)
     let query = "
-        SELECT id, component 
+        SELECT id, component, url, note, start_timestamp
         FROM deployments 
         WHERE region = $1 
           AND component != $2 
           AND id < $3 
           AND finish_timestamp IS NULL
+          AND cancellation_timestamp IS NULL
         ORDER BY id ASC
     ";
-    let results: Vec<(i64, String)> = sqlx::query_as::<_, (i64, String)>(query)
+    let results: Vec<PendingDeployment> = sqlx::query_as::<_, PendingDeployment>(query)
         .bind(region)
         .bind(component)
         .bind(deployment_id)
