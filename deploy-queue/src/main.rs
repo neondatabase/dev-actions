@@ -133,8 +133,8 @@ async fn main() -> Result<()> {
             duration,
             notes,
             resource_name,
+            component,
         } => {
-            let region = args.isolation_channel.clone().unwrap_or_else(|| "default".to_string());
 
             // Create a single database connection for all operations
             let db_client = match create_db_connection().await {
@@ -150,7 +150,7 @@ async fn main() -> Result<()> {
                 &db_client,
                 notes,
                 resource_name,
-                &region,
+                component,
             ).await {
                 Ok(id) => id,
                 Err(e) => {
@@ -254,20 +254,20 @@ async fn create_db_connection() -> Result<Pool<Postgres>, SqlxError> {
 async fn insert_deployment_record(
     client: &Pool<Postgres>,
     note: &str,
-    component: &str,
     region: &str,
+    component: &str,
 ) -> Result<i64, SqlxError> {
     // Insert the deployment record and return the ID
     let query = "INSERT INTO deployments (note, component, region) VALUES ($1, $2, $3) RETURNING id";
 
     let deployment_id: i64 = sqlx::query_scalar::<_, i64>(query)
         .bind(note)
-        .bind(component)
         .bind(region)
+        .bind(component)
         .fetch_one(client)
         .await?;
 
-    log::info!("Successfully inserted deployment record: id={}, component={}, region={}", deployment_id, component, region);
+    log::info!("Successfully inserted deployment record: id={}, region={}, component={}", deployment_id, region, component);
 
     // Store the deployment_id as a GitHub output if running in GitHub Actions
     if let Ok(github_output_path) = env::var("GITHUB_OUTPUT") {

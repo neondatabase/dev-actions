@@ -21,6 +21,8 @@ pub(crate) enum Mode {
     Reserve {
         /// Resource to reserve
         resource_name: String,
+        /// Region in which we reserve
+        region: String,
         /// Notes for this reservation
         notes: String,
         /// Duration to reserve resource for. Defaults to value set in MutexBot if omitted
