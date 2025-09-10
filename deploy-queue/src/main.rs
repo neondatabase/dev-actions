@@ -7,87 +7,12 @@ use chrono::{DateTime, Utc};
 use anyhow::{Context, Result};
 use clap::Parser;
 use cli::Mode;
+use env_logger;
 use log::info;
-use reqwest::{Client, StatusCode, header};
-use serde::{Deserialize, Serialize};
 use tokio::time::sleep;
 use sqlx::{postgres::PgPoolOptions, Pool, Postgres, Error as SqlxError};
 
 pub(crate) mod cli;
-
-struct State {
-    http: Client,
-    failure_count: usize,
-}
-
-impl State {
-    fn new(api_key: &str) -> Result<Self> {
-        let mut headers = header::HeaderMap::new();
-        let mut auth_value = header::HeaderValue::from_str(api_key)
-            .context("Failure creating auth header from API key")?;
-        auth_value.set_sensitive(true);
-        headers.insert("X-API-Key", auth_value);
-
-        let http = reqwest::Client::builder()
-            .default_headers(headers)
-            .build()
-            .context("Failure creating http client")?;
-
-        Ok(Self {
-            http,
-            failure_count: 0,
-        })
-    }
-    async fn request_failure(&mut self, error: reqwest::Error) -> Result<()> {
-        if self.failure_count >= 15 {
-            Err(error).context("Failed to send request!")?;
-        }
-        self.failure_count += 1;
-        info!("Failed to send request! Retrying in 2 seconds...");
-        sleep(FAILURE_RETRY).await;
-        Ok(())
-    }
-    async fn status_code(&mut self, status_code: StatusCode) -> Result<()> {
-        if !status_code.is_server_error() || self.failure_count >= 15 {
-            anyhow::bail!("Unexpected status code: {status_code}")
-        }
-        self.failure_count += 1;
-        info!("Server error, status code {status_code}. Retrying in 2 seconds...");
-        sleep(FAILURE_RETRY).await;
-        Ok(())
-    }
-}
-
-#[derive(Serialize)]
-struct ReservePayload {
-    notes: String,
-    duration: Option<String>,
-    isolation_channel: Option<String>,
-}
-
-#[derive(Serialize)]
-struct ReleasePayload {
-    isolation_channel: Option<String>,
-}
-
-#[derive(Serialize)]
-struct CreatePayload {
-    name: String,
-    isolation_channel: Option<String>,
-}
-
-#[derive(Deserialize)]
-// We don't read all of the fields
-#[allow(dead_code)]
-struct ResourceListItem {
-    name: String,
-    description: String,
-    isolated: bool,
-    isolation_channel_name: Option<String>,
-    active_reservation: Option<String>,
-    active_reservation_user_name: Option<String>,
-    active_reservation_reason: Option<String>,
-}
 
 #[derive(sqlx::FromRow)]
 // We don't read all of the fields
@@ -126,7 +51,6 @@ async fn main() -> Result<()> {
     let log_env = env_logger::Env::default().filter_or("MUTEXBOT_LOG_LEVEL", "info");
     env_logger::Builder::from_env(log_env).init();
     let args = cli::Cli::parse();
-    let mut state = State::new(&args.api_key()?).context("Failure to initialize action state")?;
 
     match &args.mode {
         Mode::Reserve {
@@ -189,48 +113,7 @@ async fn main() -> Result<()> {
             }
         }
         Mode::Release { .. } | Mode::ForceRelease { .. } => {
-            let payload = ReleasePayload {
-                isolation_channel: args.isolation_channel,
-            };
-            loop {
-                match state
-                    .http
-                    .post(args.mode.api_endpoint())
-                    .json(&payload)
-                    .send()
-                    .await
-                {
-                    Ok(resp) => match resp.status() {
-                        StatusCode::OK => {
-                            info!("Resource released successfully.");
-                            break;
-                        }
-                        StatusCode::ALREADY_REPORTED => {
-                            anyhow::bail!("Resource not reserved, aborting.");
-                        }
-                        StatusCode::CONFLICT => {
-                            anyhow::bail!("Resource by someone else, aborting.");
-                        }
-                        StatusCode::BAD_REQUEST => {
-                            anyhow::bail!("Bad request. Check your input data.");
-                        }
-                        StatusCode::UNAUTHORIZED => {
-                            anyhow::bail!("Unauthorized. Check your API keys.")
-                        }
-                        StatusCode::NOT_FOUND => {
-                            anyhow::bail!("Resource not found.")
-                        }
-                        status_code => state
-                            .status_code(status_code)
-                            .await
-                            .context("Failure releasing resource")?,
-                    },
-                    Err(error) => state
-                        .request_failure(error)
-                        .await
-                        .context("Failure releasing resource")?,
-                }
-            }
+     
         }
     }
 
