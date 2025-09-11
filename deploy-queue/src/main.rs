@@ -52,6 +52,15 @@ async fn main() -> Result<()> {
     env_logger::Builder::from_env(log_env).init();
     let args = cli::Cli::parse();
 
+    // Create a single database connection for all operations
+    let db_client = match create_db_connection().await {
+        Ok(client) => client,
+        Err(e) => {
+            log::error!("Failed to connect to database: {}", e);
+            anyhow::bail!("Database connection failed: {}", e);
+        }
+    };
+
     match &args.mode {
         Mode::Reserve {
             resource_name,
@@ -62,15 +71,6 @@ async fn main() -> Result<()> {
             note,
             duration,
         } => {
-
-            // Create a single database connection for all operations
-            let db_client = match create_db_connection().await {
-                Ok(client) => client,
-                Err(e) => {
-                    log::error!("Failed to connect to database: {}", e);
-                    anyhow::bail!("Database connection failed: {}", e);
-                }
-            };
 
             // Insert deployment record into database
             let deployment_id = match insert_deployment_record(
