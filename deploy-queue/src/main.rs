@@ -72,8 +72,8 @@ async fn main() -> Result<()> {
     };
 
     match &args.mode {
-        Mode::Reserve {
-            resource_name,
+        Mode::Start {
+            region,
             component,
             environment,
             version,
@@ -84,7 +84,7 @@ async fn main() -> Result<()> {
             // Insert deployment record into database
             let deployment_id = match insert_deployment_record(
                 &db_client,
-                resource_name,
+                region,
                 component,
                 environment,
                 version,
