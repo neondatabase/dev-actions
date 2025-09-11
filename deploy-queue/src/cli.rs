@@ -23,7 +23,7 @@ pub(crate) enum Mode {
         version: String,
         /// URL to the specific GitHub Actions job
         url: Option<String>,
-        /// Note for this reservation (for manual deployments)
+        /// Note for this deployment (for manual deployments)
         note: Option<String>,
     },
     /// Finish deployment for a component
