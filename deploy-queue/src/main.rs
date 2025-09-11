@@ -100,17 +100,17 @@ async fn main() -> Result<()> {
 
             loop {
                 // Check for blocking deployments in the same region
-                match check_blocking_deployments(&db_client, deployment_id, component, resource_name, environment).await {
+                match check_blocking_deployments(&db_client, deployment_id, component, region, environment).await {
                     Ok(blocking_deployments) => {
                         if blocking_deployments.is_empty() {
-                            info!("No blocking deployments found. Resource can be reserved.");
+                            info!("No blocking deployments found. Deployment can be started.");
 
                             //TO DO: Update deployment record to set start_timestamp
                             break;
                         } else {
                             // Print information about blocking deployments
                             info!("Found {} blocking deployment(s) in region '{}' with smaller queue positions:", 
-                                blocking_deployments.len(), resource_name);
+                                blocking_deployments.len(), region);
                             for pending_deployment in &blocking_deployments {
                                 let deployment_state: DeploymentState = pending_deployment.into();
                                 let deployment_note = pending_deployment.url.or(pending_deployment.note).unwrap_or_else(|| String::new());
