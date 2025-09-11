@@ -43,6 +43,16 @@ impl std::fmt::Display for DeploymentState {
     }
 }
 
+impl From<&PendingDeployment> for DeploymentState {
+    fn from(pending_deployment: &PendingDeployment) -> Self {
+        if pending_deployment.start_timestamp.is_some() {
+            DeploymentState::Running
+        } else {
+            DeploymentState::Queued
+        }
+    }
+}
+
 const FAILURE_RETRY: Duration = Duration::from_secs(2);
 const BUSY_RETRY: Duration = Duration::from_secs(5);
 
@@ -103,7 +113,7 @@ async fn main() -> Result<()> {
                             info!("Found {} blocking deployment(s) in region '{}' with smaller queue positions:", 
                                 blocking_deployments.len(), region);
                             for pending_deployment in &blocking_deployments {
-                                let deployment_state = if pending_deployment.start_timestamp.is_some() { DeploymentState::Running } else { DeploymentState::Queued };
+                                let deployment_state: DeploymentState = pending_deployment.into();
                                 let deployment_note = pending_deployment.url.or(pending_deployment.note).unwrap_or_else(|| String::new());
                                 info!("  - Deployment ID: {}, Component: {}, State: {}, Note: {}", pending_deployment.id, pending_deployment.component, deployment_state, deployment_note);
                             }
