@@ -79,7 +79,6 @@ async fn main() -> Result<()> {
             version,
             url,
             note,
-            duration,
         } => {
 
             // Insert deployment record into database
@@ -101,7 +100,7 @@ async fn main() -> Result<()> {
 
             loop {
                 // Check for blocking deployments in the same region
-                match check_blocking_deployments(&db_client, deployment_id, resource_name, region).await {
+                match check_blocking_deployments(&db_client, deployment_id, component, resource_name, environment).await {
                     Ok(blocking_deployments) => {
                         if blocking_deployments.is_empty() {
                             info!("No blocking deployments found. Resource can be reserved.");
@@ -111,7 +110,7 @@ async fn main() -> Result<()> {
                         } else {
                             // Print information about blocking deployments
                             info!("Found {} blocking deployment(s) in region '{}' with smaller queue positions:", 
-                                blocking_deployments.len(), region);
+                                blocking_deployments.len(), resource_name);
                             for pending_deployment in &blocking_deployments {
                                 let deployment_state: DeploymentState = pending_deployment.into();
                                 let deployment_note = pending_deployment.url.or(pending_deployment.note).unwrap_or_else(|| String::new());
@@ -192,26 +191,46 @@ async fn insert_deployment_record(
     Ok(deployment_id)
 }
 
+/// Get buffer time for an environment from the environments table
+async fn get_environment_buffer_time(
+    client: &Pool<Postgres>,
+    environment: &str,
+) -> Result<Duration, SqlxError> {
+    let record = sqlx::query!("SELECT buffer_time FROM environments WHERE environment = $1", environment)
+        .fetch_one(client)
+        .await?;
+    
+    let buffer_minutes = record.buffer_time;
+    Ok(Duration::from_secs(buffer_minutes as u64 * 60))
+}
+
 /// Check for blocking deployments in the same region
 async fn check_blocking_deployments(
     client: &Pool<Postgres>,
     deployment_id: i64,
     component: &str,
     region: &str,
+    environment: &str,
 ) -> Result<Vec<PendingDeployment>, SqlxError> {
+    // Get the buffer time for this environment
+    let buffer_time = get_environment_buffer_time(client, environment).await?;
+    
     // Query for deployments in the same region by other components with smaller ID (queue position)
-    // that haven't finished yet (finish_timestamp IS NULL)
-    let query = "
+    // that haven't finished yet (finish_timestamp IS NULL and cancellation_timestamp IS NULL) 
+    // or have finished within the environment-specific buffer_time
+    let buffer_seconds = buffer_time.as_secs();
+    let query = format!("
         SELECT id, component, url, note, start_timestamp
         FROM deployments 
         WHERE region = $1 
           AND component != $2 
           AND id < $3 
-          AND finish_timestamp IS NULL
+          AND (finish_timestamp IS NULL OR finish_timestamp > NOW() - INTERVAL '{} seconds')
           AND cancellation_timestamp IS NULL
         ORDER BY id ASC
-    ";
-    let results: Vec<PendingDeployment> = sqlx::query_as::<_, PendingDeployment>(query)
+    ", buffer_seconds);
+    
+    let results: Vec<PendingDeployment> = sqlx::query_as::<_, PendingDeployment>(&query)
         .bind(region)
         .bind(component)
         .bind(deployment_id)

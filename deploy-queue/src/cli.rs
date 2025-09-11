@@ -31,8 +31,6 @@ pub(crate) enum Mode {
         url: Option<String>,
         /// Note for this reservation (for manual deployments)
         note: Option<String>,
-        /// Duration to reserve resource for. Defaults to value set in MutexBot if omitted
-        duration: Option<String>,
     },
     /// Release a resource
     ///

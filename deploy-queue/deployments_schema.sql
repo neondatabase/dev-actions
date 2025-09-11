@@ -45,6 +45,17 @@ CREATE TRIGGER update_deployments_updated_at
     FOR EACH ROW 
     EXECUTE FUNCTION update_updated_at_column();
 
+-- Environments table for storing environment-specific configuration
+CREATE TABLE environments (
+    environment VARCHAR(50) PRIMARY KEY,
+    buffer_time INTEGER NOT NULL -- buffer time in minutes
+);
+
+-- Insert default environment configurations
+INSERT INTO environments (environment, buffer_time) VALUES 
+    ('dev', 0),      -- Development: no buffer time
+    ('prod', 10);    -- Production: 10 minutes buffer time
+
 -- Comments for documentation
 COMMENT ON TABLE deployments IS 'Stores deployment records with metadata and flow process timestamps';
 COMMENT ON COLUMN deployments.id IS 'Auto-incrementing primary key for ordering deployments';
@@ -59,4 +70,9 @@ COMMENT ON COLUMN deployments.finish_timestamp IS 'When the deployment process w
 COMMENT ON COLUMN deployments.cancellation_timestamp IS 'When the deployment process was cancelled';
 COMMENT ON COLUMN deployments.created_at IS 'When the record was first created (entered the queue)';
 COMMENT ON COLUMN deployments.updated_at IS 'When the record was last updated';
+
+COMMENT ON TABLE environments IS 'Stores environment-specific configuration settings';
+COMMENT ON COLUMN environments.environment IS 'Environment name (e.g., dev, prod, staging)';
+COMMENT ON COLUMN environments.buffer_time IS 'Buffer time in minutes for finished deployments in this environment';
+
 
