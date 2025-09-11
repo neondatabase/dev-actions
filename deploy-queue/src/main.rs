@@ -6,7 +6,7 @@ use time::OffsetDateTime;
 
 use anyhow::{Context, Result};
 use clap::Parser;
-use cli::Mode;
+use cli::{Mode, Environment};
 use env_logger;
 use log::info;
 use tokio::time::sleep;
@@ -86,7 +86,7 @@ async fn main() -> Result<()> {
                 &db_client,
                 region,
                 component,
-                environment,
+                environment.as_str(),
                 version,
                 url,
                 note,
@@ -100,7 +100,7 @@ async fn main() -> Result<()> {
 
             loop {
                 // Check for blocking deployments in the same region
-                match check_blocking_deployments(&db_client, deployment_id, component, region, environment).await {
+                match check_blocking_deployments(&db_client, deployment_id, component, region, environment.as_str()).await {
                     Ok(blocking_deployments) => {
                         if blocking_deployments.is_empty() {
                             info!("No blocking deployments found. Deployment can be started.");
@@ -160,7 +160,7 @@ async fn insert_deployment_record(
 ) -> Result<i64, SqlxError> {
     // Insert the deployment record and return the ID
     let record = sqlx::query!("INSERT INTO deployments (region, component, environment, version, url, note) VALUES ($1, $2, $3, $4, $5, $6) RETURNING id", 
-        note, region, component)
+        region, component, environment, version, url, note)
         .fetch_one(client)
         .await?;
     

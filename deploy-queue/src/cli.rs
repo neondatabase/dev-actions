@@ -1,4 +1,30 @@
-use clap::{Parser, Subcommand};
+use clap::{Parser, Subcommand, ValueEnum};
+
+/// Environment enum for deployment targets
+#[derive(Clone, Debug, ValueEnum)]
+pub(crate) enum Environment {
+    Dev,
+    Prod,
+}
+
+impl std::fmt::Display for Environment {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        match self {
+            Environment::Dev => write!(f, "dev"),
+            Environment::Prod => write!(f, "prod"),
+        }
+    }
+}
+
+impl Environment {
+    /// Convert to string for database operations
+    pub(crate) fn as_str(&self) -> &'static str {
+        match self {
+            Environment::Dev => "dev",
+            Environment::Prod => "prod",
+        }
+    }
+}
 
 /// CLI for starting and finishing and canceling deployments.
 /// This CLI is used by the MutexBot GitHub Action.
@@ -18,7 +44,7 @@ pub(crate) enum Mode {
         /// Component to deploy
         component: String,
         /// Environment where to deploy
-        environment: String,
+        environment: Environment,
         /// Version of the component to deploy
         version: String,
         /// URL to the specific GitHub Actions job
