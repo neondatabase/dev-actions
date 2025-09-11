@@ -1,74 +1,43 @@
 use clap::{Parser, Subcommand};
 
-/// CLI for reserving and (force-)releasing MutexBot resources.
-///
-/// Use the `MUTEXBOT_API_KEY` environment variable to pass the API key.
+/// CLI for starting and finishing and canceling deployments.
+/// This CLI is used by the MutexBot GitHub Action.
 #[derive(Parser)]
 #[command(version, about, long_about)]
 pub(crate) struct Cli {
-    /// Isolation channel for resource
-    #[arg(long)]
-    pub(crate) isolation_channel: Option<String>,
     #[command(subcommand)]
     pub(crate) mode: Mode,
 }
 
 #[derive(Subcommand, Clone)]
 pub(crate) enum Mode {
-    /// Reserve a resource
-    ///
-    /// Use the `MUTEXBOT_API_KEY` environment variable to pass the API key.
-    Reserve {
-        /// Resource to reserve (Region name)
-        resource_name: String,
-        /// Component to reserve
+    /// Start deployment for a component
+    Start {
+        /// Region to deploy
+        region: String,
+        /// Component to deploy
         component: String,
-        /// Environment to reserve
+        /// Environment where to deploy
         environment: String,
-        /// Version of the component to reserve
+        /// Version of the component to deploy
         version: String,
         /// URL to the specific GitHub Actions job
         url: Option<String>,
         /// Note for this reservation (for manual deployments)
         note: Option<String>,
     },
-    /// Release a resource
-    ///
-    /// Use the `MUTEXBOT_API_KEY` environment variable to pass the API key.
-    Release {
-        /// Resource to release
-        resource_name: String,
+    /// Finish deployment for a component
+    Finish {
+        /// Region to finish the deployment for
+        region: String,
+        /// Component to finish the deployment for
+        component: String,
     },
-    /// Force Release a resource
-    ///
-    /// Use the `MUTEXBOT_API_KEY` environment variable to pass the API key.
-    ForceRelease {
-        /// Resource to force-release
-        resource_name: String,
+    /// Cancel deployment for a component
+    Cancel {
+        /// Resource to cancel the deployment for
+        region: String,
+        /// Component to cancel the deployment for
+        component: String,
     },
-}
-
-impl Mode {
-    pub(crate) fn api_endpoint(&self) -> String {
-        match self {
-            Mode::Reserve { resource_name, .. } => format!(
-                "https://mutexbot.com/api/resources/global/{}/reserve",
-                resource_name,
-            ),
-            Mode::Release { resource_name } => format!(
-                "https://mutexbot.com/api/resources/global/{}/release",
-                resource_name,
-            ),
-            Mode::ForceRelease { resource_name } => format!(
-                "https://mutexbot.com/api/resources/global/{}/force-release",
-                resource_name,
-            ),
-        }
-    }
-}
-
-impl Cli {
-    pub(crate) fn api_key(&self) -> anyhow::Result<String> {
-        Ok(std::env::var("MUTEXBOT_API_KEY")?)
-    }
 }
