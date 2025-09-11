@@ -54,10 +54,13 @@ async fn main() -> Result<()> {
 
     match &args.mode {
         Mode::Reserve {
-            duration,
-            notes,
             resource_name,
             component,
+            environment,
+            version,
+            url,
+            note,
+            duration,
         } => {
 
             // Create a single database connection for all operations
@@ -72,9 +75,12 @@ async fn main() -> Result<()> {
             // Insert deployment record into database
             let deployment_id = match insert_deployment_record(
                 &db_client,
-                notes,
                 resource_name,
                 component,
+                environment,
+                version,
+                url,
+                note,
             ).await {
                 Ok(id) => id,
                 Err(e) => {
@@ -136,19 +142,20 @@ async fn create_db_connection() -> Result<Pool<Postgres>, SqlxError> {
 /// Insert a new deployment record into the PostgreSQL database and return the ID
 async fn insert_deployment_record(
     client: &Pool<Postgres>,
-    note: &str,
     region: &str,
     component: &str,
+    environment: &str,
+    version: &str,
+    url: &str,
+    note: &str,
 ) -> Result<i64, SqlxError> {
     // Insert the deployment record and return the ID
-    let query = "INSERT INTO deployments (note, component, region) VALUES ($1, $2, $3) RETURNING id";
-
-    let deployment_id: i64 = sqlx::query_scalar::<_, i64>(query)
-        .bind(note)
-        .bind(region)
-        .bind(component)
+    let record = sqlx::query!("INSERT INTO deployments (region, component, environment, version, url, note) VALUES ($1, $2, $3, $4, $5, $6) RETURNING id", 
+        note, region, component)
         .fetch_one(client)
         .await?;
+    
+    let deployment_id = record.id;
 
     log::info!("Successfully inserted deployment record: id={}, region={}, component={}", deployment_id, region, component);
 

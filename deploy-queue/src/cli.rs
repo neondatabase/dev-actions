@@ -19,12 +19,18 @@ pub(crate) enum Mode {
     ///
     /// Use the `MUTEXBOT_API_KEY` environment variable to pass the API key.
     Reserve {
-        /// Resource to reserve
+        /// Resource to reserve (Region name)
         resource_name: String,
-        /// Region in which we reserve
-        region: String,
-        /// Notes for this reservation
-        notes: String,
+        /// Component to reserve
+        component: String,
+        /// Environment to reserve
+        environment: String,
+        /// Version of the component to reserve
+        version: String,
+        /// URL to the specific GitHub Actions job
+        url: Option<String>,
+        /// Note for this reservation (for manual deployments)
+        note: Option<String>,
         /// Duration to reserve resource for. Defaults to value set in MutexBot if omitted
         duration: Option<String>,
     },
