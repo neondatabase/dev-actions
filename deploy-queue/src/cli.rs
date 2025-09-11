@@ -27,7 +27,7 @@ impl Environment {
 }
 
 /// CLI for starting and finishing and canceling deployments.
-/// This CLI is used by the MutexBot GitHub Action.
+/// This CLI is used by the Deploy Queue GitHub Action.
 #[derive(Parser)]
 #[command(version, about, long_about)]
 pub(crate) struct Cli {
@@ -54,16 +54,14 @@ pub(crate) enum Mode {
     },
     /// Finish deployment for a component
     Finish {
-        /// Region to finish the deployment for
-        region: String,
-        /// Component to finish the deployment for
-        component: String,
+        /// Deployment ID to finish 
+        deployment_id: i64,
     },
     /// Cancel deployment for a component
     Cancel {
-        /// Resource to cancel the deployment for
-        region: String,
-        /// Component to cancel the deployment for
-        component: String,
+        /// Deployment ID to cancel
+        deployment_id: i64,
+        /// Cancellation note for this deployment
+        cancellation_note: Option<String>,
     },
 }
