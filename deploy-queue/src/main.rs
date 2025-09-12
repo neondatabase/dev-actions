@@ -76,13 +76,7 @@ async fn main() -> Result<()> {
     let args = cli::Cli::parse();
 
     // Create a single database connection for all operations
-    let db_client = match create_db_connection().await {
-        Ok(client) => client,
-        Err(e) => {
-            log::error!("Failed to connect to database: {}", e);
-            anyhow::bail!("Database connection failed: {}", e);
-        }
-    };
+    let db_client = create_db_connection().await?;
 
     match &args.mode {
         Mode::Start {
