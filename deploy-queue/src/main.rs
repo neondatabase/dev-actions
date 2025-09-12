@@ -17,7 +17,7 @@ pub(crate) mod cli;
 #[derive(sqlx::FromRow)]
 // We don't read all of the fields
 #[allow(dead_code)]
-struct PendingDeployment {
+struct Deployment {
     id: i64,
     component: String, 
     url: Option<String>, 
@@ -43,8 +43,8 @@ impl std::fmt::Display for DeploymentState {
     }
 }
 
-impl From<&PendingDeployment> for DeploymentState {
-    fn from(pending_deployment: &PendingDeployment) -> Self {
+impl From<&Deployment> for DeploymentState {
+    fn from(pending_deployment: &Deployment) -> Self {
         if pending_deployment.start_timestamp.is_some() {
             DeploymentState::Running
         } else {
@@ -208,7 +208,7 @@ async fn get_environment_buffer_time(
 async fn check_blocking_deployments(
     client: &Pool<Postgres>,
     deployment_id: i64,
-) -> Result<Vec<PendingDeployment>, SqlxError> {
+) -> Result<Vec<Deployment>, SqlxError> {
     // Query for deployments in the same region by other components with smaller ID (queue position)
     // that haven't finished yet (finish_timestamp IS NULL and cancellation_timestamp IS NULL) 
     // or have finished within the environment-specific buffer_time
@@ -228,9 +228,9 @@ async fn check_blocking_deployments(
     .fetch_all(client)
     .await?;
 
-    // Map the query results to PendingDeployment structs
+    // Map the query results to Deployment structs
     let results = rows.into_iter()
-        .map(|row| PendingDeployment {
+        .map(|row| Deployment {
             id: row.id,
             component: row.component,
             url: row.url,
