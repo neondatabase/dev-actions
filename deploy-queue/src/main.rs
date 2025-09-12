@@ -212,21 +212,32 @@ async fn check_blocking_deployments(
     // Query for deployments in the same region by other components with smaller ID (queue position)
     // that haven't finished yet (finish_timestamp IS NULL and cancellation_timestamp IS NULL) 
     // or have finished within the environment-specific buffer_time
-    let results: Vec<PendingDeployment> = sqlx::query_as::<_, PendingDeployment>("
-        SELECT d2.id, d2.component, d2.url, d2.note, d2.start_timestamp
-        FROM deployments d1
-        JOIN environments e ON d1.environment = e.environment  
-        JOIN deployments d2 ON (d1.region = d2.region AND d1.component != d2.component)
-        WHERE d1.id = $1
-          AND d2.id < d1.id
-          AND (d2.finish_timestamp IS NULL 
-               OR d2.finish_timestamp > NOW() - INTERVAL '1 minute' * e.buffer_time)
-          AND d2.cancellation_timestamp IS NULL
-        ORDER BY d2.id ASC
-    ")
-    .bind(deployment_id)
+    let rows = sqlx::query!(
+        "SELECT d2.id, d2.component, d2.url, d2.note, d2.start_timestamp
+         FROM deployments d1
+         JOIN environments e ON d1.environment = e.environment  
+         JOIN deployments d2 ON (d1.region = d2.region AND d1.component != d2.component)
+         WHERE d1.id = $1
+           AND d2.id < d1.id
+           AND (d2.finish_timestamp IS NULL 
+                OR d2.finish_timestamp > NOW() - INTERVAL '1 minute' * e.buffer_time)
+           AND d2.cancellation_timestamp IS NULL
+         ORDER BY d2.id ASC",
+        deployment_id
+    )
     .fetch_all(client)
     .await?;
+
+    // Map the query results to PendingDeployment structs
+    let results = rows.into_iter()
+        .map(|row| PendingDeployment {
+            id: row.id,
+            component: row.component,
+            url: row.url,
+            note: row.note,
+            start_timestamp: row.start_timestamp,
+        })
+        .collect();
 
     Ok(results)
 }
