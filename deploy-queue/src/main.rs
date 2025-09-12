@@ -107,35 +107,87 @@ async fn main() -> Result<()> {
 
             loop {
                 // Check for blocking deployments in the same region
-                match check_blocking_deployments(&db_client, deployment_id).await {
-                    Ok(blocking_deployments) => {
-                        if blocking_deployments.is_empty() {
-                            info!("No blocking deployments found. Deployment can be started.");
+                let blocking_deployments = check_blocking_deployments(&db_client, deployment_id).await?;
+                
+                if blocking_deployments.is_empty() {
+                    info!("No blocking deployments found. Deployment can be started.");
 
-                            //TO DO: Update deployment record to set start_timestamp
+                    // Update deployment record to set start_timestamp
+                    match update_deployment_record(&db_client, deployment_id, DeploymentState::Running, None).await {
+                        Ok(()) => {
+                            info!("Successfully started deployment with ID: {}", deployment_id);
                             break;
-                        } else {
-                            // Print information about blocking deployments
-                            info!("Found {} blocking deployment(s) with smaller queue positions:", 
-                                blocking_deployments.len());
-                            for pending_deployment in &blocking_deployments {
-                                let deployment_state: DeploymentState = pending_deployment.into();
-                                let deployment_note = pending_deployment.url.or(pending_deployment.note).unwrap_or_else(|| String::new());
-                                info!("  - Deployment ID: {}, Component: {}, State: {}, Note: {}", pending_deployment.id, pending_deployment.component, deployment_state, deployment_note);
-                            }
-                            info!("Retrying in 5 seconds.");
-                            sleep(BUSY_RETRY).await;
+                        }
+                        Err(e) => {
+                            log::error!("Failed to start deployment: {}", e);
+                            anyhow::bail!("Database update failed: {}", e);
                         }
                     }
-                    Err(e) => {
-                        log::error!("Failed to check blocking deployments: {}", e);
-                        anyhow::bail!("Database query failed: {}", e);
+                } else {
+                    // Print information about blocking deployments
+                    info!("Found {} blocking deployment(s) with smaller queue positions:", 
+                        blocking_deployments.len());
+                    for pending_deployment in &blocking_deployments {
+                        let deployment_state: DeploymentState = pending_deployment.into();
+                        let deployment_note = pending_deployment.url.or(pending_deployment.note).unwrap_or_else(|| String::new());
+                        info!("  - Deployment ID: {}, Component: {}, State: {}, Note: {}", pending_deployment.id, pending_deployment.component, deployment_state, deployment_note);
                     }
+                    info!("Retrying in 5 seconds.");
+                    sleep(BUSY_RETRY).await;
                 }
             }
         }
-        Mode::Release { .. } | Mode::ForceRelease { .. } => {
-     
+        Mode::Finish { deployment_id } => {
+            log::info!("Finishing deployment with ID: {}", deployment_id);
+
+            // Verify deployment exists and is in a valid state for finishing
+            match verify_deployment_can_be_finished(&db_client, *deployment_id).await {
+                Ok(true) => {
+                    // Update deployment record to set finish_timestamp
+                    match update_deployment_record(&db_client, *deployment_id, DeploymentState::Finished, None).await {
+                        Ok(()) => {
+                            log::info!("Successfully finished deployment with ID: {}", deployment_id);
+                        }
+                        Err(e) => {
+                            log::error!("Failed to update deployment record: {}", e);
+                            anyhow::bail!("Database update failed: {}", e);
+                        }
+                    }
+                }
+                Ok(false) => {
+                    anyhow::bail!("Deployment {} cannot be finished (not started or already finished/cancelled)", deployment_id);
+                }
+                Err(e) => {
+                    log::error!("Failed to verify deployment state: {}", e);
+                    anyhow::bail!("Database query failed: {}", e);
+                }
+            }
+        }
+        Mode::Cancel { deployment_id, cancellation_note } => {
+            log::info!("Cancelling deployment with ID: {}", deployment_id);
+
+            // Verify deployment exists and is in a valid state for cancellation
+            match verify_deployment_can_be_cancelled(&db_client, *deployment_id).await {
+                Ok(true) => {
+                    // Update deployment record to set cancellation_timestamp
+                    match update_deployment_record(&db_client, *deployment_id, DeploymentState::Cancelled, cancellation_note.as_deref()).await {
+                        Ok(()) => {
+                            log::info!("Successfully cancelled deployment with ID: {}", deployment_id);
+                        }
+                        Err(e) => {
+                            log::error!("Failed to update deployment record: {}", e);
+                            anyhow::bail!("Database update failed: {}", e);
+                        }
+                    }
+                }
+                Ok(false) => {
+                    anyhow::bail!("Deployment {} cannot be cancelled (already finished or cancelled)", deployment_id);
+                }
+                Err(e) => {
+                    log::error!("Failed to verify deployment state: {}", e);
+                    anyhow::bail!("Database query failed: {}", e);
+                }
+            }
         }
     }
 
@@ -198,17 +250,54 @@ async fn insert_deployment_record(
     Ok(deployment_id)
 }
 
-/// Get buffer time for an environment from the environments table
-async fn get_environment_buffer_time(
+/// Verify that a deployment can be finished (must be started and not already finished/cancelled)
+async fn verify_deployment_can_be_finished(
     client: &Pool<Postgres>,
-    environment: &str,
-) -> Result<Duration, SqlxError> {
-    let record = sqlx::query!("SELECT buffer_time FROM environments WHERE environment = $1", environment)
-        .fetch_one(client)
-        .await?;
+    deployment_id: i64,
+) -> Result<bool, SqlxError> {
+    let record = sqlx::query!(
+        "SELECT start_timestamp, finish_timestamp, cancellation_timestamp FROM deployments WHERE id = $1",
+        deployment_id
+    )
+    .fetch_optional(client)
+    .await?;
     
-    let buffer_minutes = record.buffer_time;
-    Ok(Duration::from_secs(buffer_minutes as u64 * 60))
+    match record {
+        Some(deployment) => {
+            // Can finish if: started, not finished, and not cancelled
+            Ok(deployment.start_timestamp.is_some() 
+                && deployment.finish_timestamp.is_none() 
+                && deployment.cancellation_timestamp.is_none())
+        }
+        None => {
+            // Deployment doesn't exist
+            Ok(false)
+        }
+    }
+}
+
+/// Verify that a deployment can be cancelled (must exist and not already finished/cancelled)
+async fn verify_deployment_can_be_cancelled(
+    client: &Pool<Postgres>,
+    deployment_id: i64,
+) -> Result<bool, SqlxError> {
+    let record = sqlx::query!(
+        "SELECT finish_timestamp, cancellation_timestamp FROM deployments WHERE id = $1",
+        deployment_id
+    )
+    .fetch_optional(client)
+    .await?;
+    
+    match record {
+        Some(deployment) => {
+            // Can cancel if: not finished and not already cancelled
+            Ok(deployment.finish_timestamp.is_none() && deployment.cancellation_timestamp.is_none())
+        }
+        None => {
+            // Deployment doesn't exist
+            Ok(false)
+        }
+    }
 }
 
 /// Check for blocking deployments in the same region 
@@ -247,4 +336,37 @@ async fn check_blocking_deployments(
     .await?;
 
     Ok(results)
+}
+
+/// Update the deployment record with appropriate timestamp based on state
+async fn update_deployment_record(
+    client: &Pool<Postgres>,
+    deployment_id: i64,
+    state: DeploymentState,
+    cancellation_note: Option<&str>,
+) -> Result<(), SqlxError> {
+    match state {
+        DeploymentState::Running => {
+            sqlx::query!("UPDATE deployments SET start_timestamp = NOW() WHERE id = $1", deployment_id)
+                .execute(client)
+                .await?;
+        }
+        DeploymentState::Finished => {
+            sqlx::query!("UPDATE deployments SET finish_timestamp = NOW() WHERE id = $1", deployment_id)
+                .execute(client)
+                .await?;
+        }
+        DeploymentState::Cancelled => {
+            sqlx::query!("UPDATE deployments SET cancellation_timestamp = NOW(), cancellation_note = $2 WHERE id = $1", deployment_id, cancellation_note)
+                .execute(client)
+                .await?;
+        }
+        DeploymentState::Queued => {
+            // No timestamp update needed for queued state
+        }
+        DeploymentState::FinishedInBuffer => {
+            // No timestamp update needed for finished in buffer state
+        }
+    }
+    Ok(())
 }
