@@ -24,6 +24,9 @@ CREATE TABLE deployments (
 -- Index on region for faster queries by region
 CREATE INDEX idx_deployments_region ON deployments(region);
 
+-- Composite index on region and component for efficient blocking deployment queries
+CREATE INDEX idx_deployments_region_component ON deployments(region, component);
+
 -- Index on finish_timestamp for searching deployments in queue
 CREATE INDEX idx_deployments_finish_timestamp ON deployments(finish_timestamp);
 
