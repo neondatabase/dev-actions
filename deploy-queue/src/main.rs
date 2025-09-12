@@ -14,15 +14,20 @@ use sqlx::{postgres::PgPoolOptions, Pool, Postgres, Error as SqlxError};
 
 pub(crate) mod cli;
 
-#[derive(sqlx::FromRow)]
 // We don't read all of the fields
 #[allow(dead_code)]
 struct Deployment {
     id: i64,
+    region: String,
+    environment: String,
     component: String, 
     url: Option<String>, 
     note: Option<String>, 
-    start_timestamp: Option<OffsetDateTime>
+    start_timestamp: Option<OffsetDateTime>,
+    finish_timestamp: Option<OffsetDateTime>,
+    cancellation_timestamp: Option<OffsetDateTime>,
+    cancellation_note: Option<String>,
+    buffer_time: i32,
 }
 
 enum DeploymentState {
@@ -212,8 +217,19 @@ async fn check_blocking_deployments(
     // Query for deployments in the same region by other components with smaller ID (queue position)
     // that haven't finished yet (finish_timestamp IS NULL and cancellation_timestamp IS NULL) 
     // or have finished within the environment-specific buffer_time
-    let rows = sqlx::query!(
-        "SELECT d2.id, d2.component, d2.url, d2.note, d2.start_timestamp
+    let results = sqlx::query_as!(
+        Deployment,
+        "SELECT d2.id, 
+                d2.region,
+                d2.environment,
+                d2.component, 
+                d2.url, 
+                d2.note, 
+                d2.start_timestamp,
+                d2.finish_timestamp,
+                d2.cancellation_timestamp,
+                d2.cancellation_note,
+                e.buffer_time
          FROM deployments d1
          JOIN environments e ON d1.environment = e.environment  
          JOIN deployments d2 ON (d1.region = d2.region AND d1.component != d2.component)
@@ -227,17 +243,6 @@ async fn check_blocking_deployments(
     )
     .fetch_all(client)
     .await?;
-
-    // Map the query results to Deployment structs
-    let results = rows.into_iter()
-        .map(|row| Deployment {
-            id: row.id,
-            component: row.component,
-            url: row.url,
-            note: row.note,
-            start_timestamp: row.start_timestamp,
-        })
-        .collect();
 
     Ok(results)
 }
