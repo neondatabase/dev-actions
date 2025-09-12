@@ -33,6 +33,7 @@ struct Deployment {
 enum DeploymentState {
     Queued,
     Running,
+    FinishedInBuffer,
     Finished,
     Cancelled
 }
@@ -42,6 +43,7 @@ impl std::fmt::Display for DeploymentState {
         match self {
             DeploymentState::Queued => write!(f, "QUEUED"),
             DeploymentState::Running => write!(f, "RUNNING"),
+            DeploymentState::FinishedInBuffer => write!(f, "FINISHED WITHIN BUFFER TIME"),
             DeploymentState::Finished => write!(f, "FINISHED"),
             DeploymentState::Cancelled => write!(f, "CANCELLED"),
         }
@@ -49,11 +51,17 @@ impl std::fmt::Display for DeploymentState {
 }
 
 impl From<&Deployment> for DeploymentState {
-    fn from(pending_deployment: &Deployment) -> Self {
-        if pending_deployment.start_timestamp.is_some() {
-            DeploymentState::Running
-        } else {
+    fn from(deployment: &Deployment) -> Self {
+        if deployment.start_timestamp.is_none() {
             DeploymentState::Queued
+        } else if deployment.cancellation_timestamp.is_some() {
+            DeploymentState::Cancelled
+        } else if deployment.finish_timestamp.is_none() {
+            DeploymentState::Running
+        } else if deployment.finish_timestamp.is_some() && deployment.finish_timestamp.unwrap() < OffsetDateTime::now_utc() - Duration::from_minutes(deployment.buffer_time) {
+            DeploymentState::FinishedInBuffer
+        } else {
+            DeploymentState::Finished
         }
     }
 }
