@@ -17,7 +17,7 @@ pub(crate) mod cli;
 // We don't read all of the fields
 #[allow(dead_code)]
 struct Deployment {
-    id: i64,
+    id: Option<NonZero<u64>>,
     region: String,
     environment: String,
     component: String, 
