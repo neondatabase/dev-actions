@@ -91,12 +91,15 @@ async fn main() -> Result<()> {
             // Insert deployment record into database
             let deployment_id = match insert_deployment_record(
                 &db_client,
-                region,
-                component,
-                environment.as_str(),
-                version,
-                url,
-                note,
+                Deployment {
+                   region,
+                   component,
+                   environment: environment.to_string(),
+                   version,
+                   url,
+                   note,
+                   ..Default::default()
+                }
             ).await {
                 Ok(id) => id,
                 Err(e) => {
