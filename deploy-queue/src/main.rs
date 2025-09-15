@@ -364,11 +364,8 @@ async fn update_deployment_record(
                 .execute(client)
                 .await?;
         }
-        DeploymentState::Queued => {
-            // No timestamp update needed for queued state
-        }
-        DeploymentState::FinishedInBuffer => {
-            // No timestamp update needed for finished in buffer state
+        DeploymentState::Queued || DeploymentState::FinishedInBuffer => {
+            // No update needed for state
         }
     }
     Ok(())
