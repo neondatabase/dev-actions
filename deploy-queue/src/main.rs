@@ -116,7 +116,7 @@ async fn main() -> Result<()> {
                     info!("No blocking deployments found. Deployment can be started.");
 
                     // Update deployment record to set start_timestamp
-                    match update_deployment_record(&db_client, deployment_id, DeploymentState::Running, None).await {
+                    match start_deployment(&db_client, deployment_id).await {
                         Ok(()) => {
                             info!("Successfully started deployment with ID: {}", deployment_id);
                             break;
@@ -147,7 +147,7 @@ async fn main() -> Result<()> {
             match verify_deployment_can_be_finished(&db_client, *deployment_id).await {
                 Ok(true) => {
                     // Update deployment record to set finish_timestamp
-                    match update_deployment_record(&db_client, *deployment_id, DeploymentState::Finished, None).await {
+                    match finish_deployment(&db_client, *deployment_id).await {
                         Ok(()) => {
                             log::info!("Successfully finished deployment with ID: {}", deployment_id);
                         }
@@ -173,7 +173,7 @@ async fn main() -> Result<()> {
             match verify_deployment_can_be_cancelled(&db_client, *deployment_id).await {
                 Ok(true) => {
                     // Update deployment record to set cancellation_timestamp
-                    match update_deployment_record(&db_client, *deployment_id, DeploymentState::Cancelled, cancellation_note.as_deref()).await {
+                    match cancel_deployment(&db_client, *deployment_id, cancellation_note.as_deref()).await {
                         Ok(()) => {
                             log::info!("Successfully cancelled deployment with ID: {}", deployment_id);
                         }
@@ -344,32 +344,33 @@ async fn check_blocking_deployments(
     Ok(results)
 }
 
-/// Update the deployment record with appropriate timestamp based on state
-async fn update_deployment_record(
+/// Update the deployment record with start timestamp
+async fn start_deployment(
     client: &Pool<Postgres>,
     deployment_id: i64,
-    state: DeploymentState,
+) -> Result<(), SqlxError> {
+    sqlx::query!("UPDATE deployments SET start_timestamp = NOW() WHERE id = $1", deployment_id)
+        .execute(client)
+        .await?;
+}
+
+/// Update the deployment record with finish timestamp
+async fn finish_deployment(
+    client: &Pool<Postgres>,
+    deployment_id: i64,
+) -> Result<(), SqlxError> {
+    sqlx::query!("UPDATE deployments SET finish_timestamp = NOW() WHERE id = $1", deployment_id)
+        .execute(client)
+        .await?;
+}
+
+/// Update the deployment record with cancellation timestamp and note
+async fn cancel_deployment(
+    client: &Pool<Postgres>,
+    deployment_id: i64,
     cancellation_note: Option<&str>,
 ) -> Result<(), SqlxError> {
-    match state {
-        DeploymentState::Running => {
-            sqlx::query!("UPDATE deployments SET start_timestamp = NOW() WHERE id = $1", deployment_id)
-                .execute(client)
-                .await?;
-        }
-        DeploymentState::Finished => {
-            sqlx::query!("UPDATE deployments SET finish_timestamp = NOW() WHERE id = $1", deployment_id)
-                .execute(client)
-                .await?;
-        }
-        DeploymentState::Cancelled => {
-            sqlx::query!("UPDATE deployments SET cancellation_timestamp = NOW(), cancellation_note = $2 WHERE id = $1", deployment_id, cancellation_note)
-                .execute(client)
-                .await?;
-        }
-        DeploymentState::Queued || DeploymentState::FinishedInBuffer => {
-            // No update needed for state
-        }
-    }
-    Ok(())
+    sqlx::query!("UPDATE deployments SET cancellation_timestamp = NOW(), cancellation_note = $2 WHERE id = $1", deployment_id, cancellation_note)
+        .execute(client)
+        .await?;
 }
