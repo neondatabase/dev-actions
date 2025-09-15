@@ -310,25 +310,28 @@ async fn check_blocking_deployments(
     // or have finished within the environment-specific buffer_time
     let results = sqlx::query_as!(
         Deployment,
-        "SELECT d2.id, 
+        "SELECT d2.id,
                 d2.region,
                 d2.environment,
-                d2.component, 
-                d2.url, 
-                d2.note, 
+                d2.component,
+                d2.url,
+                d2.note,
                 d2.start_timestamp,
                 d2.finish_timestamp,
                 d2.cancellation_timestamp,
                 d2.cancellation_note,
                 e.buffer_time
-         FROM deployments d1
-         JOIN environments e ON d1.environment = e.environment  
-         JOIN deployments d2 ON (d1.region = d2.region AND d1.component != d2.component)
-         WHERE d1.id = $1
-           AND d2.id < d1.id
-           AND (d2.finish_timestamp IS NULL 
-                OR d2.finish_timestamp > NOW() - INTERVAL '1 minute' * e.buffer_time)
-           AND d2.cancellation_timestamp IS NULL
+         FROM
+           (SELECT *
+            FROM deployments
+            WHERE id = $1) d1
+         JOIN environments e ON d1.environment = e.environment
+         JOIN deployments d2 ON (d1.region = d2.region
+                                 AND d1.component != d2.component
+                                 AND d2.id < d1.id
+                                 AND (d2.finish_timestamp IS NULL
+                                      OR d2.finish_timestamp > NOW() - INTERVAL '1 minute' * e.buffer_time)
+                                 AND d2.cancellation_timestamp IS NULL)
          ORDER BY d2.id ASC",
         deployment_id
     )
