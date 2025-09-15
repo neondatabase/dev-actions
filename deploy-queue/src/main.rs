@@ -199,12 +199,15 @@ async fn main() -> Result<()> {
 
 /// Create a database connection pool and return it
 async fn create_db_connection() -> Result<Pool<Postgres>, SqlxError> {
-    let database_url = "postgres://user:password@hostname:port/db-name";
+    let database_url = std::env::var("DEPLOY_QUEUE_DATABASE_URL")
+        .map_err(|_| SqlxError::Configuration(
+            "DEPLOY_QUEUE_DATABASE_URL environment variable is required".into()
+        ))?;
 
     let pool = PgPoolOptions::new()
         .max_connections(5)
         .acquire_timeout(Duration::from_secs(10))
-        .connect(database_url)
+        .connect(&database_url)
         .await?;
 
     Ok(pool)
