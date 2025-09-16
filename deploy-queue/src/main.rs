@@ -139,16 +139,9 @@ async fn main() -> Result<()> {
             // Verify deployment exists and is in a valid state for finishing
             match verify_deployment_can_be_finished(&db_client, *deployment_id).await {
                 Ok(true) => {
-                    // Update deployment record to set finish_timestamp
-                    match finish_deployment(&db_client, *deployment_id).await {
-                        Ok(()) => {
-                            log::info!("Successfully finished deployment with ID: {}", deployment_id);
-                        }
-                        Err(e) => {
-                            log::error!("Failed to update deployment record: {}", e);
-                            anyhow::bail!("Database update failed: {}", e);
-                        }
-                    }
+                    finish_deployment(&db_client, *deployment_id).await
+                        .context("Failed to set deployment to finished")?;
+                    log::info!("Successfully finished deployment with ID: {}", deployment_id);
                 }
                 Ok(false) => {
                     anyhow::bail!("Deployment {} cannot be finished (not started or already finished/cancelled)", deployment_id);
