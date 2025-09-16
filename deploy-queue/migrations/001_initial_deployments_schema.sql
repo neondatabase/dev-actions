@@ -1,3 +1,11 @@
+-- Initial deployment queue database schema
+-- Contains deployments table, environments configuration, and validation triggers
+
+-- ============================================================================
+-- DEPLOYMENTS TABLE
+-- ============================================================================
+
+-- Main deployments table with metadata and flow process timestamps
 CREATE TABLE deployments (
     -- Primary key with auto-incrementing BIGSERIAL for ordering
     id BIGSERIAL PRIMARY KEY,
@@ -21,17 +29,30 @@ CREATE TABLE deployments (
     updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
 );
 
--- Index on region for faster queries by region
+-- Indexes for efficient queries
 CREATE INDEX idx_deployments_region ON deployments(region);
-
--- Composite index on region and component for efficient blocking deployment queries
 CREATE INDEX idx_deployments_region_component ON deployments(region, component);
-
--- Index on finish_timestamp for searching deployments in queue
 CREATE INDEX idx_deployments_finish_timestamp ON deployments(finish_timestamp);
-
--- Index on cancellation_timestamp for searching deployments in queue
 CREATE INDEX idx_deployments_cancellation_timestamp ON deployments(cancellation_timestamp);
+
+-- ============================================================================
+-- ENVIRONMENTS TABLE
+-- ============================================================================
+
+-- Environment-specific configuration settings
+CREATE TABLE environments (
+    environment VARCHAR(50) PRIMARY KEY,
+    buffer_time INTEGER NOT NULL -- buffer time in minutes
+);
+
+-- Insert default environment configurations
+INSERT INTO environments (environment, buffer_time) VALUES 
+    ('dev', 0),      -- Development: no buffer time
+    ('prod', 10);    -- Production: 10 minutes buffer time
+
+-- ============================================================================
+-- FUNCTIONS AND TRIGGERS
+-- ============================================================================
 
 -- Function to automatically update the updated_at timestamp
 CREATE OR REPLACE FUNCTION update_updated_at_column()
@@ -113,31 +134,26 @@ BEGIN
 END;
 $$ LANGUAGE plpgsql;
 
--- Trigger to automatically update updated_at on row updates
+-- Apply triggers to deployments table
 CREATE TRIGGER update_deployments_updated_at 
     BEFORE UPDATE ON deployments 
     FOR EACH ROW 
     EXECUTE FUNCTION update_updated_at_column();
 
--- Trigger to validate state transitions
 CREATE TRIGGER validate_deployment_state_transitions
     BEFORE UPDATE ON deployments
     FOR EACH ROW
     EXECUTE FUNCTION validate_deployment_state_transition();
 
--- Environments table for storing environment-specific configuration
-CREATE TABLE environments (
-    environment VARCHAR(50) PRIMARY KEY,
-    buffer_time INTEGER NOT NULL -- buffer time in minutes
-);
+-- ============================================================================
+-- DOCUMENTATION
+-- ============================================================================
 
--- Insert default environment configurations
-INSERT INTO environments (environment, buffer_time) VALUES 
-    ('dev', 0),      -- Development: no buffer time
-    ('prod', 10);    -- Production: 10 minutes buffer time
-
--- Comments for documentation
+-- Table comments
 COMMENT ON TABLE deployments IS 'Stores deployment records with metadata and flow process timestamps';
+COMMENT ON TABLE environments IS 'Stores environment-specific configuration settings';
+
+-- Column comments for deployments table
 COMMENT ON COLUMN deployments.id IS 'Auto-incrementing primary key for ordering deployments';
 COMMENT ON COLUMN deployments.region IS 'Deployment target region';
 COMMENT ON COLUMN deployments.environment IS 'Deployment target environment';
@@ -151,8 +167,6 @@ COMMENT ON COLUMN deployments.cancellation_timestamp IS 'When the deployment pro
 COMMENT ON COLUMN deployments.created_at IS 'When the record was first created (entered the queue)';
 COMMENT ON COLUMN deployments.updated_at IS 'When the record was last updated';
 
-COMMENT ON TABLE environments IS 'Stores environment-specific configuration settings';
+-- Column comments for environments table
 COMMENT ON COLUMN environments.environment IS 'Environment name (e.g., dev, prod, staging)';
 COMMENT ON COLUMN environments.buffer_time IS 'Buffer time in minutes for finished deployments in this environment';
-
-
