@@ -6,7 +6,7 @@ CREATE TABLE deployments (
     region VARCHAR(100) NOT NULL,
     environment VARCHAR(50) NOT NULL,
     component VARCHAR(200) NOT NULL,
-    version VARCHAR(100) NOT NULL,
+    version VARCHAR(100),
     url TEXT,
     note TEXT,
     
