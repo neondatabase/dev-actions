@@ -9,9 +9,6 @@ pub(crate) enum Environment {
 
 impl std::fmt::Display for Environment {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        match self {
-            Environment::Dev => write!(f, "dev"),
-            Environment::Prod => write!(f, "prod"),
         write!(f, "{}", self.as_ref())
     }
 }
