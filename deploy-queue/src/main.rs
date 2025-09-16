@@ -66,7 +66,6 @@ impl From<&Deployment> for DeploymentState {
     }
 }
 
-const FAILURE_RETRY: Duration = Duration::from_secs(2);
 const BUSY_RETRY: Duration = Duration::from_secs(5);
 
 #[tokio::main]
