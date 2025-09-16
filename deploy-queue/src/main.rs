@@ -146,6 +146,12 @@ async fn main() -> Result<()> {
                 .context("Failed to set deployment to cancelled")?;
             log::info!("Successfully cancelled deployment with ID: {}", deployment_id);
         }
+        Mode::Info { deployment_id } => {
+            log::info!("Fetching info for deployment ID: {}", deployment_id);
+
+            show_deployment_info(&db_client, *deployment_id).await
+                .context("Failed to fetch deployment info")?;
+        }
     }
 
     Ok(())
@@ -204,6 +210,74 @@ async fn insert_deployment_record(
     }
 
     Ok(deployment_id)
+}
+
+/// Show detailed info about a deployment for debugging purposes
+async fn show_deployment_info(
+    client: &Pool<Postgres>,
+    deployment_id: i64,
+) -> Result<(), SqlxError> {
+    let deployment = sqlx::query_as!(
+        Deployment,
+        "SELECT d.id, 
+                d.region,
+                d.environment,
+                d.component, 
+                d.url, 
+                d.note, 
+                d.start_timestamp,
+                d.finish_timestamp,
+                d.cancellation_timestamp,
+                d.cancellation_note,
+                e.buffer_time
+         FROM deployments d
+         JOIN environments e ON d.environment = e.environment  
+         WHERE d.id = $1",
+        deployment_id
+    )
+    .fetch_optional(client)
+    .await?;
+
+    match deployment {
+        Some(dep) => {
+            let state: DeploymentState = (&dep).into();
+            
+            println!("\n=== Deployment Info ===");
+            println!("ID: {}", dep.id);
+            println!("Region: {}", dep.region);
+            println!("Environment: {}", dep.environment);
+            println!("Component: {}", dep.component);
+            println!("State: {}", state);
+            println!("Buffer Time: {} minutes", dep.buffer_time);
+            
+            if let Some(url) = &dep.url {
+                println!("URL: {}", url);
+            }
+            if let Some(note) = &dep.note {
+                println!("Note: {}", note);
+            }
+            
+            if let Some(start) = dep.start_timestamp {
+                println!("Started at: {}", start.format(&time::format_description::well_known::Rfc3339).unwrap_or_else(|_| "Invalid timestamp".to_string()));
+            }
+            if let Some(finish) = dep.finish_timestamp {
+                println!("Finished at: {}", finish.format(&time::format_description::well_known::Rfc3339).unwrap_or_else(|_| "Invalid timestamp".to_string()));
+            }
+            if let Some(cancelled) = dep.cancellation_timestamp {
+                println!("Cancelled at: {}", cancelled.format(&time::format_description::well_known::Rfc3339).unwrap_or_else(|_| "Invalid timestamp".to_string()));
+                if let Some(cancel_note) = &dep.cancellation_note {
+                    println!("Cancellation Note: {}", cancel_note);
+                }
+            }
+            
+            println!("=====================\n");
+        }
+        None => {
+            println!("Deployment with ID {} not found", deployment_id);
+        }
+    }
+    
+    Ok(())
 }
 
 /// Check for blocking deployments in the same region 

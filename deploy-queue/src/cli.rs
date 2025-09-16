@@ -64,4 +64,9 @@ pub(crate) enum Mode {
         /// Cancellation note for this deployment
         cancellation_note: Option<String>,
     },
+    /// Get info about a deployment
+    Info {
+        /// Deployment ID to get info for
+        deployment_id: i64,
+    },
 }
