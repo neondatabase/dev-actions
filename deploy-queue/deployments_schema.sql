@@ -46,6 +46,22 @@ $$ language 'plpgsql';
 CREATE OR REPLACE FUNCTION validate_deployment_state_transition()
 RETURNS TRIGGER AS $$
 BEGIN
+    -- Prevent changes to immutable fields
+    IF (OLD.id IS DISTINCT FROM NEW.id 
+        OR OLD.region IS DISTINCT FROM NEW.region 
+        OR OLD.environment IS DISTINCT FROM NEW.environment 
+        OR OLD.component IS DISTINCT FROM NEW.component 
+        OR OLD.version IS DISTINCT FROM NEW.version 
+        OR OLD.url IS DISTINCT FROM NEW.url 
+        OR OLD.note IS DISTINCT FROM NEW.note) THEN
+        RAISE EXCEPTION 'Cannot modify immutable fields (id, region, environment, component, version, url, note) for deployment %', OLD.id;
+    END IF;
+
+    -- Prevent both finish_timestamp and cancellation_timestamp from being set
+    IF NEW.finish_timestamp IS NOT NULL AND NEW.cancellation_timestamp IS NOT NULL THEN
+        RAISE EXCEPTION 'Deployment % cannot be both finished and cancelled', NEW.id;
+    END IF;
+
     -- Allow updates if no state-related fields are changing
     IF (OLD.start_timestamp IS NOT DISTINCT FROM NEW.start_timestamp 
         AND OLD.finish_timestamp IS NOT DISTINCT FROM NEW.finish_timestamp 
