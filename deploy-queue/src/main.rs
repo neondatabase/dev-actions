@@ -196,8 +196,6 @@ async fn create_db_connection() -> Result<Pool<Postgres>, SqlxError> {
         .context("Failed to fetch database url from DEPLOY_QUEUE_DATABASE_URL environment variable")?;
 
     let pool = PgPoolOptions::new()
-        .max_connections(5)
-        .acquire_timeout(Duration::from_secs(10))
         .connect(&database_url)
         .await?;
 
