@@ -115,17 +115,10 @@ async fn main() -> Result<()> {
                 if blocking_deployments.is_empty() {
                     info!("No blocking deployments found. Deployment can be started.");
 
-                    // Update deployment record to set start_timestamp
-                    match start_deployment(&db_client, deployment_id).await {
-                        Ok(()) => {
-                            info!("Successfully started deployment with ID: {}", deployment_id);
-                            break;
-                        }
-                        Err(e) => {
-                            log::error!("Failed to start deployment: {}", e);
-                            anyhow::bail!("Database update failed: {}", e);
-                        }
-                    }
+                    start_deployment(&db_client, deployment_id).await
+                        .context("Failed to start deployment")?;
+                    info!("Successfully started deployment with ID: {}", deployment_id);
+                    break;
                 } else {
                     // Print information about blocking deployments
                     info!("Found {} blocking deployment(s) with smaller queue positions:", 
