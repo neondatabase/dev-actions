@@ -10,9 +10,12 @@ use cli::{Mode, Environment};
 use env_logger;
 use log::info;
 use tokio::time::sleep;
-use sqlx::{postgres::PgPoolOptions, Pool, Postgres, Error as SqlxError};
+use sqlx::{postgres::PgPoolOptions, Pool, Postgres, Error as SqlxError, migrate::Migrator};
 
 pub(crate) mod cli;
+
+// Embed migrations into the binary
+static MIGRATOR: Migrator = sqlx::migrate!();
 
 // We don't read all of the fields
 #[allow(dead_code)]
@@ -168,6 +171,15 @@ async fn create_db_connection() -> Result<Pool<Postgres>, SqlxError> {
         .await?;
 
     Ok(pool)
+}
+
+/// Run database migrations
+async fn run_migrations(pool: &Pool<Postgres>) -> Result<()> {
+    info!("Running database migrations...");
+    MIGRATOR.run(pool).await
+        .context("Failed to run database migrations")?;
+    info!("Database migrations completed successfully");
+    Ok(())
 }
 
 /// Insert a new deployment record into the PostgreSQL database and return the ID
