@@ -1,18 +1,25 @@
-name: Mutexbot
-description: Action to reserve and release resources on mutexbot.com
+name: Deploy Queue
+description: Action to start, finish and cancel deployments.
 inputs:
-  api_key:
-    description: Mutexbot API key
   mode:
-    description: Whether to reserve or release or force-release
+    description: Whether to start, finish or cancel the deployment
     default: reserve
-  resource_name:
-    description: Mutexbot resource name
-  duration:
-    description: Duration for which to reserve
+  region:
+    description: Region to deploy
+  component:
+    description: Component to deploy
     default: ''
-  isolation_channel:
-    description: Isolation channel of resource
+  environment:
+    description: Environment where to deploy
+    default: ''
+  version:
+    description: Version to deploy
+    default: ''
+  url:
+    description: URL to the specific GitHub Actions job
+    default: ''
+  note:
+    description: Note for this deployment (for manual deployments)
     default: ''
 
 runs:
@@ -46,57 +53,38 @@ runs:
         GH_TOKEN: ${{ github.token }}
         REF: ${{ github.action_ref }}
         SHA: ${{ github.event.pull_request.head.sha || github.sha }}
-        
 
-    - name: Download mutexbot binary
-      shell: bash
-      run: |
-        if [ ! -f "${ARCHIVE}.tar.zst" ]; then
-          gh release download "$TAG" \
-            --repo "$ACTION_REPO" \
-            --pattern "$ARCHIVE.tar.zst"
-
-          tar xvf "$ARCHIVE.tar.zst"
-        fi
-
-        echo "$(pwd)/${ARCHIVE}" | tee -a "${GITHUB_PATH}"
-      working-directory: ${{ github.action_path }}
-      env:
-        GH_TOKEN: ${{ github.token }}
-        TAG: ${{ steps.tag.outputs.tag }}
-        ARCHIVE: "mutexbot-${{ steps.triple.outputs.triple }}"
-        ACTION_REPO: ${{ github.action_repository }}
-
-    - name: Run mutexbot
+    - name: Run deploy-queue
       shell: bash
       env:
-        MUTEXBOT_API_KEY: ${{ inputs.api_key }}
         MODE: ${{ inputs.mode }}
-        RESOURCE_NAME: ${{ inputs.resource_name }}
-        DURATION: ${{ inputs.duration }}
-        ISOLATION_CHANNEL: ${{ inputs.isolation_channel }}
+        REGION: ${{ inputs.region }}
+        COMPONENT: ${{ inputs.component }}
+        ENVIRONMENT: ${{ inputs.environment }}
+        VERSION: ${{ inputs.version }}
+        URL: ${{ inputs.url }}
+        NOTE: ${{ inputs.note }}
       run: |
         set -euo pipefail
         
         args=()
-        if [[ -n "${ISOLATION_CHANNEL}" ]]; then
-          args+=( "--isolation-channel" "${ISOLATION_CHANNEL}" )
-        fi
         
         case "${MODE}" in
-          "reserve")
+          "start")
             args+=(
-              "reserve"
-              "${RESOURCE_NAME}"
-              "Reserved by ${GITHUB_SERVER_URL}/${GITHUB_REPOSITORY}/actions/runs/${GITHUB_RUN_ID}"
+              "start"
+              "${REGION}"
+              "${COMPONENT}"
+              "${ENVIRONMENT}"
+              "${VERSION}"
+              "${URL}"
+              "${NOTE}"
+              "Started by ${GITHUB_SERVER_URL}/${GITHUB_REPOSITORY}/actions/runs/${GITHUB_RUN_ID}"
             )
-            if [[ -n "${DURATION}" ]]; then
-              args+=( "${DURATION}" )
-            fi
-            mutexbot "${args[@]}"
+            deploy-queue "${args[@]}"
             ;;
           *)
-            args+=( "${MODE}" "${RESOURCE_NAME}" )
-            mutexbot "${args[@]}"
+            args+=( "${MODE}" "${REGION}" "${COMPONENT}" )
+            deploy-queue "${args[@]}"
             ;;
         esac
