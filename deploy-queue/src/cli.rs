@@ -46,7 +46,7 @@ pub(crate) enum Mode {
         /// Environment where to deploy
         environment: Environment,
         /// Version of the component to deploy
-        version: String,
+        version: Option<String>,
         /// URL to the specific GitHub Actions job
         url: Option<String>,
         /// Note for this deployment (for manual deployments)

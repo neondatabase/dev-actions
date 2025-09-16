@@ -21,6 +21,7 @@ struct Deployment {
     region: String,
     environment: String,
     component: String, 
+    version: Option<String>,
     url: Option<String>, 
     note: Option<String>, 
     start_timestamp: Option<OffsetDateTime>,
