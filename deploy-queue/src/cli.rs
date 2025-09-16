@@ -12,7 +12,7 @@ impl std::fmt::Display for Environment {
         match self {
             Environment::Dev => write!(f, "dev"),
             Environment::Prod => write!(f, "prod"),
-        }
+        write!(f, "{}", self.as_ref())
     }
 }
 
