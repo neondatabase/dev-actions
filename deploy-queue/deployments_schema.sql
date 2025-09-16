@@ -75,6 +75,12 @@ BEGIN
             OLD.id, OLD.finish_timestamp;
     END IF;
 
+    -- Prevent setting cancellation_note without cancelling
+    IF (OLD.cancellation_note IS DISTINCT FROM NEW.cancellation_note) 
+        AND (OLD.cancellation_timestamp IS NOT DISTINCT FROM NEW.cancellation_timestamp) THEN
+        RAISE EXCEPTION 'Cannot set cancellation_note without cancelling deployment %', NEW.id;
+    END IF;
+
     -- Prevent any changes to cancelled deployments
     IF OLD.cancellation_timestamp IS NOT NULL THEN
         RAISE EXCEPTION 'Cannot modify deployment % - already cancelled at %', 
