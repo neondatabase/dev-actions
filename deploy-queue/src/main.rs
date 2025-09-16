@@ -135,47 +135,16 @@ async fn main() -> Result<()> {
         Mode::Finish { deployment_id } => {
             log::info!("Finishing deployment with ID: {}", deployment_id);
 
-            // Verify deployment exists and is in a valid state for finishing
-            match verify_deployment_can_be_finished(&db_client, *deployment_id).await {
-                Ok(true) => {
-                    finish_deployment(&db_client, *deployment_id).await
-                        .context("Failed to set deployment to finished")?;
-                    log::info!("Successfully finished deployment with ID: {}", deployment_id);
-                }
-                Ok(false) => {
-                    anyhow::bail!("Deployment {} cannot be finished (not started or already finished/cancelled)", deployment_id);
-                }
-                Err(e) => {
-                    log::error!("Failed to verify deployment state: {}", e);
-                    anyhow::bail!("Database query failed: {}", e);
-                }
-            }
+            finish_deployment(&db_client, *deployment_id).await
+                .context("Failed to set deployment to finished")?;
+            log::info!("Successfully finished deployment with ID: {}", deployment_id);
         }
         Mode::Cancel { deployment_id, cancellation_note } => {
             log::info!("Cancelling deployment with ID: {}", deployment_id);
 
-            // Verify deployment exists and is in a valid state for cancellation
-            match verify_deployment_can_be_cancelled(&db_client, *deployment_id).await {
-                Ok(true) => {
-                    // Update deployment record to set cancellation_timestamp
-                    match cancel_deployment(&db_client, *deployment_id, cancellation_note.as_deref()).await {
-                        Ok(()) => {
-                            log::info!("Successfully cancelled deployment with ID: {}", deployment_id);
-                        }
-                        Err(e) => {
-                            log::error!("Failed to update deployment record: {}", e);
-                            anyhow::bail!("Database update failed: {}", e);
-                        }
-                    }
-                }
-                Ok(false) => {
-                    anyhow::bail!("Deployment {} cannot be cancelled (already finished or cancelled)", deployment_id);
-                }
-                Err(e) => {
-                    log::error!("Failed to verify deployment state: {}", e);
-                    anyhow::bail!("Database query failed: {}", e);
-                }
-            }
+            cancel_deployment(&db_client, *deployment_id, cancellation_note.as_deref()).await
+                .context("Failed to set deployment to cancelled")?;
+            log::info!("Successfully cancelled deployment with ID: {}", deployment_id);
         }
     }
 
@@ -235,56 +204,6 @@ async fn insert_deployment_record(
     }
 
     Ok(deployment_id)
-}
-
-/// Verify that a deployment can be finished (must be started and not already finished/cancelled)
-async fn verify_deployment_can_be_finished(
-    client: &Pool<Postgres>,
-    deployment_id: i64,
-) -> Result<bool, SqlxError> {
-    let record = sqlx::query!(
-        "SELECT start_timestamp, finish_timestamp, cancellation_timestamp FROM deployments WHERE id = $1",
-        deployment_id
-    )
-    .fetch_optional(client)
-    .await?;
-    
-    match record {
-        Some(deployment) => {
-            // Can finish if: started, not finished, and not cancelled
-            Ok(deployment.start_timestamp.is_some() 
-                && deployment.finish_timestamp.is_none() 
-                && deployment.cancellation_timestamp.is_none())
-        }
-        None => {
-            // Deployment doesn't exist
-            Ok(false)
-        }
-    }
-}
-
-/// Verify that a deployment can be cancelled (must exist and not already finished/cancelled)
-async fn verify_deployment_can_be_cancelled(
-    client: &Pool<Postgres>,
-    deployment_id: i64,
-) -> Result<bool, SqlxError> {
-    let record = sqlx::query!(
-        "SELECT finish_timestamp, cancellation_timestamp FROM deployments WHERE id = $1",
-        deployment_id
-    )
-    .fetch_optional(client)
-    .await?;
-    
-    match record {
-        Some(deployment) => {
-            // Can cancel if: not finished and not already cancelled
-            Ok(deployment.finish_timestamp.is_none() && deployment.cancellation_timestamp.is_none())
-        }
-        None => {
-            // Deployment doesn't exist
-            Ok(false)
-        }
-    }
 }
 
 /// Check for blocking deployments in the same region 

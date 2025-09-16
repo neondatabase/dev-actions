@@ -42,11 +42,66 @@ BEGIN
 END;
 $$ language 'plpgsql';
 
+-- Function to validate deployment state transitions
+CREATE OR REPLACE FUNCTION validate_deployment_state_transition()
+RETURNS TRIGGER AS $$
+BEGIN
+    -- Allow updates if no state-related fields are changing
+    IF (OLD.start_timestamp IS NOT DISTINCT FROM NEW.start_timestamp 
+        AND OLD.finish_timestamp IS NOT DISTINCT FROM NEW.finish_timestamp 
+        AND OLD.cancellation_timestamp IS NOT DISTINCT FROM NEW.cancellation_timestamp) THEN
+        RETURN NEW;
+    END IF;
+
+    -- Prevent any changes to finished deployments
+    IF OLD.finish_timestamp IS NOT NULL THEN
+        RAISE EXCEPTION 'Cannot modify deployment % - already finished at %', 
+            OLD.id, OLD.finish_timestamp;
+    END IF;
+
+    -- Prevent any changes to cancelled deployments
+    IF OLD.cancellation_timestamp IS NOT NULL THEN
+        RAISE EXCEPTION 'Cannot modify deployment % - already cancelled at %', 
+            OLD.id, OLD.cancellation_timestamp;
+    END IF;
+
+    -- Validate state transitions based on current state
+    CASE
+        -- QUEUED state (no timestamps set)
+        WHEN OLD.start_timestamp IS NULL AND OLD.finish_timestamp IS NULL AND OLD.cancellation_timestamp IS NULL THEN
+            -- Can transition to RUNNING (start_timestamp) or CANCELLED
+            IF NEW.finish_timestamp IS NOT NULL THEN
+                RAISE EXCEPTION 'Cannot finish deployment % - not started yet', NEW.id;
+            END IF;
+
+        -- RUNNING state (start_timestamp set, no end timestamps)
+        WHEN OLD.start_timestamp IS NOT NULL AND OLD.finish_timestamp IS NULL AND OLD.cancellation_timestamp IS NULL THEN
+            -- Can transition to FINISHED or CANCELLED
+            -- Cannot unset start_timestamp once set
+            IF NEW.start_timestamp IS NULL THEN
+                RAISE EXCEPTION 'Cannot unset start_timestamp for deployment %', NEW.id;
+            END IF;
+
+        -- Invalid/unexpected state
+        ELSE
+            RAISE EXCEPTION 'Deployment % is in an unexpected state', OLD.id;
+    END CASE;
+
+    RETURN NEW;
+END;
+$$ LANGUAGE plpgsql;
+
 -- Trigger to automatically update updated_at on row updates
 CREATE TRIGGER update_deployments_updated_at 
     BEFORE UPDATE ON deployments 
     FOR EACH ROW 
     EXECUTE FUNCTION update_updated_at_column();
+
+-- Trigger to validate state transitions
+CREATE TRIGGER validate_deployment_state_transitions
+    BEFORE UPDATE ON deployments
+    FOR EACH ROW
+    EXECUTE FUNCTION validate_deployment_state_transition();
 
 -- Environments table for storing environment-specific configuration
 CREATE TABLE environments (
