@@ -16,13 +16,18 @@ impl std::fmt::Display for Environment {
     }
 }
 
-impl Environment {
-    /// Convert to string for database operations
-    pub(crate) fn as_str(&self) -> &'static str {
+impl AsRef<str> for Environment {
+    fn as_ref(&self) -> &str {
         match self {
             Environment::Dev => "dev",
             Environment::Prod => "prod",
         }
+    }
+}
+
+impl ToString for Environment {
+    fn to_string(&self) -> String {
+        self.as_ref().to_string()
     }
 }
 
