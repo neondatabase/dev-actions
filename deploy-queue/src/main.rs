@@ -63,7 +63,7 @@ impl From<&Deployment> for DeploymentState {
             DeploymentState::Cancelled
         } else if deployment.finish_timestamp.is_none() {
             DeploymentState::Running
-        } else if deployment.finish_timestamp.is_some() && deployment.finish_timestamp.unwrap() < OffsetDateTime::now_utc() - time::Duration::minutes(deployment.buffer_time) {
+        } else if deployment.finish_timestamp.is_some() && deployment.finish_timestamp.unwrap() < OffsetDateTime::now_utc() - time::Duration::minutes(deployment.buffer_time.into()) {
             DeploymentState::FinishedInBuffer
         } else {
             DeploymentState::Finished
