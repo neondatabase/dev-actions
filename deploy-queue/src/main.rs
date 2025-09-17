@@ -215,7 +215,7 @@ async fn show_deployment_info(
     client: &Pool<Postgres>,
     deployment_id: i64,
 ) -> Result<()> {
-    let deployment = sqlx::query_as!(
+    let deployment: Option<Deployment> = sqlx::query_as!(
         Deployment,
         "SELECT d.id, 
                 d.region,
