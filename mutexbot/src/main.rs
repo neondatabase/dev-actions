@@ -390,15 +390,18 @@ async fn main() -> Result<()> {
                 }
 
                 // Check if there's an active (non-expired) reservation.
-                if let Some(resource) = resource_data && has_active_reservation(&resource) {
-                    log_reservation_info(&resource)?;
+                if let Some(resource) = resource_data {
+                
+                    if has_active_reservation(&resource) {
+                        log_reservation_info(&resource)?;
 
-                    // Calculate wait time based on reservation expiration.
-                    let wait_time = calculate_wait_time(&resource);
-                    info!("Resource is reserved, waiting {:.1} seconds before retrying...",
-                            wait_time.as_secs_f64());
-                    sleep(wait_time).await;
-                    continue;
+                        // Calculate wait time based on reservation expiration.
+                        let wait_time = calculate_wait_time(&resource);
+                        info!("Resource is reserved, waiting {:.1} seconds before retrying...",
+                                wait_time.as_secs_f64());
+                        sleep(wait_time).await;
+                        continue;
+                    }
                 }
 
                 match state
