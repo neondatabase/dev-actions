@@ -83,13 +83,6 @@ BEGIN
         RAISE EXCEPTION 'Deployment % cannot be both finished and cancelled', NEW.id;
     END IF;
 
-    -- Allow updates if no state-related fields are changing
-    IF (OLD.start_timestamp IS NOT DISTINCT FROM NEW.start_timestamp 
-        AND OLD.finish_timestamp IS NOT DISTINCT FROM NEW.finish_timestamp 
-        AND OLD.cancellation_timestamp IS NOT DISTINCT FROM NEW.cancellation_timestamp) THEN
-        RETURN NEW;
-    END IF;
-
     -- Prevent any changes to finished deployments
     IF OLD.finish_timestamp IS NOT NULL THEN
         RAISE EXCEPTION 'Cannot modify deployment % - already finished at %', 
