@@ -162,8 +162,12 @@ jobs:
         working-directory: deploy-queue
         run: |
           # PostgreSQL is already healthy thanks to health checks
-          # Apply migrations by running the application (which auto-applies them)
-          cargo build
+          # Install sqlx-cli to run migrations
+          cargo install sqlx-cli --no-default-features --features postgres
+          
+          # Apply migrations directly to set up schema for SQLx macros
+          sqlx migrate run
+          
           echo "Database schema setup completed"
 
       - name: Build binary
