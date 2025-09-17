@@ -99,12 +99,12 @@ async fn main() -> Result<()> {
             let deployment_id = insert_deployment_record(
                 &db_client,
                 &Deployment {
-                   region,
-                   component,
+                   region: region.clone(),
+                   component: component.clone(),
                    environment: environment.to_string(),
-                   version,
-                   url,
-                   note,
+                   version: version.clone(),
+                   url: url.clone(),
+                   note: note.clone(),
                    ..Default::default()
                 }
             ).await.context("Failed to enqueue new deployment")?;
