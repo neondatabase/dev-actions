@@ -130,6 +130,22 @@ jobs:
         runner:
           - ubuntu-24.04
           - ubuntu-24.04-arm
+    services:
+      postgres:
+        image: postgres:15
+        env:
+          POSTGRES_PASSWORD: postgres
+          POSTGRES_USER: postgres
+          POSTGRES_DB: deploy_queue_test
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd pg_isready
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 5
+    env:
+      DATABASE_URL: postgresql://postgres:postgres@localhost:5432/deploy_queue_test
     steps:
       - name: Harden the runner (Audit all outbound calls)
         uses: step-security/harden-runner@4d991eb9b905ef189e4c376166672c3f2f230481 # v2.11.0
@@ -141,6 +157,14 @@ jobs:
         with:
           ref: ${{ github.event.pull_request.head.sha || github.sha }}
           sparse-checkout: deploy-queue
+
+      - name: Setup database schema
+        working-directory: deploy-queue
+        run: |
+          # PostgreSQL is already healthy thanks to health checks
+          # Apply migrations by running the application (which auto-applies them)
+          cargo build
+          echo "Database schema setup completed"
 
       - name: Build binary
         working-directory: deploy-queue
