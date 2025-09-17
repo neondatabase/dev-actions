@@ -95,7 +95,7 @@ async fn main() -> Result<()> {
         } => {
 
             // Insert deployment record into database
-            let deployment_id = match insert_deployment_record(
+            let deployment_id = insert_deployment_record(
                 &db_client,
                 Deployment {
                    region,
@@ -106,13 +106,7 @@ async fn main() -> Result<()> {
                    note,
                    ..Default::default()
                 }
-            ).await {
-                Ok(id) => id,
-                Err(e) => {
-                    log::error!("Failed to insert deployment record: {}", e);
-                    anyhow::bail!("Database insertion failed: {}", e);
-                }
-            };
+            ).await.context("Failed to enqueue new deployment")?;
 
             loop {
                 // Check for blocking deployments in the same region
