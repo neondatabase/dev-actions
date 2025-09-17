@@ -327,6 +327,8 @@ async fn start_deployment(
     sqlx::query!("UPDATE deployments SET start_timestamp = NOW() WHERE id = $1", deployment_id)
         .execute(client)
         .await?;
+    
+    Ok(())
 }
 
 /// Update the deployment record with finish timestamp
@@ -337,6 +339,8 @@ async fn finish_deployment(
     sqlx::query!("UPDATE deployments SET finish_timestamp = NOW() WHERE id = $1", deployment_id)
         .execute(client)
         .await?;
+    
+    Ok(())
 }
 
 /// Update the deployment record with cancellation timestamp and note
@@ -348,4 +352,6 @@ async fn cancel_deployment(
     sqlx::query!("UPDATE deployments SET cancellation_timestamp = NOW(), cancellation_note = $2 WHERE id = $1", deployment_id, cancellation_note)
         .execute(client)
         .await?;
+    
+    Ok(())
 }
