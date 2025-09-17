@@ -81,6 +81,9 @@ async fn main() -> Result<()> {
     // Create a single database connection for all operations
     let db_client = create_db_connection().await?;
 
+    // Run new migrations after connecting to DB
+    run_migrations(&db_client).await?;
+
     match &args.mode {
         Mode::Start {
             region,
