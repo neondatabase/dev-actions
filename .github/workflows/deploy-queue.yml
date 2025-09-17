@@ -59,17 +59,20 @@ jobs:
         with:
           sparse-checkout: deploy-queue
 
-      - name: Setup database schema
+      - name: Setup database schema and generate query cache
         working-directory: deploy-queue
         run: |
           # PostgreSQL is already healthy thanks to health checks
-          # Install sqlx-cli to run migrations
+          # Install sqlx-cli to run migrations and generate query cache
           cargo install sqlx-cli --no-default-features --features postgres
           
           # Apply migrations directly to set up schema for SQLx macros
           sqlx migrate run
           
-          echo "Database schema setup completed"
+          # Generate query cache for offline compilation in Docker
+          cargo sqlx prepare
+          
+          echo "Database schema setup and query cache generation completed"
 
       - name: Docker meta
         id: meta
