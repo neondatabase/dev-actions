@@ -126,7 +126,7 @@ async fn main() -> Result<()> {
                         blocking_deployments.len());
                     for pending_deployment in &blocking_deployments {
                         let deployment_state: DeploymentState = pending_deployment.into();
-                        let deployment_note = pending_deployment.url.or(pending_deployment.note).unwrap_or_else(|| String::new());
+                        let deployment_note = pending_deployment.url.clone().or(pending_deployment.note.clone()).unwrap_or_else(|| String::new());
                         info!("  - Deployment ID: {}, Component: {}, State: {}, Note: {}", pending_deployment.id, pending_deployment.component, deployment_state, deployment_note);
                     }
                     info!("Retrying in 5 seconds.");
