@@ -1,7 +1,7 @@
-use std::time::Duration;
 use std::env;
 use std::fs::OpenOptions;
 use std::io::Write;
+use std::time::Duration as StdDuration;
 use time::OffsetDateTime;
 
 use anyhow::{Context, Result};
@@ -62,7 +62,7 @@ impl From<&Deployment> for DeploymentState {
             DeploymentState::Cancelled
         } else if deployment.finish_timestamp.is_none() {
             DeploymentState::Running
-        } else if deployment.finish_timestamp.is_some() && deployment.finish_timestamp.unwrap() < OffsetDateTime::now_utc() - Duration::from_minutes(deployment.buffer_time) {
+        } else if deployment.finish_timestamp.is_some() && deployment.finish_timestamp.unwrap() < OffsetDateTime::now_utc() - time::Duration::minutes(deployment.buffer_time) {
             DeploymentState::FinishedInBuffer
         } else {
             DeploymentState::Finished
@@ -70,7 +70,7 @@ impl From<&Deployment> for DeploymentState {
     }
 }
 
-const BUSY_RETRY: Duration = Duration::from_secs(5);
+const BUSY_RETRY: StdDuration = StdDuration::from_secs(5);
 
 #[tokio::main]
 async fn main() -> Result<()> {
