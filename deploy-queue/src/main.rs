@@ -296,6 +296,7 @@ async fn check_blocking_deployments(
                 d2.region,
                 d2.environment,
                 d2.component,
+                d2.version,
                 d2.url,
                 d2.note,
                 d2.start_timestamp,
