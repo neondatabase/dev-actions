@@ -97,7 +97,7 @@ async fn main() -> Result<()> {
             // Insert deployment record into database
             let deployment_id = insert_deployment_record(
                 &db_client,
-                Deployment {
+                &Deployment {
                    region,
                    component,
                    environment: environment.to_string(),
