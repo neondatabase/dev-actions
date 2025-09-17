@@ -255,7 +255,7 @@ jobs:
             --title "Release ${{ github.ref_name }}" \
             --notes "Release for ${{ github.ref_name }}" \
             --verify-tag \
-            mutexbot-*.tar.zst
+            deploy-queue-*.tar.zst
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
 
@@ -279,7 +279,7 @@ jobs:
             --prerelease \
             --title "Pre-release for $TAG" \
             --notes "Pre-release for $TAG" \
-            mutexbot-*.tar.zst
+            deploy-queue-*.tar.zst
         env:
           COMMIT_SHA: ${{ github.event.pull_request.head.sha }}
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
