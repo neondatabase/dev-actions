@@ -22,11 +22,6 @@ impl AsRef<str> for Environment {
     }
 }
 
-impl ToString for Environment {
-    fn to_string(&self) -> String {
-        self.as_ref().to_string()
-    }
-}
 
 /// CLI for starting and finishing and canceling deployments.
 /// This CLI is used by the Deploy Queue GitHub Action.
