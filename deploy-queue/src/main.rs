@@ -182,16 +182,11 @@ async fn run_migrations(pool: &Pool<Postgres>) -> Result<()> {
 /// Insert a new deployment record into the PostgreSQL database and return the ID
 async fn insert_deployment_record(
     client: &Pool<Postgres>,
-    region: &str,
-    component: &str,
-    environment: &str,
-    version: &str,
-    url: &str,
-    note: &str,
+    deployment: &Deployment,
 ) -> Result<i64, SqlxError> {
     // Insert the deployment record and return the ID
     let record = sqlx::query!("INSERT INTO deployments (region, component, environment, version, url, note) VALUES ($1, $2, $3, $4, $5, $6) RETURNING id", 
-        region, component, environment, version, url, note)
+        deployment.region, deployment.component, deployment.environment, deployment.version, deployment.url, deployment.note)
         .fetch_one(client)
         .await?;
     
