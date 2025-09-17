@@ -70,6 +70,11 @@ jobs:
           sqlx migrate run
           
           # Generate query cache for offline compilation in Docker
+          # First ensure dependencies are resolved by doing a check build
+          echo "Resolving dependencies..."
+          cargo check
+          
+          echo "Generating SQLx query cache..."
           cargo sqlx prepare
           
           echo "Database schema setup and query cache generation completed"
