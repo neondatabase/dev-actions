@@ -193,7 +193,7 @@ async fn insert_deployment_record(
     
     let deployment_id = record.id;
 
-    log::info!("Successfully inserted deployment record: id={}, region={}, component={}", deployment_id, region, component);
+    log::info!("Successfully inserted deployment record: id={}, region={}, component={}", deployment.id, deployment.region, deployment.component);
 
     // Store the deployment_id as a GitHub output if running in GitHub Actions
     if let Ok(github_output_path) = env::var("GITHUB_OUTPUT") {
