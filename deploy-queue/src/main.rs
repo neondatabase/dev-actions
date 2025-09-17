@@ -19,8 +19,9 @@ static MIGRATOR: Migrator = sqlx::migrate!();
 
 // We don't read all of the fields
 #[allow(dead_code)]
+#[derive(Default)]
 struct Deployment {
-    id: Option<NonZero<u64>>,
+    id: i64,
     region: String,
     environment: String,
     component: String, 
