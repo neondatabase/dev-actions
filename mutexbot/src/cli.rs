@@ -26,6 +26,17 @@ pub(crate) enum Mode {
         /// Duration to reserve resource for. Defaults to value set in MutexBot if omitted
         duration: Option<String>,
     },
+    /// Reserve a resource exclusively (wait for existing reservations to expire)
+    ///
+    /// Use the `MUTEXBOT_API_KEY` environment variable to pass the API key.
+    ReserveExclusive {
+        /// Resource to reserve
+        resource_name: String,
+        /// Notes for this reservation
+        notes: String,
+        /// Duration to reserve resource for. Defaults to value set in MutexBot if omitted
+        duration: Option<String>,
+    },
     /// Release a resource
     ///
     /// Use the `MUTEXBOT_API_KEY` environment variable to pass the API key.
@@ -46,6 +57,10 @@ impl Mode {
     pub(crate) fn api_endpoint(&self) -> String {
         match self {
             Mode::Reserve { resource_name, .. } => format!(
+                "https://mutexbot.com/api/resources/global/{}/reserve",
+                resource_name,
+            ),
+            Mode::ReserveExclusive { resource_name, .. } => format!(
                 "https://mutexbot.com/api/resources/global/{}/reserve",
                 resource_name,
             ),
