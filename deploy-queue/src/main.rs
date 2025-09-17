@@ -6,7 +6,7 @@ use time::OffsetDateTime;
 
 use anyhow::{Context, Result};
 use clap::Parser;
-use cli::{Mode, Environment};
+use cli::Mode;
 use env_logger;
 use log::info;
 use tokio::time::sleep;
