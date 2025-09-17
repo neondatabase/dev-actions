@@ -10,7 +10,7 @@ use cli::Mode;
 use env_logger;
 use log::info;
 use tokio::time::sleep;
-use sqlx::{postgres::PgPoolOptions, Pool, Postgres, Error as SqlxError, migrate::Migrator};
+use sqlx::{postgres::PgPoolOptions, Pool, Postgres, migrate::Migrator};
 
 pub(crate) mod cli;
 
@@ -185,7 +185,7 @@ async fn run_migrations(pool: &Pool<Postgres>) -> Result<()> {
 async fn insert_deployment_record(
     client: &Pool<Postgres>,
     deployment: &Deployment,
-) -> Result<i64, SqlxError> {
+) -> Result<i64> {
     // Insert the deployment record and return the ID
     let record = sqlx::query!("INSERT INTO deployments (region, component, environment, version, url, note) VALUES ($1, $2, $3, $4, $5, $6) RETURNING id", 
         deployment.region, deployment.component, deployment.environment, deployment.version, deployment.url, deployment.note)
@@ -214,7 +214,7 @@ async fn insert_deployment_record(
 async fn show_deployment_info(
     client: &Pool<Postgres>,
     deployment_id: i64,
-) -> Result<(), SqlxError> {
+) -> Result<()> {
     let deployment = sqlx::query_as!(
         Deployment,
         "SELECT d.id, 
@@ -282,7 +282,7 @@ async fn show_deployment_info(
 async fn check_blocking_deployments(
     client: &Pool<Postgres>,
     deployment_id: i64,
-) -> Result<Vec<Deployment>, SqlxError> {
+) -> Result<Vec<Deployment>> {
     // Query for deployments in the same region by other components with smaller ID (queue position)
     // that haven't finished yet (finish_timestamp IS NULL and cancellation_timestamp IS NULL) 
     // or have finished within the environment-specific buffer_time
@@ -323,7 +323,7 @@ async fn check_blocking_deployments(
 async fn start_deployment(
     client: &Pool<Postgres>,
     deployment_id: i64,
-) -> Result<(), SqlxError> {
+) -> Result<()> {
     sqlx::query!("UPDATE deployments SET start_timestamp = NOW() WHERE id = $1", deployment_id)
         .execute(client)
         .await?;
@@ -333,7 +333,7 @@ async fn start_deployment(
 async fn finish_deployment(
     client: &Pool<Postgres>,
     deployment_id: i64,
-) -> Result<(), SqlxError> {
+) -> Result<()> {
     sqlx::query!("UPDATE deployments SET finish_timestamp = NOW() WHERE id = $1", deployment_id)
         .execute(client)
         .await?;
@@ -344,7 +344,7 @@ async fn cancel_deployment(
     client: &Pool<Postgres>,
     deployment_id: i64,
     cancellation_note: Option<&str>,
-) -> Result<(), SqlxError> {
+) -> Result<()> {
     sqlx::query!("UPDATE deployments SET cancellation_timestamp = NOW(), cancellation_note = $2 WHERE id = $1", deployment_id, cancellation_note)
         .execute(client)
         .await?;
