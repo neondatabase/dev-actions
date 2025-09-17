@@ -160,13 +160,14 @@ async fn main() -> Result<()> {
 }
 
 /// Create a database connection pool and return it
-async fn create_db_connection() -> Result<Pool<Postgres>, SqlxError> {
+async fn create_db_connection() -> Result<Pool<Postgres>> {
     let database_url = std::env::var("DEPLOY_QUEUE_DATABASE_URL")
         .context("Failed to fetch database url from DEPLOY_QUEUE_DATABASE_URL environment variable")?;
 
     let pool = PgPoolOptions::new()
         .connect(&database_url)
-        .await?;
+        .await
+        .context("Failed to connect to database")?;
 
     Ok(pool)
 }
