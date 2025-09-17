@@ -221,6 +221,7 @@ async fn show_deployment_info(
                 d.region,
                 d.environment,
                 d.component, 
+                d.version,
                 d.url, 
                 d.note, 
                 d.start_timestamp,
@@ -248,6 +249,9 @@ async fn show_deployment_info(
             println!("State: {}", state);
             println!("Buffer Time: {} minutes", dep.buffer_time);
             
+            if let Some(version) = &dep.version {
+                println!("Version: {}", version);
+            }
             if let Some(url) = &dep.url {
                 println!("URL: {}", url);
             }
