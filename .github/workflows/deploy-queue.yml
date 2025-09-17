@@ -29,6 +29,22 @@ jobs:
         runner:
           - ubuntu-24.04
           - ubuntu-24.04-arm
+    services:
+      postgres:
+        image: postgres:15
+        env:
+          POSTGRES_PASSWORD: postgres
+          POSTGRES_USER: postgres
+          POSTGRES_DB: deploy_queue_test
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd pg_isready
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 5
+    env:
+      DATABASE_URL: postgresql://postgres:postgres@localhost:5432/deploy_queue_test
     permissions:
       contents: read
       packages: write
@@ -42,6 +58,18 @@ jobs:
         uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4.2.2
         with:
           sparse-checkout: deploy-queue
+
+      - name: Setup database schema
+        working-directory: deploy-queue
+        run: |
+          # PostgreSQL is already healthy thanks to health checks
+          # Install sqlx-cli to run migrations
+          cargo install sqlx-cli --no-default-features --features postgres
+          
+          # Apply migrations directly to set up schema for SQLx macros
+          sqlx migrate run
+          
+          echo "Database schema setup completed"
 
       - name: Docker meta
         id: meta
