@@ -15,6 +15,9 @@ inputs:
   version:
     description: Version to deploy
     default: ''
+  concurrency_key:
+    description: Concurrency key for this deployment
+    default: ''
   url:
     description: URL to the specific GitHub Actions job
     default: ''
@@ -81,6 +84,7 @@ runs:
         COMPONENT: ${{ inputs.component }}
         ENVIRONMENT: ${{ inputs.environment }}
         VERSION: ${{ inputs.version }}
+        CONCURRENCY_KEY: ${{ inputs.concurrency_key }}
         URL: ${{ inputs.url }}
         NOTE: ${{ inputs.note }}
       run: |
@@ -96,6 +100,7 @@ runs:
               "${COMPONENT}"
               "${ENVIRONMENT}"
               "${VERSION}"
+              "${CONCURRENCY_KEY}"
               "${URL}"
               "${NOTE}"
               "Started by ${GITHUB_SERVER_URL}/${GITHUB_REPOSITORY}/actions/runs/${GITHUB_RUN_ID}"
