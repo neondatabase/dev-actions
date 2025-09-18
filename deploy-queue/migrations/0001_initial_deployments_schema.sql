@@ -42,7 +42,7 @@ CREATE INDEX idx_deployments_cancellation_timestamp ON deployments(cancellation_
 
 -- Environment-specific configuration settings
 CREATE TABLE environments (
-    environment VARCHAR(50) PRIMARY KEY,
+    environment VARCHAR(50) PRIMARY KEY CHECK (environment IN ('dev', 'prod')),
     buffer_time INTEGER NOT NULL -- buffer time in minutes
 );
 
@@ -50,6 +50,10 @@ CREATE TABLE environments (
 INSERT INTO environments (environment, buffer_time) VALUES 
     ('dev', 0),      -- Development: no buffer time
     ('prod', 10);    -- Production: 10 minutes buffer time
+
+-- Add foreign key constraint to ensure deployments.environment references environments.environment
+ALTER TABLE deployments ADD CONSTRAINT fk_deployments_environment 
+    FOREIGN KEY (environment) REFERENCES environments(environment);
 
 -- ============================================================================
 -- FUNCTIONS AND TRIGGERS
