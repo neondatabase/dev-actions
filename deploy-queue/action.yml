@@ -100,10 +100,9 @@ runs:
               "${COMPONENT}"
               "${ENVIRONMENT}"
               "${VERSION}"
-              "${CONCURRENCY_KEY}"
-              "${URL}"
-              "${NOTE}"
               "Started by ${GITHUB_SERVER_URL}/${GITHUB_REPOSITORY}/actions/runs/${GITHUB_RUN_ID}"
+              "${NOTE}"
+              "${CONCURRENCY_KEY}"
             )
             deploy-queue "${args[@]}"
             ;;
