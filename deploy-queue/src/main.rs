@@ -32,6 +32,7 @@ struct Deployment {
     finish_timestamp: Option<OffsetDateTime>,
     cancellation_timestamp: Option<OffsetDateTime>,
     cancellation_note: Option<String>,
+    concurrency_key: Option<String>,
     buffer_time: i32,
 }
 
@@ -93,6 +94,7 @@ async fn main() -> Result<()> {
             version,
             url,
             note,
+            concurrency_key,
         } => {
 
             // Insert deployment record into database
@@ -105,6 +107,7 @@ async fn main() -> Result<()> {
                    version: version.clone(),
                    url: url.clone(),
                    note: note.clone(),
+                   concurrency_key: concurrency_key.clone(),
                    ..Default::default()
                 }
             ).await.context("Failed to enqueue new deployment")?;
@@ -228,6 +231,7 @@ async fn show_deployment_info(
                 d.finish_timestamp,
                 d.cancellation_timestamp,
                 d.cancellation_note,
+                d.concurrency_key,
                 e.buffer_time
          FROM deployments d
          JOIN environments e ON d.environment = e.environment  
@@ -257,6 +261,9 @@ async fn show_deployment_info(
             }
             if let Some(note) = &dep.note {
                 println!("Note: {}", note);
+            }
+            if let Some(concurrency_key) = &dep.concurrency_key {
+                println!("Concurrency Key: {}", concurrency_key);
             }
             
             if let Some(start) = dep.start_timestamp {
@@ -303,6 +310,7 @@ async fn check_blocking_deployments(
                 d2.finish_timestamp,
                 d2.cancellation_timestamp,
                 d2.cancellation_note,
+                d2.concurrency_key,
                 e.buffer_time
          FROM
            (SELECT *

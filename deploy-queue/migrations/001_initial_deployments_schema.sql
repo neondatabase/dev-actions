@@ -17,6 +17,7 @@ CREATE TABLE deployments (
     version VARCHAR(100),
     url TEXT,
     note TEXT,
+    concurrency_key VARCHAR(100),
     
     -- Flow process timestamps (updated after record insertion)
     start_timestamp TIMESTAMPTZ,
@@ -154,6 +155,7 @@ COMMENT ON COLUMN deployments.component IS 'Component being deployed';
 COMMENT ON COLUMN deployments.version IS 'Version of the component being deployed';
 COMMENT ON COLUMN deployments.url IS 'URL to the specific GitHub Actions job';
 COMMENT ON COLUMN deployments.note IS 'Info about deployment (when deploying manually)';
+COMMENT ON COLUMN deployments.concurrency_key IS 'Concurrency key for the deployment';
 COMMENT ON COLUMN deployments.start_timestamp IS 'When the deployment process has started';
 COMMENT ON COLUMN deployments.finish_timestamp IS 'When the deployment process was finished';
 COMMENT ON COLUMN deployments.cancellation_timestamp IS 'When the deployment process was cancelled';
@@ -161,5 +163,5 @@ COMMENT ON COLUMN deployments.created_at IS 'When the record was first created (
 COMMENT ON COLUMN deployments.updated_at IS 'When the record was last updated';
 
 -- Column comments for environments table
-COMMENT ON COLUMN environments.environment IS 'Environment name (e.g., dev, prod, staging)';
+COMMENT ON COLUMN environments.environment IS 'Environment name (e.g., dev, prod)';
 COMMENT ON COLUMN environments.buffer_time IS 'Buffer time in minutes for finished deployments in this environment';

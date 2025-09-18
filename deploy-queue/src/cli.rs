@@ -48,6 +48,8 @@ pub(crate) enum Mode {
         url: Option<String>,
         /// Note for this deployment (for manual deployments)
         note: Option<String>,
+        /// Concurrency key for this deployment
+        concurrency_key: Option<String>,
     },
     /// Finish deployment for a component
     Finish {
