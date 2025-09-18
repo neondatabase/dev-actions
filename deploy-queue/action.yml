@@ -54,6 +54,25 @@ runs:
         REF: ${{ github.action_ref }}
         SHA: ${{ github.event.pull_request.head.sha || github.sha }}
 
+    - name: Download deploy-queue binary
+      shell: bash
+      run: |
+        if [ ! -f "${ARCHIVE}.tar.zst" ]; then
+          gh release download "$TAG" \
+            --repo "$ACTION_REPO" \
+            --pattern "$ARCHIVE.tar.zst"
+
+          tar xvf "$ARCHIVE.tar.zst"
+        fi
+
+        echo "$(pwd)/${ARCHIVE}" | tee -a "${GITHUB_PATH}"
+      working-directory: ${{ github.action_path }}
+      env:
+        GH_TOKEN: ${{ github.token }}
+        TAG: ${{ steps.tag.outputs.tag }}
+        ARCHIVE: "mutexbot-${{ steps.triple.outputs.triple }}"
+        ACTION_REPO: ${{ github.action_repository }}
+
     - name: Run deploy-queue
       shell: bash
       env:
