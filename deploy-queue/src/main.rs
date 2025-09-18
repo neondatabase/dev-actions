@@ -310,7 +310,11 @@ async fn check_blocking_deployments(
             WHERE id = $1) d1
          JOIN environments e ON d1.environment = e.environment
          JOIN deployments d2 ON (d1.region = d2.region
-                                 AND d1.component != d2.component
+                                 AND (
+                                   d1.concurrency_key IS NULL
+                                   OR d2.concurrency_key IS NULL
+                                   OR d1.concurrency_key != d2.concurrency_key
+                                 )
                                  AND d2.id < d1.id
                                  AND (d2.finish_timestamp IS NULL
                                       OR d2.finish_timestamp > NOW() - INTERVAL '1 minute' * e.buffer_time)
