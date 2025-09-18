@@ -15,7 +15,6 @@ permissions:
 
 env:
   GHCR_REPO: ghcr.io/neondatabase/dev-actions
-  DEPLOY_QUEUE_DATABASE_URL: ${{ vars.DEPLOY_QUEUE_DATABASE_URL }}
 
 jobs:
   build-image:
