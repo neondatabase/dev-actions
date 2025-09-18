@@ -86,7 +86,7 @@ async fn main() -> Result<()> {
     // Run new migrations after connecting to DB
     run_migrations(&db_client).await?;
 
-    match &args.mode {
+    match args.mode {
         Mode::Start {
             region,
             component,
@@ -100,14 +100,14 @@ async fn main() -> Result<()> {
             // Insert deployment record into database
             let deployment_id = insert_deployment_record(
                 &db_client,
-                &Deployment {
-                   region: region.clone(),
-                   component: component.clone(),
+                Deployment {
+                   region,
+                   component,
                    environment: environment.to_string(),
-                   version: version.clone(),
-                   url: url.clone(),
-                   note: note.clone(),
-                   concurrency_key: concurrency_key.clone(),
+                   version,
+                   url,
+                   note,
+                   concurrency_key,
                    ..Default::default()
                 }
             ).await.context("Failed to enqueue new deployment")?;
@@ -127,9 +127,9 @@ async fn main() -> Result<()> {
                     // Print information about blocking deployments
                     info!("Found {} blocking deployment(s) with smaller queue positions:", 
                         blocking_deployments.len());
-                    for pending_deployment in &blocking_deployments {
-                        let deployment_state: DeploymentState = pending_deployment.into();
-                        let deployment_note = pending_deployment.url.clone().or(pending_deployment.note.clone()).unwrap_or_else(|| String::new());
+                    for pending_deployment in blocking_deployments {
+                        let deployment_state: DeploymentState = (&pending_deployment).into();
+                        let deployment_note = pending_deployment.url.or(pending_deployment.note).unwrap_or_default();
                         info!("  - Deployment ID: {}, Component: {}, State: {}, Note: {}", pending_deployment.id, pending_deployment.component, deployment_state, deployment_note);
                     }
                     info!("Retrying in 5 seconds.");
@@ -140,21 +140,21 @@ async fn main() -> Result<()> {
         Mode::Finish { deployment_id } => {
             log::info!("Finishing deployment with ID: {}", deployment_id);
 
-            finish_deployment(&db_client, *deployment_id).await
+            finish_deployment(&db_client, deployment_id).await
                 .context("Failed to set deployment to finished")?;
             log::info!("Successfully finished deployment with ID: {}", deployment_id);
         }
         Mode::Cancel { deployment_id, cancellation_note } => {
             log::info!("Cancelling deployment with ID: {}", deployment_id);
 
-            cancel_deployment(&db_client, *deployment_id, cancellation_note.as_deref()).await
+            cancel_deployment(&db_client, deployment_id, cancellation_note.as_deref()).await
                 .context("Failed to set deployment to cancelled")?;
             log::info!("Successfully cancelled deployment with ID: {}", deployment_id);
         }
         Mode::Info { deployment_id } => {
             log::info!("Fetching info for deployment ID: {}", deployment_id);
 
-            show_deployment_info(&db_client, *deployment_id).await
+            show_deployment_info(&db_client, deployment_id).await
                 .context("Failed to fetch deployment info")?;
         }
     }
@@ -187,7 +187,7 @@ async fn run_migrations(pool: &Pool<Postgres>) -> Result<()> {
 /// Insert a new deployment record into the PostgreSQL database and return the ID
 async fn insert_deployment_record(
     client: &Pool<Postgres>,
-    deployment: &Deployment,
+    deployment: Deployment,
 ) -> Result<i64> {
     // Insert the deployment record and return the ID
     let record = sqlx::query!("INSERT INTO deployments (region, component, environment, version, url, note) VALUES ($1, $2, $3, $4, $5, $6) RETURNING id", 
