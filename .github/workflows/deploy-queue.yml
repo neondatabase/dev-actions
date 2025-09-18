@@ -305,7 +305,7 @@ jobs:
           mode: start
           region: test-region
           component: test-component
-          environment: test-environment
+          environment: dev
           version: test-version
           url: test-url
           note: test-note
@@ -318,7 +318,7 @@ jobs:
           mode: start
           region: test-region
           component: test-component
-          environment: test-environment
+          environment: dev
           version: test-version
           url: test-url
           note: test-note
