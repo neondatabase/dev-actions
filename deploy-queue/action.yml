@@ -73,7 +73,7 @@ runs:
       env:
         GH_TOKEN: ${{ github.token }}
         TAG: ${{ steps.tag.outputs.tag }}
-        ARCHIVE: "mutexbot-${{ steps.triple.outputs.triple }}"
+        ARCHIVE: "deploy-queue-${{ steps.triple.outputs.triple }}"
         ACTION_REPO: ${{ github.action_repository }}
 
     - name: Run deploy-queue
