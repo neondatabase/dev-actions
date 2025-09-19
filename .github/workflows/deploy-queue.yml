@@ -15,7 +15,6 @@ permissions:
 
 env:
   GHCR_REPO: ghcr.io/neondatabase/dev-actions
-  DEPLOY_QUEUE_DATABASE_URL: ${{ secrets.DEPLOY_QUEUE_DATABASE_URL }}
 
 jobs:
   build-image:
@@ -288,6 +287,22 @@ jobs:
     if: github.event_name == 'pull_request' || github.ref_type == 'tag'
     needs: [create-release]
     runs-on: ubuntu-latest
+    services:
+      postgres:
+        image: postgres:15
+        env:
+          POSTGRES_PASSWORD: postgres
+          POSTGRES_USER: postgres
+          POSTGRES_DB: deploy_queue_test
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd pg_isready
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 5
+    env:
+      DEPLOY_QUEUE_DATABASE_URL: postgresql://postgres:postgres@localhost:5432/deploy_queue_test
     steps:
       - name: Harden the runner (Audit all outbound calls)
         uses: step-security/harden-runner@4d991eb9b905ef189e4c376166672c3f2f230481 # v2.11.0
