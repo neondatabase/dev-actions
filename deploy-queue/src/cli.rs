@@ -42,12 +42,16 @@ pub(crate) enum Mode {
         component: String,
         /// Environment where to deploy
         environment: Environment,
+        [arg(long)]
         /// Version of the component to deploy
         version: Option<String>,
+        [arg(long)]
         /// URL to the specific GitHub Actions job
         url: Option<String>,
+        [arg(long)]
         /// Note for this deployment (for manual deployments)
         note: Option<String>,
+        [arg(long)]
         /// Concurrency key for this deployment
         concurrency_key: Option<String>,
     },
