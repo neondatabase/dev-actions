@@ -138,7 +138,7 @@ runs:
           "cancel")
             args+=("cancel" "${DEPLOYMENT_ID}")
             if [[ -n "${CANCELLATION_NOTE:-}" ]]; then
-              args+=("--cancellation-note" "${CANCELLATION_NOTE}")
+              args+=("${CANCELLATION_NOTE}")
             fi
             deploy-queue "${args[@]}"
             ;;
