@@ -24,6 +24,12 @@ inputs:
   note:
     description: Note for this deployment (for manual deployments)
     default: ''
+  deployment_id:
+    description: Deployment ID (for finish, cancel, info modes)
+    default: ''
+  cancellation_note:
+    description: Cancellation note (for cancel mode)
+    default: ''
 
 runs:
   using: "composite"
@@ -87,6 +93,8 @@ runs:
         CONCURRENCY_KEY: ${{ inputs.concurrency_key }}
         URL: ${{ inputs.url }}
         NOTE: ${{ inputs.note }}
+        DEPLOYMENT_ID: ${{ inputs.deployment_id }}
+        CANCELLATION_NOTE: ${{ inputs.cancellation_note }}
       run: |
         set -euo pipefail
         
@@ -99,15 +107,47 @@ runs:
               "${REGION}"
               "${COMPONENT}"
               "${ENVIRONMENT}"
-              "${VERSION}"
-              "Started by ${GITHUB_SERVER_URL}/${GITHUB_REPOSITORY}/actions/runs/${GITHUB_RUN_ID}"
-              "${NOTE}"
-              "${CONCURRENCY_KEY}"
             )
+            
+            # Add optional arguments as flags
+            if [[ -n "${VERSION:-}" ]]; then
+              args+=("--version" "${VERSION}")
+            fi
+            
+            # Use provided URL or generate GitHub Actions URL as fallback
+            if [[ -n "${URL:-}" ]]; then
+              args+=("--url" "${URL}")
+            else
+              args+=("--url" "Started by ${GITHUB_SERVER_URL}/${GITHUB_REPOSITORY}/actions/runs/${GITHUB_RUN_ID}")
+            fi
+            
+            if [[ -n "${NOTE:-}" ]]; then
+              args+=("--note" "${NOTE}")
+            fi
+            
+            if [[ -n "${CONCURRENCY_KEY:-}" ]]; then
+              args+=("--concurrency-key" "${CONCURRENCY_KEY}")
+            fi
+            
+            deploy-queue "${args[@]}"
+            ;;
+          "finish")
+            args+=("finish" "${DEPLOYMENT_ID}")
+            deploy-queue "${args[@]}"
+            ;;
+          "cancel")
+            args+=("cancel" "${DEPLOYMENT_ID}")
+            if [[ -n "${CANCELLATION_NOTE:-}" ]]; then
+              args+=("--cancellation-note" "${CANCELLATION_NOTE}")
+            fi
+            deploy-queue "${args[@]}"
+            ;;
+          "info")
+            args+=("info" "${DEPLOYMENT_ID}")
             deploy-queue "${args[@]}"
             ;;
           *)
-            args+=( "${MODE}" "${REGION}" "${COMPONENT}" )
-            deploy-queue "${args[@]}"
+            echo "Unknown mode: ${MODE}"
+            exit 1
             ;;
         esac
