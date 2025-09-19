@@ -1,10 +1,10 @@
-name: Mutexbot PR pre-release cleanup
+name: Deploy Queue PR pre-release cleanup
 
 on:
   pull_request:
     types: ["closed"]
     branches: ["main"]
-    paths: ["mutexbot/**"]
+    paths: ["deploy-queue/**"]
 
 permissions: {}
 
@@ -24,7 +24,7 @@ jobs:
       - name: Delete pre-release for closed PR
         run: |
           echo "Deleting pre-release for PR #${{ github.event.pull_request.number }}"
-          gh release delete "mutexbot-pr-${{ github.event.pull_request.number }}" \
+          gh release delete "deploy-queue-pr-${{ github.event.pull_request.number }}" \
             --yes \
             --cleanup-tag
         env:
