@@ -259,9 +259,12 @@ impl Deployment {
     }
 }
 
-/// Show detailed info about a deployment for debugging purposes
-async fn show_deployment_info(client: &Pool<Postgres>, deployment_id: i64) -> Result<()> {
-    let deployment: Option<Deployment> = sqlx::query_as!(
+/// Fetch deployment information from the database
+async fn get_deployment_info(
+    client: &Pool<Postgres>,
+    deployment_id: i64,
+) -> Result<Option<Deployment>> {
+    let deployment = sqlx::query_as!(
         Deployment,
         "SELECT d.id, 
                 d.region,
@@ -283,6 +286,13 @@ async fn show_deployment_info(client: &Pool<Postgres>, deployment_id: i64) -> Re
     )
     .fetch_optional(client)
     .await?;
+    
+    Ok(deployment)
+}
+
+/// Show detailed info about a deployment for debugging purposes
+async fn show_deployment_info(client: &Pool<Postgres>, deployment_id: i64) -> Result<()> {
+    let deployment = get_deployment_info(client, deployment_id).await?;
 
     match deployment {
         Some(dep) => {
