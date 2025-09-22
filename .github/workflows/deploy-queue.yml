@@ -75,6 +75,14 @@ jobs:
           
           echo "Code formatting check passed"
 
+      - name: Lint and verify lockfile
+        working-directory: deploy-queue
+        run: |
+          # Run clippy with locked dependencies to ensure lockfile is up-to-date
+          cargo clippy --locked --all-targets --all-features -- -D warnings
+          
+          echo "Linting and lockfile verification completed"
+
   build-image:
     runs-on: ${{ matrix.runner }}
     outputs:
