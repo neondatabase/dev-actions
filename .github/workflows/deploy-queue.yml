@@ -142,7 +142,7 @@ jobs:
           echo "digest_$(uname -m)=${digest#sha256:}" | tee -a "$GITHUB_OUTPUT"
 
   merge-image:
-    runs-on: ["self-hosted", "small"]
+    runs-on: ubuntu-24.04
     needs: [build-image]
     permissions:
       contents: read
