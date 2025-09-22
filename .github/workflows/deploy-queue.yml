@@ -17,17 +17,8 @@ env:
   GHCR_REPO: ghcr.io/neondatabase/dev-actions
 
 jobs:
-  build-image:
-    runs-on: ${{ matrix.runner }}
-    outputs:
-      digest_x86_64: ${{ steps.export_digest.outputs.digest_x86_64 }}
-      digest_aarch64: ${{ steps.export_digest.outputs.digest_aarch64 }}
-    strategy:
-      fail-fast: false
-      matrix:
-        runner:
-          - ubuntu-24.04
-          - ubuntu-24.04-arm
+  lint:
+    runs-on: ubuntu-24.04
     services:
       postgres:
         image: postgres:15
@@ -44,6 +35,65 @@ jobs:
           --health-retries 5
     env:
       DATABASE_URL: postgresql://postgres:postgres@localhost:5432/deploy_queue_test
+    steps:
+      - name: Harden the runner (Audit all outbound calls)
+        uses: step-security/harden-runner@4d991eb9b905ef189e4c376166672c3f2f230481 # v2.11.0
+        with:
+          egress-policy: audit
+
+      - name: Fetch deploy-queue folder
+        uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4.2.2
+        with:
+          ref: ${{ github.event.pull_request.head.sha || github.sha }}
+          sparse-checkout: deploy-queue
+
+      - name: Verify migrations work
+        working-directory: deploy-queue
+        run: |
+          # PostgreSQL is already healthy thanks to health checks
+          # Install sqlx-cli to run migrations
+          cargo install sqlx-cli --no-default-features --features postgres
+          
+          # Apply migrations to verify they work correctly
+          sqlx migrate run
+          
+          echo "Database migrations completed successfully"
+
+      - name: Verify SQLx query cache is up-to-date
+        working-directory: deploy-queue
+        run: |
+          # Check that the query cache matches current queries
+          cargo sqlx prepare --check
+          
+          echo "SQLx query cache is up-to-date"
+
+      - name: Check code formatting
+        working-directory: deploy-queue
+        run: |
+          # Verify code is properly formatted
+          cargo fmt --all -- --check
+          
+          echo "Code formatting check passed"
+
+      - name: Lint and verify lockfile
+        working-directory: deploy-queue
+        run: |
+          # Run clippy with locked dependencies to ensure lockfile is up-to-date
+          cargo clippy --locked --all-targets --all-features -- -D warnings
+          
+          echo "Linting and lockfile verification completed"
+
+  build-image:
+    runs-on: ${{ matrix.runner }}
+    outputs:
+      digest_x86_64: ${{ steps.export_digest.outputs.digest_x86_64 }}
+      digest_aarch64: ${{ steps.export_digest.outputs.digest_aarch64 }}
+    strategy:
+      fail-fast: false
+      matrix:
+        runner:
+          - ubuntu-24.04
+          - ubuntu-24.04-arm
     permissions:
       contents: read
       packages: write
@@ -57,26 +107,6 @@ jobs:
         uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4.2.2
         with:
           sparse-checkout: deploy-queue
-
-      - name: Setup database schema and generate query cache
-        working-directory: deploy-queue
-        run: |
-          # PostgreSQL is already healthy thanks to health checks
-          # Install sqlx-cli to run migrations and generate query cache
-          cargo install sqlx-cli --no-default-features --features postgres
-          
-          # Apply migrations directly to set up schema for SQLx macros
-          sqlx migrate run
-          
-          # Generate query cache for offline compilation in Docker
-          # First ensure dependencies are resolved by doing a check build
-          echo "Resolving dependencies..."
-          cargo check
-          
-          echo "Generating SQLx query cache..."
-          cargo sqlx prepare
-          
-          echo "Database schema setup and query cache generation completed"
 
       - name: Docker meta
         id: meta
@@ -165,22 +195,6 @@ jobs:
         runner:
           - ubuntu-24.04
           - ubuntu-24.04-arm
-    services:
-      postgres:
-        image: postgres:15
-        env:
-          POSTGRES_PASSWORD: postgres
-          POSTGRES_USER: postgres
-          POSTGRES_DB: deploy_queue_test
-        ports:
-          - 5432:5432
-        options: >-
-          --health-cmd pg_isready
-          --health-interval 10s
-          --health-timeout 5s
-          --health-retries 5
-    env:
-      DATABASE_URL: postgresql://postgres:postgres@localhost:5432/deploy_queue_test
     steps:
       - name: Harden the runner (Audit all outbound calls)
         uses: step-security/harden-runner@4d991eb9b905ef189e4c376166672c3f2f230481 # v2.11.0
@@ -192,18 +206,6 @@ jobs:
         with:
           ref: ${{ github.event.pull_request.head.sha || github.sha }}
           sparse-checkout: deploy-queue
-
-      - name: Setup database schema
-        working-directory: deploy-queue
-        run: |
-          # PostgreSQL is already healthy thanks to health checks
-          # Install sqlx-cli to run migrations
-          cargo install sqlx-cli --no-default-features --features postgres
-          
-          # Apply migrations directly to set up schema for SQLx macros
-          sqlx migrate run
-          
-          echo "Database schema setup completed"
 
       - name: Build binary
         working-directory: deploy-queue
