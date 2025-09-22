@@ -22,7 +22,6 @@ impl AsRef<str> for Environment {
     }
 }
 
-
 /// CLI for starting and finishing and canceling deployments.
 /// This CLI is used by the Deploy Queue GitHub Action.
 #[derive(Parser)]
@@ -57,7 +56,7 @@ pub(crate) enum Mode {
     },
     /// Finish deployment for a component
     Finish {
-        /// Deployment ID to finish 
+        /// Deployment ID to finish
         deployment_id: i64,
     },
     /// Cancel deployment for a component

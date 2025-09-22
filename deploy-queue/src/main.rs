@@ -8,8 +8,8 @@ use anyhow::{Context, Result};
 use clap::Parser;
 use cli::Mode;
 use log::info;
+use sqlx::{Pool, Postgres, postgres::PgPoolOptions};
 use tokio::time::sleep;
-use sqlx::{postgres::PgPoolOptions, Pool, Postgres};
 
 pub(crate) mod cli;
 
@@ -20,10 +20,10 @@ struct Deployment {
     id: i64,
     region: String,
     environment: String,
-    component: String, 
+    component: String,
     version: Option<String>,
-    url: Option<String>, 
-    note: Option<String>, 
+    url: Option<String>,
+    note: Option<String>,
     start_timestamp: Option<OffsetDateTime>,
     finish_timestamp: Option<OffsetDateTime>,
     cancellation_timestamp: Option<OffsetDateTime>,
@@ -37,7 +37,7 @@ enum DeploymentState {
     Running,
     FinishedInBuffer,
     Finished,
-    Cancelled
+    Cancelled,
 }
 
 impl std::fmt::Display for DeploymentState {
@@ -60,7 +60,10 @@ impl From<&Deployment> for DeploymentState {
             DeploymentState::Cancelled
         } else if deployment.finish_timestamp.is_none() {
             DeploymentState::Running
-        } else if deployment.finish_timestamp.is_some() && deployment.finish_timestamp.unwrap() < OffsetDateTime::now_utc() - time::Duration::minutes(deployment.buffer_time.into()) {
+        } else if deployment.finish_timestamp.is_some()
+            && deployment.finish_timestamp.unwrap()
+                < OffsetDateTime::now_utc() - time::Duration::minutes(deployment.buffer_time.into())
+        {
             DeploymentState::FinishedInBuffer
         } else {
             DeploymentState::Finished
@@ -92,41 +95,44 @@ async fn main() -> Result<()> {
             note,
             concurrency_key,
         } => {
-
             // Insert deployment record into database
             let deployment_id = insert_deployment_record(
                 &db_client,
                 Deployment {
-                   region,
-                   component,
-                   environment: environment.to_string(),
-                   version,
-                   url,
-                   note,
-                   concurrency_key,
-                   ..Default::default()
-                }
-            ).await.context("Failed to enqueue new deployment")?;
+                    region,
+                    component,
+                    environment: environment.to_string(),
+                    version,
+                    url,
+                    note,
+                    concurrency_key,
+                    ..Default::default()
+                },
+            )
+            .await
+            .context("Failed to enqueue new deployment")?;
 
             loop {
                 // Check for blocking deployments in the same region
-                let blocking_deployments = check_blocking_deployments(&db_client, deployment_id).await?;
-                
+                let blocking_deployments =
+                    check_blocking_deployments(&db_client, deployment_id).await?;
+
                 if blocking_deployments.is_empty() {
                     info!("No blocking deployments found. Deployment can be started.");
 
-                    start_deployment(&db_client, deployment_id).await
+                    start_deployment(&db_client, deployment_id)
+                        .await
                         .context("Failed to start deployment")?;
                     info!("Successfully started deployment with ID: {}", deployment_id);
                     break;
                 } else {
                     // Print information about blocking deployments
-                    info!("Found {} blocking deployment(s) with smaller queue positions:", 
-                        blocking_deployments.len());
+                    info!(
+                        "Found {} blocking deployment(s) with smaller queue positions:",
+                        blocking_deployments.len()
+                    );
                     for pending_deployment in blocking_deployments {
-                        info!(
-                            " - {}", pending_deployment.summary()
-                        );
+                        info!(" - {}", pending_deployment.summary());
                     }
                     info!("Retrying in 5 seconds.");
                     sleep(BUSY_RETRY).await;
@@ -136,21 +142,33 @@ async fn main() -> Result<()> {
         Mode::Finish { deployment_id } => {
             log::info!("Finishing deployment with ID: {}", deployment_id);
 
-            finish_deployment(&db_client, deployment_id).await
+            finish_deployment(&db_client, deployment_id)
+                .await
                 .context("Failed to set deployment to finished")?;
-            log::info!("Successfully finished deployment with ID: {}", deployment_id);
+            log::info!(
+                "Successfully finished deployment with ID: {}",
+                deployment_id
+            );
         }
-        Mode::Cancel { deployment_id, cancellation_note } => {
+        Mode::Cancel {
+            deployment_id,
+            cancellation_note,
+        } => {
             log::info!("Cancelling deployment with ID: {}", deployment_id);
 
-            cancel_deployment(&db_client, deployment_id, cancellation_note.as_deref()).await
+            cancel_deployment(&db_client, deployment_id, cancellation_note.as_deref())
+                .await
                 .context("Failed to set deployment to cancelled")?;
-            log::info!("Successfully cancelled deployment with ID: {}", deployment_id);
+            log::info!(
+                "Successfully cancelled deployment with ID: {}",
+                deployment_id
+            );
         }
         Mode::Info { deployment_id } => {
             log::info!("Fetching info for deployment ID: {}", deployment_id);
 
-            show_deployment_info(&db_client, deployment_id).await
+            show_deployment_info(&db_client, deployment_id)
+                .await
                 .context("Failed to fetch deployment info")?;
         }
     }
@@ -160,8 +178,9 @@ async fn main() -> Result<()> {
 
 /// Create a database connection pool and return it
 async fn create_db_connection() -> Result<Pool<Postgres>> {
-    let database_url = std::env::var("DEPLOY_QUEUE_DATABASE_URL")
-        .context("Failed to fetch database url from DEPLOY_QUEUE_DATABASE_URL environment variable")?;
+    let database_url = std::env::var("DEPLOY_QUEUE_DATABASE_URL").context(
+        "Failed to fetch database url from DEPLOY_QUEUE_DATABASE_URL environment variable",
+    )?;
 
     let pool = PgPoolOptions::new()
         .connect(&database_url)
@@ -174,26 +193,31 @@ async fn create_db_connection() -> Result<Pool<Postgres>> {
 /// Run database migrations
 async fn run_migrations(pool: &Pool<Postgres>) -> Result<()> {
     info!("Running database migrations...");
-    sqlx::migrate!().set_ignore_missing(true).run(pool).await
+    sqlx::migrate!()
+        .set_ignore_missing(true)
+        .run(pool)
+        .await
         .context("Failed to run database migrations")?;
     info!("Database migrations completed successfully");
     Ok(())
 }
 
 /// Insert a new deployment record into the PostgreSQL database and return the ID
-async fn insert_deployment_record(
-    client: &Pool<Postgres>,
-    deployment: Deployment,
-) -> Result<i64> {
+async fn insert_deployment_record(client: &Pool<Postgres>, deployment: Deployment) -> Result<i64> {
     // Insert the deployment record and return the ID
     let record = sqlx::query!("INSERT INTO deployments (region, component, environment, version, url, note) VALUES ($1, $2, $3, $4, $5, $6) RETURNING id", 
         deployment.region, deployment.component, deployment.environment, deployment.version, deployment.url, deployment.note)
         .fetch_one(client)
         .await?;
-    
+
     let deployment_id = record.id;
 
-    log::info!("Successfully inserted deployment record: id={}, region={}, component={}", deployment_id, deployment.region, deployment.component);
+    log::info!(
+        "Successfully inserted deployment record: id={}, region={}, component={}",
+        deployment_id,
+        deployment.region,
+        deployment.component
+    );
 
     // Store the deployment_id as a GitHub output if running in GitHub Actions
     if let Ok(github_output_path) = env::var("GITHUB_OUTPUT") {
@@ -201,9 +225,9 @@ async fn insert_deployment_record(
             .create(true)
             .append(true)
             .open(&github_output_path)
-            .context("Failed to open GITHUB_OUTPUT")?; 
+            .context("Failed to open GITHUB_OUTPUT")?;
         writeln!(file, "deployment-id={}", deployment_id)
-        	.context("Failed to write deployment_id to GITHUB_OUTPUT")?;
+            .context("Failed to write deployment_id to GITHUB_OUTPUT")?;
     }
 
     Ok(deployment_id)
@@ -213,26 +237,20 @@ impl Deployment {
     /// Generate a compact summary of this deployment's information
     fn summary(&self) -> String {
         let state_verb = DeploymentState::from(self).to_string().to_lowercase();
-        
+
         let version = self.version.as_deref().unwrap_or("unknown");
         let note = self.note.as_deref().unwrap_or("");
         let url = self.url.as_deref().unwrap_or("");
-        
-        format!("{} {} {}(@{}): ({}) ({})", 
-                self.id, 
-                state_verb, 
-                self.component, 
-                version,
-                note, 
-                url)
+
+        format!(
+            "{} {} {}(@{}): ({}) ({})",
+            self.id, state_verb, self.component, version, note, url
+        )
     }
 }
 
 /// Show detailed info about a deployment for debugging purposes
-async fn show_deployment_info(
-    client: &Pool<Postgres>,
-    deployment_id: i64,
-) -> Result<()> {
+async fn show_deployment_info(client: &Pool<Postgres>, deployment_id: i64) -> Result<()> {
     let deployment: Option<Deployment> = sqlx::query_as!(
         Deployment,
         "SELECT d.id, 
@@ -260,20 +278,20 @@ async fn show_deployment_info(
         Some(dep) => {
             println!("{}", dep.summary());
             println!("{dep:#?}");
-        },
+        }
         None => println!("Deployment with ID {} not found", deployment_id),
     }
-    
+
     Ok(())
 }
 
-/// Check for blocking deployments in the same region 
+/// Check for blocking deployments in the same region
 async fn check_blocking_deployments(
     client: &Pool<Postgres>,
     deployment_id: i64,
 ) -> Result<Vec<Deployment>> {
     // Query for deployments in the same region by other components with smaller ID (queue position)
-    // that haven't finished yet (finish_timestamp IS NULL and cancellation_timestamp IS NULL) 
+    // that haven't finished yet (finish_timestamp IS NULL and cancellation_timestamp IS NULL)
     // or have finished within the environment-specific buffer_time
     let results = sqlx::query_as!(
         Deployment,
@@ -315,26 +333,26 @@ async fn check_blocking_deployments(
 }
 
 /// Update the deployment record with start timestamp
-async fn start_deployment(
-    client: &Pool<Postgres>,
-    deployment_id: i64,
-) -> Result<()> {
-    sqlx::query!("UPDATE deployments SET start_timestamp = NOW() WHERE id = $1", deployment_id)
-        .execute(client)
-        .await?;
-    
+async fn start_deployment(client: &Pool<Postgres>, deployment_id: i64) -> Result<()> {
+    sqlx::query!(
+        "UPDATE deployments SET start_timestamp = NOW() WHERE id = $1",
+        deployment_id
+    )
+    .execute(client)
+    .await?;
+
     Ok(())
 }
 
 /// Update the deployment record with finish timestamp
-async fn finish_deployment(
-    client: &Pool<Postgres>,
-    deployment_id: i64,
-) -> Result<()> {
-    sqlx::query!("UPDATE deployments SET finish_timestamp = NOW() WHERE id = $1", deployment_id)
-        .execute(client)
-        .await?;
-    
+async fn finish_deployment(client: &Pool<Postgres>, deployment_id: i64) -> Result<()> {
+    sqlx::query!(
+        "UPDATE deployments SET finish_timestamp = NOW() WHERE id = $1",
+        deployment_id
+    )
+    .execute(client)
+    .await?;
+
     Ok(())
 }
 
@@ -347,6 +365,6 @@ async fn cancel_deployment(
     sqlx::query!("UPDATE deployments SET cancellation_timestamp = NOW(), cancellation_note = $2 WHERE id = $1", deployment_id, cancellation_note)
         .execute(client)
         .await?;
-    
+
     Ok(())
 }
