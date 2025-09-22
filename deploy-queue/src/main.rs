@@ -236,16 +236,14 @@ async fn insert_deployment_record(client: &Pool<Postgres>, deployment: Deploymen
 impl Deployment {
     /// Generate a compact summary of this deployment's information
     fn summary(&self) -> String {
+        let id = &self.id;
         let state_verb = DeploymentState::from(self).to_string().to_lowercase();
+        let component = &self.component;
+        let version = self.version.as_ref().map(|version| format!("@{version}")).unwrap_or_default();
+        let note = self.note.as_ref().map(|note| format!(" {note}")).unwrap_or_default();
+        let url = self.url.as_ref().map(|url| format!(" {url}")).unwrap_or_default();
 
-        let version = self.version.as_deref().unwrap_or("unknown");
-        let note = self.note.as_deref().unwrap_or("");
-        let url = self.url.as_deref().unwrap_or("");
-
-        format!(
-            "{} {} {}(@{}): ({}) ({})",
-            self.id, state_verb, self.component, version, note, url
-        )
+        format!("{id} {state_verb} {component}{version}:{note}{url}")
     }
 }
 
