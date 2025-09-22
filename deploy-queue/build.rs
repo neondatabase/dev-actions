@@ -13,5 +13,9 @@ fn main() -> Result<()> {
     render_manpages::<cli::Cli>("assets/man")?;
     create_dir_all("assets/completions")?;
     render_shell_completions::<cli::Cli>("assets/completions")?;
+
+    // Rerun the build script if migrations change
+    println!("cargo:rerun-if-changed=migrations");
+
     Ok(())
 }

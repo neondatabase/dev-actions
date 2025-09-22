@@ -1,14 +1,14 @@
-name: Mutexbot
+name: Deploy Queue
 
 on:
   pull_request:
     types: ["opened", "synchronize", "reopened"]
     branches: ["main"]
-    paths: ["mutexbot/**"]
+    paths: ["deploy-queue/**"]
   push:
     branches: ["main"]
-    paths: ["mutexbot/**"]
-    tags: ["mutexbot-v*.*.*"]
+    paths: ["deploy-queue/**"]
+    tags: ["deploy-queue-v*.*.*"]
 
 permissions:
   contents: read
@@ -17,6 +17,72 @@ env:
   GHCR_REPO: ghcr.io/neondatabase/dev-actions
 
 jobs:
+  lint:
+    runs-on: ubuntu-24.04
+    services:
+      postgres:
+        image: postgres:15
+        env:
+          POSTGRES_PASSWORD: postgres
+          POSTGRES_USER: postgres
+          POSTGRES_DB: deploy_queue_test
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd pg_isready
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 5
+    env:
+      DATABASE_URL: postgresql://postgres:postgres@localhost:5432/deploy_queue_test
+    steps:
+      - name: Harden the runner (Audit all outbound calls)
+        uses: step-security/harden-runner@4d991eb9b905ef189e4c376166672c3f2f230481 # v2.11.0
+        with:
+          egress-policy: audit
+
+      - name: Fetch deploy-queue folder
+        uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4.2.2
+        with:
+          ref: ${{ github.event.pull_request.head.sha || github.sha }}
+          sparse-checkout: deploy-queue
+
+      - name: Verify migrations work
+        working-directory: deploy-queue
+        run: |
+          # PostgreSQL is already healthy thanks to health checks
+          # Install sqlx-cli to run migrations
+          cargo install sqlx-cli --no-default-features --features postgres
+          
+          # Apply migrations to verify they work correctly
+          sqlx migrate run
+          
+          echo "Database migrations completed successfully"
+
+      - name: Verify SQLx query cache is up-to-date
+        working-directory: deploy-queue
+        run: |
+          # Check that the query cache matches current queries
+          cargo sqlx prepare --check
+          
+          echo "SQLx query cache is up-to-date"
+
+      - name: Check code formatting
+        working-directory: deploy-queue
+        run: |
+          # Verify code is properly formatted
+          cargo fmt --all -- --check
+          
+          echo "Code formatting check passed"
+
+      - name: Lint and verify lockfile
+        working-directory: deploy-queue
+        run: |
+          # Run clippy with locked dependencies to ensure lockfile is up-to-date
+          cargo clippy --locked --all-targets --all-features -- -D warnings
+          
+          echo "Linting and lockfile verification completed"
+
   build-image:
     runs-on: ${{ matrix.runner }}
     outputs:
@@ -37,10 +103,10 @@ jobs:
         with:
           egress-policy: audit
 
-      - name: Fetch mutexbot folder
+      - name: Fetch deploy-queue folder
         uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4.2.2
         with:
-          sparse-checkout: mutexbot
+          sparse-checkout: deploy-queue
 
       - name: Docker meta
         id: meta
@@ -62,7 +128,7 @@ jobs:
         id: build
         uses: docker/build-push-action@471d1dc4e07e5cdedd4c2171150001c434f0b7a4 # v6.15.0
         with:
-          context: mutexbot
+          context: deploy-queue
           labels: ${{ steps.meta.outputs.labels }}
           attests: |
             type=provenance,mode=max
@@ -106,11 +172,11 @@ jobs:
           images: ${{ env.GHCR_REPO }}
           tags: |
             # branch event
-            type=ref,enable=true,priority=600,prefix=mutexbot-,suffix=,event=branch
+            type=ref,enable=true,priority=600,prefix=deploy-queue-,suffix=,event=branch
             # pull request event
-            type=ref,enable=true,priority=600,prefix=mutexbot-pr-,suffix=,event=pr
+            type=ref,enable=true,priority=600,prefix=deploy-queue-pr-,suffix=,event=pr
             # tags event
-            type=match,pattern=mutexbot-v(.*)
+            type=match,pattern=deploy-queue-v(.*)
 
       - name: Create manifest list and push
         run: |
@@ -135,14 +201,14 @@ jobs:
         with:
           egress-policy: audit
 
-      - name: Fetch mutexbot folder
+      - name: Fetch deploy-queue folder
         uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4.2.2
         with:
           ref: ${{ github.event.pull_request.head.sha || github.sha }}
-          sparse-checkout: mutexbot
+          sparse-checkout: deploy-queue
 
       - name: Build binary
-        working-directory: mutexbot
+        working-directory: deploy-queue
         run: |
           TARGET="$(uname -m)-unknown-linux-musl"
           echo "TARGET=${TARGET}" | tee -a "${GITHUB_ENV}"
@@ -150,14 +216,14 @@ jobs:
           sudo apt-get update && sudo apt-get install -y musl-tools musl-dev
           cargo install cargo-auditable --locked
           cargo auditable build --release --target "${TARGET}"
-          cp "target/${TARGET}/release/mutexbot" assets/
-          mv assets "mutexbot-${TARGET}"
+          cp "target/${TARGET}/release/deploy-queue" assets/
+          mv assets "deploy-queue-${TARGET}"
 
       - name: Upload artifact
         uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4.6.2
         with:
-          name: mutexbot-${{ env.TARGET }}
-          path: mutexbot/mutexbot-${{ env.TARGET }}
+          name: deploy-queue-${{ env.TARGET }}
+          path: deploy-queue/deploy-queue-${{ env.TARGET }}
 
   create-release:
     needs: [build-binary]
@@ -178,7 +244,7 @@ jobs:
       - name: Create archives
         run: |
           for artifact in $(ls); do
-            chmod a+x "${artifact}/mutexbot"
+            chmod a+x "${artifact}/deploy-queue"
             tar cvf "${artifact}.tar.zst" "${artifact}"
           done
           
@@ -190,14 +256,14 @@ jobs:
             --title "Release ${{ github.ref_name }}" \
             --notes "Release for ${{ github.ref_name }}" \
             --verify-tag \
-            mutexbot-*.tar.zst
+            deploy-queue-*.tar.zst
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
 
       - name: Create or update pre-release
         if: github.event_name == 'pull_request'
         run: |
-          TAG="mutexbot-pr-${{ github.event.pull_request.number }}"
+          TAG="deploy-queue-pr-${{ github.event.pull_request.number }}"
 
           # Delete existing pre-release if it exists
           if gh release view "$TAG" --repo "$GITHUB_REPOSITORY" > /dev/null 2>&1; then
@@ -214,67 +280,84 @@ jobs:
             --prerelease \
             --title "Pre-release for $TAG" \
             --notes "Pre-release for $TAG" \
-            mutexbot-*.tar.zst
+            deploy-queue-*.tar.zst
         env:
           COMMIT_SHA: ${{ github.event.pull_request.head.sha }}
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
 
-  test-mutexbot-action:
+  test-deploy-queue-action:
     if: github.event_name == 'pull_request' || github.ref_type == 'tag'
     needs: [create-release]
     runs-on: ubuntu-latest
+    services:
+      postgres:
+        image: postgres:15
+        env:
+          POSTGRES_PASSWORD: postgres
+          POSTGRES_USER: postgres
+          POSTGRES_DB: deploy_queue_test
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd pg_isready
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 5
+    env:
+      DEPLOY_QUEUE_DATABASE_URL: postgresql://postgres:postgres@localhost:5432/deploy_queue_test
     steps:
       - name: Harden the runner (Audit all outbound calls)
         uses: step-security/harden-runner@4d991eb9b905ef189e4c376166672c3f2f230481 # v2.11.0
         with:
           egress-policy: audit
 
-      - name: Fetch mutexbot folder
+      - name: Fetch deploy-queue folder
         uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4.2.2
         with:
-          sparse-checkout: mutexbot
+          sparse-checkout: deploy-queue
 
-      - name: Reserve test-resource as component A
-        uses: ./mutexbot
+      - name: Start deployment for test-resource as component A
+        uses: ./deploy-queue
         with:
-          api_key: ${{ secrets.MUTEXBOT_API_KEY_TEST_COMPONENT_A }}
-          mode: reserve
-          resource_name: test-resource
-          isolation_channel: ${{ vars.MUTEXBOT_CHANNEL_TESTING }}
+          mode: start
+          region: test-region
+          component: test-component
+          environment: dev
+          version: test-version
+          url: test-url
+          note: test-note
 
-      - name: Try (and fail) to reserve test-resource as component B
-        uses: ./mutexbot
+      - name: Try (and fail) to start deployment for test-resource as component B
+        uses: ./deploy-queue
         continue-on-error: true
         timeout-minutes: 1
         with:
-          api_key: ${{ secrets.MUTEXBOT_API_KEY_TEST_COMPONENT_B }}
-          mode: reserve
-          resource_name: test-resource
-          isolation_channel: ${{ vars.MUTEXBOT_CHANNEL_TESTING }}
+          mode: start
+          region: test-region
+          component: test-component
+          environment: dev
+          version: test-version
+          url: test-url
+          note: test-note
 
-      - name: Try (and fail) to release as component B
-        uses: ./mutexbot
+      - name: Try (and fail) to finish deployment for component B
+        uses: ./deploy-queue
         continue-on-error: true
         timeout-minutes: 1
         with:
-          api_key: ${{ secrets.MUTEXBOT_API_KEY_TEST_COMPONENT_B }}
-          mode: release
-          resource_name: test-resource
-          isolation_channel: ${{ vars.MUTEXBOT_CHANNEL_TESTING }}
+          mode: finish
+          deployment_id: 1234567890
 
-      - name: Reduce reservation as component A
-        uses: ./mutexbot
-        with:
-          api_key: ${{ secrets.MUTEXBOT_API_KEY_TEST_COMPONENT_A }}
-          mode: reserve
-          duration: 10m
-          resource_name: test-resource
-          isolation_channel: ${{ vars.MUTEXBOT_CHANNEL_TESTING }}
 
-      - name: Force release as component B
-        uses: ./mutexbot
+      - name: Cancel deployment as component B
+        uses: ./deploy-queue
         with:
-          api_key: ${{ secrets.MUTEXBOT_API_KEY_TEST_COMPONENT_B }}
-          mode: force-release
-          resource_name: test-resource
-          isolation_channel: ${{ vars.MUTEXBOT_CHANNEL_TESTING }}
+          mode: cancel
+          deployment_id: 1234567890
+          cancellation_note: test-cancellation-note
+
+      - name: Get info about deployment
+        uses: ./deploy-queue
+        with:
+          mode: info
+          deployment_id: 1234567890

@@ -1,0 +1,153 @@
+name: Deploy Queue
+description: Action to start, finish and cancel deployments.
+inputs:
+  mode:
+    description: Whether to start, finish or cancel the deployment
+    default: reserve
+  region:
+    description: Region to deploy
+  component:
+    description: Component to deploy
+    default: ''
+  environment:
+    description: Environment where to deploy
+    default: ''
+  version:
+    description: Version to deploy
+    default: ''
+  concurrency_key:
+    description: Concurrency key for this deployment
+    default: ''
+  url:
+    description: URL to the specific GitHub Actions job
+    default: ''
+  note:
+    description: Note for this deployment (for manual deployments)
+    default: ''
+  deployment_id:
+    description: Deployment ID (for finish, cancel, info modes)
+    default: ''
+  cancellation_note:
+    description: Cancellation note (for cancel mode)
+    default: ''
+
+runs:
+  using: "composite"
+  steps:
+    - name: Detect target triple
+      id: triple
+      shell: bash
+      run: |
+        echo "triple=$(uname -m)-unknown-linux-musl" | tee -a "$GITHUB_OUTPUT"
+
+    - name: Resolve action ref to tag
+      id: tag
+      shell: bash
+      run: |
+        if [ -z "$REF" ]; then
+          echo "Empty github.action_ref, falling back to github.sha assuming local execution"
+          REF="${SHA}"
+        fi
+
+        if [[ "$REF" =~ ^[0-9a-f]{40}$ ]]; then
+          echo "Ref is a commit SHA, resolving to release tag..."
+    
+          tag=$(gh api repos/neondatabase/dev-actions/git/matching-refs/tags --paginate | jq -r --arg sha "$REF" 'map(select(.object.sha == $sha)) | first | .ref | ltrimstr("refs/tags/") // error("No release tag found for commit " + $sha)')
+    
+          echo "tag=$tag" | tee -a "$GITHUB_OUTPUT"
+        else
+          echo "tag=$REF" | tee -a "$GITHUB_OUTPUT"
+        fi
+      env:
+        GH_TOKEN: ${{ github.token }}
+        REF: ${{ github.action_ref }}
+        SHA: ${{ github.event.pull_request.head.sha || github.sha }}
+
+    - name: Download deploy-queue binary
+      shell: bash
+      run: |
+        if [ ! -f "${ARCHIVE}.tar.zst" ]; then
+          gh release download "$TAG" \
+            --repo "$ACTION_REPO" \
+            --pattern "$ARCHIVE.tar.zst"
+
+          tar xvf "$ARCHIVE.tar.zst"
+        fi
+
+        echo "$(pwd)/${ARCHIVE}" | tee -a "${GITHUB_PATH}"
+      working-directory: ${{ github.action_path }}
+      env:
+        GH_TOKEN: ${{ github.token }}
+        TAG: ${{ steps.tag.outputs.tag }}
+        ARCHIVE: "deploy-queue-${{ steps.triple.outputs.triple }}"
+        ACTION_REPO: ${{ github.action_repository }}
+
+    - name: Run deploy-queue
+      shell: bash
+      env:
+        MODE: ${{ inputs.mode }}
+        REGION: ${{ inputs.region }}
+        COMPONENT: ${{ inputs.component }}
+        ENVIRONMENT: ${{ inputs.environment }}
+        VERSION: ${{ inputs.version }}
+        CONCURRENCY_KEY: ${{ inputs.concurrency_key }}
+        URL: ${{ inputs.url }}
+        NOTE: ${{ inputs.note }}
+        DEPLOYMENT_ID: ${{ inputs.deployment_id }}
+        CANCELLATION_NOTE: ${{ inputs.cancellation_note }}
+      run: |
+        set -euo pipefail
+        
+        args=()
+        
+        case "${MODE}" in
+          "start")
+            args+=(
+              "start"
+              "${REGION}"
+              "${COMPONENT}"
+              "${ENVIRONMENT}"
+            )
+            
+            # Add optional arguments as flags
+            if [[ -n "${VERSION:-}" ]]; then
+              args+=("--version" "${VERSION}")
+            fi
+            
+            # Use provided URL or generate GitHub Actions URL as fallback
+            if [[ -n "${URL:-}" ]]; then
+              args+=("--url" "${URL}")
+            else
+              args+=("--url" "Started by ${GITHUB_SERVER_URL}/${GITHUB_REPOSITORY}/actions/runs/${GITHUB_RUN_ID}")
+            fi
+            
+            if [[ -n "${NOTE:-}" ]]; then
+              args+=("--note" "${NOTE}")
+            fi
+            
+            if [[ -n "${CONCURRENCY_KEY:-}" ]]; then
+              args+=("--concurrency-key" "${CONCURRENCY_KEY}")
+            fi
+            
+            deploy-queue "${args[@]}"
+            ;;
+          "finish")
+            args+=("finish" "${DEPLOYMENT_ID}")
+            deploy-queue "${args[@]}"
+            ;;
+          "cancel")
+            args+=("cancel" "${DEPLOYMENT_ID}")
+            if [[ -n "${CANCELLATION_NOTE:-}" ]]; then
+              args+=("${CANCELLATION_NOTE}")
+            fi
+            deploy-queue "${args[@]}"
+            ;;
+          "info")
+            args+=("info" "${DEPLOYMENT_ID}")
+            deploy-queue "${args[@]}"
+            ;;
+          *)
+            echo "Unknown mode: ${MODE}"
+            exit 1
+            ;;
+        esac

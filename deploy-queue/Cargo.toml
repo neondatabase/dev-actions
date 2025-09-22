@@ -1,6 +1,6 @@
 [package]
-name = "mutexbot"
-version = "0.3.2"
+name = "deploy-queue"
+version = "0.1.0"
 edition = "2024"
 
 [dependencies]
@@ -8,9 +8,9 @@ anyhow = "1"
 clap = { version = "4", features = ["derive", "env"] }
 env_logger = "0.11"
 log = "0.4"
-reqwest = { version = "0.12", features = ["json", "rustls-tls-native-roots"], default-features = false }
-serde = { version = "1", features = ["derive"] }
 tokio = { version = "1", features = ["macros", "rt-multi-thread", "time"] }
+sqlx = { version = "0.7", default-features = false, features = ["runtime-tokio", "macros", "migrate", "postgres", "tls-rustls", "time"] }
+time = { version = "0.3", features = ["serde", "macros"] }
 
 [build-dependencies]
 anyhow = "1"
