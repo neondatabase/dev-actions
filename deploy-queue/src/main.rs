@@ -128,9 +128,9 @@ async fn main() -> Result<()> {
                     info!("Found {} blocking deployment(s) with smaller queue positions:", 
                         blocking_deployments.len());
                     for pending_deployment in blocking_deployments {
-                        let deployment_state: DeploymentState = (&pending_deployment).into();
-                        let deployment_note = pending_deployment.url.or(pending_deployment.note).unwrap_or_default();
-                        info!("  - Deployment ID: {}, Component: {}, State: {}, Note: {}", pending_deployment.id, pending_deployment.component, deployment_state, deployment_note);
+                        info!(
+                            " - {}", pending_deployment.summary()
+                        );
                     }
                     info!("Retrying in 5 seconds.");
                     sleep(BUSY_RETRY).await;
@@ -213,6 +213,25 @@ async fn insert_deployment_record(
     Ok(deployment_id)
 }
 
+impl Deployment {
+    /// Generate a compact summary of this deployment's information
+    fn summary(&self) -> String {
+        let state_verb = DeploymentState::from(self).to_string().to_lowercase();
+        
+        let version = self.version.as_deref().unwrap_or("unknown");
+        let note = self.note.as_deref().unwrap_or("");
+        let url = self.url.as_deref().unwrap_or("");
+        
+        format!("{} {} {}(@{}): ({}) ({})", 
+                self.id, 
+                state_verb, 
+                self.component, 
+                version,
+                note, 
+                url)
+    }
+}
+
 /// Show detailed info about a deployment for debugging purposes
 async fn show_deployment_info(
     client: &Pool<Postgres>,
@@ -243,47 +262,10 @@ async fn show_deployment_info(
 
     match deployment {
         Some(dep) => {
-            let state: DeploymentState = (&dep).into();
-            
-            println!("\n=== Deployment Info ===");
-            println!("ID: {}", dep.id);
-            println!("Region: {}", dep.region);
-            println!("Environment: {}", dep.environment);
-            println!("Component: {}", dep.component);
-            println!("State: {}", state);
-            println!("Buffer Time: {} minutes", dep.buffer_time);
-            
-            if let Some(version) = &dep.version {
-                println!("Version: {}", version);
-            }
-            if let Some(url) = &dep.url {
-                println!("URL: {}", url);
-            }
-            if let Some(note) = &dep.note {
-                println!("Note: {}", note);
-            }
-            if let Some(concurrency_key) = &dep.concurrency_key {
-                println!("Concurrency Key: {}", concurrency_key);
-            }
-            
-            if let Some(start) = dep.start_timestamp {
-                println!("Started at: {}", start.format(&time::format_description::well_known::Rfc3339).unwrap_or_else(|_| "Invalid timestamp".to_string()));
-            }
-            if let Some(finish) = dep.finish_timestamp {
-                println!("Finished at: {}", finish.format(&time::format_description::well_known::Rfc3339).unwrap_or_else(|_| "Invalid timestamp".to_string()));
-            }
-            if let Some(cancelled) = dep.cancellation_timestamp {
-                println!("Cancelled at: {}", cancelled.format(&time::format_description::well_known::Rfc3339).unwrap_or_else(|_| "Invalid timestamp".to_string()));
-                if let Some(cancel_note) = &dep.cancellation_note {
-                    println!("Cancellation Note: {}", cancel_note);
-                }
-            }
-            
-            println!("=====================\n");
-        }
-        None => {
-            println!("Deployment with ID {} not found", deployment_id);
-        }
+            println!("{}", dep.summary());
+            println!("{dep:#?}");
+        },
+        None => println!("Deployment with ID {} not found", deployment_id),
     }
     
     Ok(())
