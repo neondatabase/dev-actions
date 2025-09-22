@@ -7,7 +7,6 @@ use time::OffsetDateTime;
 use anyhow::{Context, Result};
 use clap::Parser;
 use cli::Mode;
-use env_logger;
 use log::info;
 use tokio::time::sleep;
 use sqlx::{postgres::PgPoolOptions, Pool, Postgres, migrate::Migrator};
@@ -19,7 +18,7 @@ static MIGRATOR: Migrator = sqlx::migrate!();
 
 // We don't read all of the fields
 #[allow(dead_code)]
-#[derive(Default)]
+#[derive(Default, Debug)]
 struct Deployment {
     id: i64,
     region: String,
