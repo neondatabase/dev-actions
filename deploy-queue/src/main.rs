@@ -15,21 +15,21 @@ pub(crate) mod cli;
 
 // We don't read all of the fields
 #[allow(dead_code)]
-#[derive(Default, Debug)]
-struct Deployment {
-    id: i64,
-    region: String,
-    environment: String,
-    component: String,
-    version: Option<String>,
-    url: Option<String>,
-    note: Option<String>,
-    start_timestamp: Option<OffsetDateTime>,
-    finish_timestamp: Option<OffsetDateTime>,
-    cancellation_timestamp: Option<OffsetDateTime>,
-    cancellation_note: Option<String>,
-    concurrency_key: Option<String>,
-    buffer_time: i32,
+#[derive(Default, Debug, Clone)]
+pub struct Deployment {
+    pub id: i64,
+    pub region: String,
+    pub environment: String,
+    pub component: String,
+    pub version: Option<String>,
+    pub url: Option<String>,
+    pub note: Option<String>,
+    pub start_timestamp: Option<OffsetDateTime>,
+    pub finish_timestamp: Option<OffsetDateTime>,
+    pub cancellation_timestamp: Option<OffsetDateTime>,
+    pub cancellation_note: Option<String>,
+    pub concurrency_key: Option<String>,
+    pub buffer_time: i32,
 }
 
 enum DeploymentState {
@@ -203,7 +203,7 @@ async fn run_migrations(pool: &Pool<Postgres>) -> Result<()> {
 }
 
 /// Insert a new deployment record into the PostgreSQL database and return the ID
-async fn insert_deployment_record(client: &Pool<Postgres>, deployment: Deployment) -> Result<i64> {
+pub async fn insert_deployment_record(client: &Pool<Postgres>, deployment: Deployment) -> Result<i64> {
     // Insert the deployment record and return the ID
     let record = sqlx::query!("INSERT INTO deployments (region, component, environment, version, url, note) VALUES ($1, $2, $3, $4, $5, $6) RETURNING id", 
         deployment.region, deployment.component, deployment.environment, deployment.version, deployment.url, deployment.note)
@@ -260,7 +260,7 @@ impl Deployment {
 }
 
 /// Fetch deployment information from the database
-async fn get_deployment_info(
+pub async fn get_deployment_info(
     client: &Pool<Postgres>,
     deployment_id: i64,
 ) -> Result<Option<Deployment>> {
@@ -310,40 +310,9 @@ async fn check_blocking_deployments(
     client: &Pool<Postgres>,
     deployment_id: i64,
 ) -> Result<Vec<Deployment>> {
-    // Query for deployments in the same region by other components with smaller ID (queue position)
-    // that haven't finished yet (finish_timestamp IS NULL and cancellation_timestamp IS NULL)
-    // or have finished within the environment-specific buffer_time
-    let results = sqlx::query_as!(
+    let results = sqlx::query_file_as!(
         Deployment,
-        "SELECT d2.id,
-                d2.region,
-                d2.environment,
-                d2.component,
-                d2.version,
-                d2.url,
-                d2.note,
-                d2.start_timestamp,
-                d2.finish_timestamp,
-                d2.cancellation_timestamp,
-                d2.cancellation_note,
-                d2.concurrency_key,
-                e.buffer_time
-         FROM
-           (SELECT *
-            FROM deployments
-            WHERE id = $1) d1
-         JOIN environments e ON d1.environment = e.environment
-         JOIN deployments d2 ON (d1.region = d2.region
-                                 AND (
-                                   d1.concurrency_key IS NULL
-                                   OR d2.concurrency_key IS NULL
-                                   OR d1.concurrency_key != d2.concurrency_key
-                                 )
-                                 AND d2.id < d1.id
-                                 AND (d2.finish_timestamp IS NULL
-                                      OR d2.finish_timestamp > NOW() - INTERVAL '1 minute' * e.buffer_time)
-                                 AND d2.cancellation_timestamp IS NULL)
-         ORDER BY d2.id ASC",
+        "queries/blocking_deployments.sql",
         deployment_id
     )
     .fetch_all(client)
@@ -353,7 +322,7 @@ async fn check_blocking_deployments(
 }
 
 /// Update the deployment record with start timestamp
-async fn start_deployment(client: &Pool<Postgres>, deployment_id: i64) -> Result<()> {
+pub async fn start_deployment(client: &Pool<Postgres>, deployment_id: i64) -> Result<()> {
     sqlx::query!(
         "UPDATE deployments SET start_timestamp = NOW() WHERE id = $1",
         deployment_id
@@ -365,7 +334,7 @@ async fn start_deployment(client: &Pool<Postgres>, deployment_id: i64) -> Result
 }
 
 /// Update the deployment record with finish timestamp
-async fn finish_deployment(client: &Pool<Postgres>, deployment_id: i64) -> Result<()> {
+pub async fn finish_deployment(client: &Pool<Postgres>, deployment_id: i64) -> Result<()> {
     sqlx::query!(
         "UPDATE deployments SET finish_timestamp = NOW() WHERE id = $1",
         deployment_id
@@ -377,7 +346,7 @@ async fn finish_deployment(client: &Pool<Postgres>, deployment_id: i64) -> Resul
 }
 
 /// Update the deployment record with cancellation timestamp and note
-async fn cancel_deployment(
+pub async fn cancel_deployment(
     client: &Pool<Postgres>,
     deployment_id: i64,
     cancellation_note: Option<&str>,
