@@ -1,13 +1,38 @@
 use sqlx::{postgres::PgPoolOptions, Pool, Postgres};
 use anyhow::Result;
 
-/// Helper to create a test database connection
-/// Uses TEST_DATABASE_URL env var if set, otherwise defaults to local PostgreSQL
-/// with current system user (PostgreSQL will automatically use the current user when no username is specified)
+/// Helper to create a test database connection with unique database name
+/// Creates a unique database per test to allow parallel execution
 pub async fn create_test_db_connection() -> Result<Pool<Postgres>> {
-    let database_url = std::env::var("TEST_DATABASE_URL")
-        .unwrap_or_else(|_| "postgresql://localhost/deploy_queue_test?sslmode=disable".to_string());
-
+    use std::time::{SystemTime, UNIX_EPOCH};
+    
+    // If TEST_DATABASE_URL is set (e.g., in CI), use it directly
+    if let Ok(database_url) = std::env::var("TEST_DATABASE_URL") {
+        let pool = PgPoolOptions::new()
+            .connect(&database_url)
+            .await?;
+        return Ok(pool);
+    }
+    
+    // Create unique database name for each test to allow parallel execution
+    let timestamp = SystemTime::now().duration_since(UNIX_EPOCH).unwrap().as_nanos();
+    let thread_id = std::thread::current().id();
+    let unique_db_name = format!("test_deploy_queue_{}_{:?}", timestamp, thread_id)
+        .replace("ThreadId(", "")
+        .replace(")", "");
+    
+    // First, connect to postgres database to create our test database
+    let admin_pool = PgPoolOptions::new()
+        .connect("postgresql://localhost/postgres?sslmode=disable")
+        .await?;
+    
+    // Create the unique test database
+    sqlx::query(&format!("CREATE DATABASE \"{}\"", unique_db_name))
+        .execute(&admin_pool)
+        .await?;
+    
+    // Now connect to our newly created database
+    let database_url = format!("postgresql://localhost/{}?sslmode=disable", unique_db_name);
     let pool = PgPoolOptions::new()
         .connect(&database_url)
         .await?;
