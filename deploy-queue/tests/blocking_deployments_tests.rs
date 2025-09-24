@@ -211,7 +211,27 @@ async fn test_blocked_by_different_concurrency_keys() -> Result<()> {
     Ok(())
 }
 
-// Scenario 9: Sequential deployment blocking (running + queued)
+// Scenario 9: NULL vs non-NULL concurrency keys (should block)
+// ap-northeast-1 region: deployment with NULL concurrency key should block deployment with non-NULL key
+#[tokio::test]
+async fn test_null_vs_nonnull_concurrency_key_blocking() -> Result<()> {
+    let pool = database_helpers::setup_test_db().await?;
+    sqlx::query!(
+        "INSERT INTO deployments (id, region, component, environment, version, url, note, start_timestamp, finish_timestamp, cancellation_timestamp, concurrency_key) 
+         VALUES 
+             ($1, $2, $3, $4, $5, $6, $7, NOW() - INTERVAL '5 minutes', NULL, NULL, $8),
+             ($9, $10, $11, $12, $13, $14, $15, NULL, NULL, NULL, $16)",
+        9001, "ap-northeast-1", "redis-service", "prod", "v1.3.0", None::<String>, "Running with NULL concurrency key", None::<String>,
+        9002, "ap-northeast-1", "cache-service", "prod", "v2.1.0", None::<String>, "Queued with non-NULL concurrency key", Some("performance-2024-001".to_string())
+    ).execute(&pool).await?;
+    
+    // Expect: deployment 9002 should be blocked by deployment 9001 (NULL vs non-NULL concurrency keys)
+    assert_blocking_deployments(&pool, 9002, vec![9001]).await?;
+    
+    Ok(())
+}
+
+// Scenario 10: Sequential deployment blocking (running + queued)
 // us-east-2 region: deployments block all subsequent deployments by ID order (both running and queued)  
 #[tokio::test]
 async fn test_sequential_deployments_blocking_by_id_order() -> Result<()> {
@@ -223,16 +243,16 @@ async fn test_sequential_deployments_blocking_by_id_order() -> Result<()> {
              ($8, $9, $10, $11, $12, $13, $14, NULL, NULL, NULL, NULL),
              ($15, $16, $17, $18, $19, $20, $21, NULL, NULL, NULL, NULL),
              ($22, $23, $24, $25, $26, $27, $28, NULL, NULL, NULL, NULL)",
-        9001, "us-east-2", "api-gateway", "prod", "v2.1.0", None::<String>, "Running deployment - blocks all others",
-        9002, "us-east-2", "auth-service", "prod", "v1.5.0", None::<String>, "Queued - should be blocked",
-        9003, "us-east-2", "user-service", "prod", "v3.2.0", None::<String>, "Queued - should be blocked", 
-        9004, "us-east-2", "notification-service", "prod", "v1.8.0", None::<String>, "Queued - should be blocked"
+        10001, "us-east-2", "api-gateway", "prod", "v2.1.0", None::<String>, "Running deployment - blocks all others",
+        10002, "us-east-2", "auth-service", "prod", "v1.5.0", None::<String>, "Queued - should be blocked",
+        10003, "us-east-2", "user-service", "prod", "v3.2.0", None::<String>, "Queued - should be blocked", 
+        10004, "us-east-2", "notification-service", "prod", "v1.8.0", None::<String>, "Queued - should be blocked"
     ).execute(&pool).await?;
     
     // Expect: queued deployments are blocked by all deployments with lower IDs (running + queued)
-    assert_blocking_deployments(&pool, 9002, vec![9001]).await?;                    // blocked by running 9001
-    assert_blocking_deployments(&pool, 9003, vec![9001, 9002]).await?;              // blocked by running 9001 + queued 9002  
-    assert_blocking_deployments(&pool, 9004, vec![9001, 9002, 9003]).await?;        // blocked by running 9001 + queued 9002, 9003
+    assert_blocking_deployments(&pool, 10002, vec![10001]).await?;                    // blocked by running 10001
+    assert_blocking_deployments(&pool, 10003, vec![10001, 10002]).await?;              // blocked by running 10001 + queued 10002  
+    assert_blocking_deployments(&pool, 10004, vec![10001, 10002, 10003]).await?;        // blocked by running 10001 + queued 10002, 10003
     
     Ok(())
 }
