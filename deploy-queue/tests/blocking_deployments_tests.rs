@@ -64,10 +64,8 @@ async fn test_blocked_by_running_component_same_region() -> Result<()> {
     sqlx::query!(
         "INSERT INTO deployments (id, region, component, environment, version, url, note, start_timestamp, finish_timestamp, cancellation_timestamp, concurrency_key) 
          VALUES 
-             ($1, $2, $3, $4, $5, $6, $7, NOW() - INTERVAL '5 minutes', NULL, NULL, NULL),
-             ($8, $9, $10, $11, $12, $13, $14, NULL, NULL, NULL, NULL)",
-        1001, "us-west-2", "api-server", "prod", "v1.0.0", "https://github.com/api-server/v1.0.0", "Running deployment",
-        1002, "us-west-2", "web-frontend", "prod", "v2.1.0", "https://github.com/web-frontend/v2.1.0", "Queued deployment"
+             (1001, 'us-west-2', 'api-server', 'prod', 'v1.0.0', 'https://github.com/api-server/v1.0.0', 'Running deployment', NOW() - INTERVAL '5 minutes', NULL, NULL, NULL),
+             (1002, 'us-west-2', 'web-frontend', 'prod', 'v2.1.0', 'https://github.com/web-frontend/v2.1.0', 'Queued deployment', NULL, NULL, NULL, NULL)"
     ).execute(&pool).await?;
     
     // Expect: deployment 9002 should be blocked by deployment 9001
@@ -84,10 +82,8 @@ async fn test_blocked_by_finished_component_within_buffer_time() -> Result<()> {
     sqlx::query!(
         "INSERT INTO deployments (id, region, component, environment, version, url, note, start_timestamp, finish_timestamp, cancellation_timestamp, concurrency_key) 
          VALUES 
-             ($1, $2, $3, $4, $5, $6, $7, NOW() - INTERVAL '15 minutes', NOW() - INTERVAL '5 minutes', NULL, NULL),
-             ($8, $9, $10, $11, $12, $13, $14, NULL, NULL, NULL, NULL)",
-        2003, "us-east-1", "database-service", "prod", "v1.2.0", "https://github.com/db/v1.2.0", "Recently finished",
-        2004, "us-east-1", "auth-service", "prod", "v3.0.0", "https://github.com/auth/v3.0.0", "Blocked by buffer time"
+             (2003, 'us-east-1', 'database-service', 'prod', 'v1.2.0', 'https://github.com/db/v1.2.0', 'Recently finished', NOW() - INTERVAL '15 minutes', NOW() - INTERVAL '5 minutes', NULL, NULL),
+             (2004, 'us-east-1', 'auth-service', 'prod', 'v3.0.0', 'https://github.com/auth/v3.0.0', 'Blocked by buffer time', NULL, NULL, NULL, NULL)"
     ).execute(&pool).await?;
     
     // Expect: deployment 2004 should be blocked by deployment 2003 (finished within buffer time)
@@ -104,10 +100,8 @@ async fn test_not_blocked_by_finished_component_outside_buffer_time() -> Result<
     sqlx::query!(
         "INSERT INTO deployments (id, region, component, environment, version, url, note, start_timestamp, finish_timestamp, cancellation_timestamp, concurrency_key) 
          VALUES 
-             ($1, $2, $3, $4, $5, $6, $7, NOW() - INTERVAL '30 minutes', NOW() - INTERVAL '15 minutes', NULL, NULL),
-             ($8, $9, $10, $11, $12, $13, $14, NULL, NULL, NULL, NULL)",
-        3005, "eu-west-1", "notification-service", "prod", "v2.0.0", "https://github.com/notifications/v2.0.0", "Finished long ago",
-        3006, "eu-west-1", "payment-service", "prod", "v1.5.0", "https://github.com/payments/v1.5.0", "Should not be blocked"
+             (3005, 'eu-west-1', 'notification-service', 'prod', 'v2.0.0', 'https://github.com/notifications/v2.0.0', 'Finished long ago', NOW() - INTERVAL '30 minutes', NOW() - INTERVAL '15 minutes', NULL, NULL),
+             (3006, 'eu-west-1', 'payment-service', 'prod', 'v1.5.0', 'https://github.com/payments/v1.5.0', 'Should not be blocked', NULL, NULL, NULL, NULL)"
     ).execute(&pool).await?;
     
     // Expect: deployment 3006 should NOT be blocked (buffer time expired)
@@ -123,10 +117,8 @@ async fn test_not_blocked_by_running_component_different_region() -> Result<()> 
     sqlx::query!(
         "INSERT INTO deployments (id, region, component, environment, version, url, note, start_timestamp, finish_timestamp, cancellation_timestamp, concurrency_key) 
          VALUES 
-             ($1, $2, $3, $4, $5, $6, $7, NOW() - INTERVAL '10 minutes', NULL, NULL, NULL),
-             ($8, $9, $10, $11, $12, $13, $14, NULL, NULL, NULL, NULL)",
-        4007, "ap-southeast-1", "cache-service", "prod", "v1.1.0", None::<String>, "Running in APAC",
-        4008, "us-central-1", "cache-service", "prod", "v1.1.0", None::<String>, "Should not be blocked by APAC"
+             (4007, 'ap-southeast-1', 'cache-service', 'prod', 'v1.1.0', NULL, 'Running in APAC', NOW() - INTERVAL '10 minutes', NULL, NULL, NULL),
+             (4008, 'us-central-1', 'cache-service', 'prod', 'v1.1.0', NULL, 'Should not be blocked by APAC', NULL, NULL, NULL, NULL)"
     ).execute(&pool).await?;
     
     // Expect: deployment 4008 should NOT be blocked (different region)
@@ -142,10 +134,8 @@ async fn test_not_blocked_by_cancelled_deployment() -> Result<()> {
     sqlx::query!(
         "INSERT INTO deployments (id, region, component, environment, version, url, note, start_timestamp, finish_timestamp, cancellation_timestamp, cancellation_note, concurrency_key) 
          VALUES 
-             ($1, $2, $3, $4, $5, $6, $7, NOW() - INTERVAL '20 minutes', NULL, NOW() - INTERVAL '18 minutes', $8, NULL),
-             ($9, $10, $11, $12, $13, $14, $15, NULL, NULL, NULL, NULL, NULL)",
-        5009, "us-west-1", "monitoring-service", "prod", "v2.2.0", None::<String>, "Cancelled deployment", "Cancelled due to critical bug",
-        5010, "us-west-1", "logging-service", "prod", "v1.8.0", None::<String>, "Should not be blocked by cancelled"
+             (5009, 'us-west-1', 'monitoring-service', 'prod', 'v2.2.0', NULL, 'Cancelled deployment', NOW() - INTERVAL '20 minutes', NULL, NOW() - INTERVAL '18 minutes', 'Cancelled due to critical bug', NULL),
+             (5010, 'us-west-1', 'logging-service', 'prod', 'v1.8.0', NULL, 'Should not be blocked by cancelled', NULL, NULL, NULL, NULL, NULL)"
     ).execute(&pool).await?;
     
     // Expect: deployment 5010 should NOT be blocked (cancelled deployments don't block)
@@ -161,10 +151,8 @@ async fn test_not_blocked_in_dev_environment_no_buffer() -> Result<()> {
     sqlx::query!(
         "INSERT INTO deployments (id, region, component, environment, version, url, note, start_timestamp, finish_timestamp, cancellation_timestamp, concurrency_key) 
          VALUES 
-             ($1, $2, $3, $4, $5, $6, $7, NOW() - INTERVAL '10 minutes', NOW() - INTERVAL '5 minutes', NULL, NULL),
-             ($8, $9, $10, $11, $12, $13, $14, NULL, NULL, NULL, NULL)",
-        6011, "dev-cluster", "api-server", "dev", "v1.1.0-beta", None::<String>, "Dev deployment finished 5min ago",
-        6012, "dev-cluster", "web-frontend", "dev", "v2.2.0-beta", None::<String>, "Should not be blocked in dev (no buffer)"
+             (6011, 'dev-cluster', 'api-server', 'dev', 'v1.1.0-beta', NULL, 'Dev deployment finished 5min ago', NOW() - INTERVAL '10 minutes', NOW() - INTERVAL '5 minutes', NULL, NULL),
+             (6012, 'dev-cluster', 'web-frontend', 'dev', 'v2.2.0-beta', NULL, 'Should not be blocked in dev (no buffer)', NULL, NULL, NULL, NULL)"
     ).execute(&pool).await?;
     
     // Expect: deployment 6012 should NOT be blocked (dev environment has no buffer time)
@@ -180,10 +168,8 @@ async fn test_not_blocked_by_same_concurrency_key() -> Result<()> {
     sqlx::query!(
         "INSERT INTO deployments (id, region, component, environment, version, url, note, start_timestamp, finish_timestamp, cancellation_timestamp, concurrency_key) 
          VALUES 
-             ($1, $2, $3, $4, $5, $6, $7, NOW() - INTERVAL '8 minutes', NULL, NULL, $8),
-             ($9, $10, $11, $12, $13, $14, $15, NULL, NULL, NULL, $16)",
-        7013, "us-west-3", "worker-service", "prod", "v1.0.0", None::<String>, "Part of concurrent deployment group", "hotfix-2024-001",
-        7014, "us-west-3", "queue-processor", "prod", "v1.0.1", None::<String>, "Same concurrency key - should not block", "hotfix-2024-001"
+             (7013, 'us-west-3', 'worker-service', 'prod', 'v1.0.0', NULL, 'Part of concurrent deployment group', NOW() - INTERVAL '8 minutes', NULL, NULL, 'hotfix-2024-001'),
+             (7014, 'us-west-3', 'queue-processor', 'prod', 'v1.0.1', NULL, 'Same concurrency key - should not block', NULL, NULL, NULL, 'hotfix-2024-001')"
     ).execute(&pool).await?;
     
     // Expect: deployment 7014 should NOT be blocked (same concurrency key allows parallel deployment)
@@ -199,10 +185,8 @@ async fn test_blocked_by_different_concurrency_keys() -> Result<()> {
     sqlx::query!(
         "INSERT INTO deployments (id, region, component, environment, version, url, note, start_timestamp, finish_timestamp, cancellation_timestamp, concurrency_key) 
          VALUES 
-             ($1, $2, $3, $4, $5, $6, $7, NOW() - INTERVAL '3 minutes', NULL, NULL, $8),
-             ($9, $10, $11, $12, $13, $14, $15, NULL, NULL, NULL, $16)",
-        8015, "us-south-1", "user-service", "prod", "v2.0.0", None::<String>, "Different concurrency key", "feature-2024-002",
-        8016, "us-south-1", "profile-service", "prod", "v1.9.0", None::<String>, "Different concurrency - should be blocked", "feature-2024-003"
+             (8015, 'us-south-1', 'user-service', 'prod', 'v2.0.0', NULL, 'Different concurrency key', NOW() - INTERVAL '3 minutes', NULL, NULL, 'feature-2024-002'),
+             (8016, 'us-south-1', 'profile-service', 'prod', 'v1.9.0', NULL, 'Different concurrency - should be blocked', NULL, NULL, NULL, 'feature-2024-003')"
     ).execute(&pool).await?;
     
     // Expect: deployment 8016 should be blocked by deployment 8015 (different concurrency keys)
@@ -219,10 +203,8 @@ async fn test_null_vs_nonnull_concurrency_key_blocking() -> Result<()> {
     sqlx::query!(
         "INSERT INTO deployments (id, region, component, environment, version, url, note, start_timestamp, finish_timestamp, cancellation_timestamp, concurrency_key) 
          VALUES 
-             ($1, $2, $3, $4, $5, $6, $7, NOW() - INTERVAL '5 minutes', NULL, NULL, $8),
-             ($9, $10, $11, $12, $13, $14, $15, NULL, NULL, NULL, $16)",
-        9001, "ap-northeast-1", "redis-service", "prod", "v1.3.0", None::<String>, "Running with NULL concurrency key", None::<String>,
-        9002, "ap-northeast-1", "cache-service", "prod", "v2.1.0", None::<String>, "Queued with non-NULL concurrency key", Some("performance-2024-001".to_string())
+             (9001, 'ap-northeast-1', 'redis-service', 'prod', 'v1.3.0', NULL, 'Running with NULL concurrency key', NOW() - INTERVAL '5 minutes', NULL, NULL, NULL),
+             (9002, 'ap-northeast-1', 'cache-service', 'prod', 'v2.1.0', NULL, 'Queued with non-NULL concurrency key', NULL, NULL, NULL, 'performance-2024-001')"
     ).execute(&pool).await?;
     
     // Expect: deployment 9002 should be blocked by deployment 9001 (NULL vs non-NULL concurrency keys)
@@ -239,14 +221,10 @@ async fn test_sequential_deployments_blocking_by_id_order() -> Result<()> {
     sqlx::query!(
         "INSERT INTO deployments (id, region, component, environment, version, url, note, start_timestamp, finish_timestamp, cancellation_timestamp, concurrency_key) 
          VALUES 
-             ($1, $2, $3, $4, $5, $6, $7, NOW() - INTERVAL '10 minutes', NULL, NULL, NULL),
-             ($8, $9, $10, $11, $12, $13, $14, NULL, NULL, NULL, NULL),
-             ($15, $16, $17, $18, $19, $20, $21, NULL, NULL, NULL, NULL),
-             ($22, $23, $24, $25, $26, $27, $28, NULL, NULL, NULL, NULL)",
-        10001, "us-east-2", "api-gateway", "prod", "v2.1.0", None::<String>, "Running deployment - blocks all others",
-        10002, "us-east-2", "auth-service", "prod", "v1.5.0", None::<String>, "Queued - should be blocked",
-        10003, "us-east-2", "user-service", "prod", "v3.2.0", None::<String>, "Queued - should be blocked", 
-        10004, "us-east-2", "notification-service", "prod", "v1.8.0", None::<String>, "Queued - should be blocked"
+             (10001, 'us-east-2', 'api-gateway', 'prod', 'v2.1.0', NULL, 'Running deployment - blocks all others', NOW() - INTERVAL '10 minutes', NULL, NULL, NULL),
+             (10002, 'us-east-2', 'auth-service', 'prod', 'v1.5.0', NULL, 'Queued - should be blocked', NULL, NULL, NULL, NULL),
+             (10003, 'us-east-2', 'user-service', 'prod', 'v3.2.0', NULL, 'Queued - should be blocked', NULL, NULL, NULL, NULL),
+             (10004, 'us-east-2', 'notification-service', 'prod', 'v1.8.0', NULL, 'Queued - should be blocked', NULL, NULL, NULL, NULL)"
     ).execute(&pool).await?;
     
     // Expect: queued deployments are blocked by all deployments with lower IDs (running + queued)
