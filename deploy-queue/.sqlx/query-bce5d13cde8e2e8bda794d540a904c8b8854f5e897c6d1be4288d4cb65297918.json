@@ -1,6 +1,6 @@
 {
   "db_name": "PostgreSQL",
-  "query": "INSERT INTO deployments (region, component, environment, version, url, note) VALUES ($1, $2, $3, $4, $5, $6) RETURNING id",
+  "query": "INSERT INTO deployments (region, component, environment, version, url, note, concurrency_key) VALUES ($1, $2, $3, $4, $5, $6, $7) RETURNING id",
   "describe": {
     "columns": [
       {
@@ -16,12 +16,13 @@
         "Varchar",
         "Varchar",
         "Text",
-        "Text"
+        "Text",
+        "Varchar"
       ]
     },
     "nullable": [
       false
     ]
   },
-  "hash": "bdd69f5828542263b7c513d946dcf8df563b1298ebe0c46f8a6451c4e0ea329b"
+  "hash": "bce5d13cde8e2e8bda794d540a904c8b8854f5e897c6d1be4288d4cb65297918"
 }
