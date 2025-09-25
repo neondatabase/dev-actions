@@ -316,48 +316,134 @@ jobs:
         with:
           sparse-checkout: deploy-queue
 
-      - name: Start deployment for test-resource as component A
+      # ==============================================================================
+      # Test 1: Complete Happy Path Lifecycle (start → finish)
+      # ==============================================================================
+      
+      - name: Start deployment (happy path test)
+        id: start-deployment
         uses: ./deploy-queue
         with:
           mode: start
-          region: test-region
-          component: test-component
+          region: test-region-happy
+          component: test-component-happy
           environment: dev
-          version: test-version
-          url: test-url
-          note: test-note
+          version: v1.0.0
+          url: https://github.com/test-happy
+          note: Happy path test deployment
 
-      - name: Try (and fail) to start deployment for test-resource as component B
+      - name: Finish the deployment successfully
         uses: ./deploy-queue
-        continue-on-error: true
-        timeout-minutes: 1
-        with:
-          mode: start
-          region: test-region
-          component: test-component
-          environment: dev
-          version: test-version
-          url: test-url
-          note: test-note
-
-      - name: Try (and fail) to finish deployment for component B
-        uses: ./deploy-queue
-        continue-on-error: true
-        timeout-minutes: 1
         with:
           mode: finish
-          deployment_id: 1234567890
+          deployment_id: ${{ steps.start-deployment.outputs.deployment_id }}
 
-
-      - name: Cancel deployment as component B
-        uses: ./deploy-queue
-        with:
-          mode: cancel
-          deployment_id: 1234567890
-          cancellation_note: test-cancellation-note
-
-      - name: Get info about deployment
+      - name: Verify finished deployment info
         uses: ./deploy-queue
         with:
           mode: info
-          deployment_id: 1234567890
+          deployment_id: ${{ steps.start-deployment.outputs.deployment_id }}
+
+      # ==============================================================================
+      # Test 2: Blocking Behavior (same region + component)
+      # ==============================================================================
+
+      - name: Start blocking deployment
+        id: blocking-deployment
+        uses: ./deploy-queue
+        with:
+          mode: start
+          region: test-region-block
+          component: test-component-block
+          environment: dev
+          version: v1.1.0
+          url: https://github.com/test-blocking
+          note: Blocking deployment test
+
+      - name: Try to start blocked deployment (should fail due to blocking)
+        uses: ./deploy-queue
+        continue-on-error: true
+        timeout-minutes: 1
+        with:
+          mode: start
+          region: test-region-block  # Same region
+          component: test-component-block  # Same component → should be blocked
+          environment: dev
+          version: v1.2.0
+          url: https://github.com/test-blocked
+          note: Should be blocked deployment
+
+      - name: Finish blocking deployment to unblock
+        uses: ./deploy-queue
+        with:
+          mode: finish
+          deployment_id: ${{ steps.blocking-deployment.outputs.deployment_id }}
+
+      # ==============================================================================
+      # Test 3: Non-Blocking Behavior (different region)
+      # ==============================================================================
+
+      - name: Start deployment in region A
+        id: region-a-deployment
+        uses: ./deploy-queue
+        with:
+          mode: start
+          region: test-region-a
+          component: shared-component
+          environment: dev
+          version: v2.0.0
+          url: https://github.com/test-region-a
+          note: Region A deployment
+
+      - name: Start deployment in region B (should NOT be blocked)
+        id: region-b-deployment
+        uses: ./deploy-queue
+        with:
+          mode: start
+          region: test-region-b  # Different region
+          component: shared-component  # Same component but different region
+          environment: dev
+          version: v2.1.0
+          url: https://github.com/test-region-b
+          note: Region B deployment (not blocked)
+
+      - name: Finish both regional deployments
+        uses: ./deploy-queue
+        with:
+          mode: finish
+          deployment_id: ${{ steps.region-a-deployment.outputs.deployment_id }}
+
+      - name: Finish region B deployment
+        uses: ./deploy-queue
+        with:
+          mode: finish
+          deployment_id: ${{ steps.region-b-deployment.outputs.deployment_id }}
+
+      # ==============================================================================
+      # Test 4: Cancellation Flow
+      # ==============================================================================
+
+      - name: Start deployment for cancellation test
+        id: cancel-deployment
+        uses: ./deploy-queue
+        with:
+          mode: start
+          region: test-region-cancel
+          component: test-component-cancel
+          environment: dev
+          version: v3.0.0
+          url: https://github.com/test-cancel
+          note: Cancellation test deployment
+
+      - name: Cancel the deployment
+        uses: ./deploy-queue
+        with:
+          mode: cancel
+          deployment_id: ${{ steps.cancel-deployment.outputs.deployment_id }}
+          cancellation_note: E2E test cancellation
+
+      - name: Verify cancelled deployment info
+        uses: ./deploy-queue
+        with:
+          mode: info
+          deployment_id: ${{ steps.cancel-deployment.outputs.deployment_id }}
