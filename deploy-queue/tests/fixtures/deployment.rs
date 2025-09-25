@@ -9,14 +9,28 @@ pub async fn create_test_deployment(pool: &Pool<Postgres>) -> Result<i64> {
     let unique_id = COUNTER.fetch_add(1, Ordering::Relaxed);
     
     let record = sqlx::query!(
-        "INSERT INTO deployments (region, component, environment, version, url, note) 
-         VALUES ($1, $2, $3, $4, $5, $6) RETURNING id", 
+        "INSERT INTO deployments (region, component, environment, version, url, note, concurrency_key) 
+         VALUES ($1, $2, 'dev', 'v1.0.0', 'https://github.com/test', 'test deployment', NULL) RETURNING id", 
         format!("test-region-{}", unique_id),
-        format!("test-component-{}", unique_id),
-        "dev",
-        Some("v1.0.0".to_string()),
-        Some("https://github.com/test".to_string()),
-        Some("test deployment".to_string())
+        format!("test-component-{}", unique_id)
+    )
+    .fetch_one(pool)
+    .await?;
+
+    Ok(record.id)
+}
+
+/// Helper to create a test deployment record in running state and return its ID
+/// Used by tests that need deployments that are already started
+pub async fn create_running_deployment(pool: &Pool<Postgres>) -> Result<i64> {
+    static COUNTER: AtomicU32 = AtomicU32::new(1000); // Use different range to avoid ID conflicts
+    let unique_id = COUNTER.fetch_add(1, Ordering::Relaxed);
+    
+    let record = sqlx::query!(
+        "INSERT INTO deployments (region, component, environment, version, url, note, concurrency_key, start_timestamp) 
+         VALUES ($1, $2, 'dev', 'v1.0.0', 'https://github.com/test-running', 'running test deployment', NULL, NOW()) RETURNING id", 
+        format!("running-region-{}", unique_id),
+        format!("running-component-{}", unique_id)
     )
     .fetch_one(pool)
     .await?;
