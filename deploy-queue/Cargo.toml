@@ -9,7 +9,7 @@ path = "src/main.rs"
 
 [lib]
 name = "deploy_queue"
-path = "src/main.rs"
+path = "src/lib.rs"
 
 [dependencies]
 anyhow = "1"
