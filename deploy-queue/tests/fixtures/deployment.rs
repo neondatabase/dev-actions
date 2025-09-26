@@ -7,7 +7,7 @@ use std::sync::atomic::{AtomicU32, Ordering};
 pub async fn create_test_deployment(pool: &Pool<Postgres>) -> Result<i64> {
     static COUNTER: AtomicU32 = AtomicU32::new(0);
     let unique_id = COUNTER.fetch_add(1, Ordering::Relaxed);
-    
+
     let record = sqlx::query!(
         "INSERT INTO deployments (region, component, environment, version, url, note, concurrency_key) 
          VALUES ($1, $2, 'dev', 'v1.0.0', 'https://github.com/test', 'test deployment', NULL) RETURNING id", 
@@ -25,7 +25,7 @@ pub async fn create_test_deployment(pool: &Pool<Postgres>) -> Result<i64> {
 pub async fn create_running_deployment(pool: &Pool<Postgres>) -> Result<i64> {
     static COUNTER: AtomicU32 = AtomicU32::new(1000); // Use different range to avoid ID conflicts
     let unique_id = COUNTER.fetch_add(1, Ordering::Relaxed);
-    
+
     let record = sqlx::query!(
         "INSERT INTO deployments (region, component, environment, version, url, note, concurrency_key, start_timestamp) 
          VALUES ($1, $2, 'dev', 'v1.0.0', 'https://github.com/test-running', 'running test deployment', NULL, NOW()) RETURNING id", 
@@ -43,7 +43,7 @@ pub async fn create_running_deployment(pool: &Pool<Postgres>) -> Result<i64> {
 pub async fn create_finished_deployment(pool: &Pool<Postgres>) -> Result<i64> {
     static COUNTER: AtomicU32 = AtomicU32::new(2000); // Use different range to avoid ID conflicts
     let unique_id = COUNTER.fetch_add(1, Ordering::Relaxed);
-    
+
     let record = sqlx::query!(
         "INSERT INTO deployments (region, component, environment, version, url, note, concurrency_key, start_timestamp, finish_timestamp) 
          VALUES ($1, $2, 'dev', 'v1.0.0', 'https://github.com/test-finished', 'finished test deployment', NULL, NOW() - INTERVAL '10 minutes', NOW()) RETURNING id", 
@@ -61,7 +61,7 @@ pub async fn create_finished_deployment(pool: &Pool<Postgres>) -> Result<i64> {
 pub async fn create_cancelled_deployment(pool: &Pool<Postgres>) -> Result<i64> {
     static COUNTER: AtomicU32 = AtomicU32::new(3000); // Use different range to avoid ID conflicts
     let unique_id = COUNTER.fetch_add(1, Ordering::Relaxed);
-    
+
     let record = sqlx::query!(
         "INSERT INTO deployments (region, component, environment, version, url, note, concurrency_key, cancellation_timestamp, cancellation_note) 
          VALUES ($1, $2, 'dev', 'v1.0.0', 'https://github.com/test-cancelled', 'cancelled test deployment', NULL, NOW(), 'Test cancellation') RETURNING id", 
@@ -73,4 +73,3 @@ pub async fn create_cancelled_deployment(pool: &Pool<Postgres>) -> Result<i64> {
 
     Ok(record.id)
 }
-

@@ -203,7 +203,10 @@ async fn run_migrations(pool: &Pool<Postgres>) -> Result<()> {
 }
 
 /// Insert a new deployment record into the PostgreSQL database and return the ID
-pub async fn insert_deployment_record(client: &Pool<Postgres>, deployment: Deployment) -> Result<i64> {
+pub async fn insert_deployment_record(
+    client: &Pool<Postgres>,
+    deployment: Deployment,
+) -> Result<i64> {
     // Insert the deployment record and return the ID
     let record = sqlx::query!("INSERT INTO deployments (region, component, environment, version, url, note, concurrency_key) VALUES ($1, $2, $3, $4, $5, $6, $7) RETURNING id", 
         deployment.region, deployment.component, deployment.environment, deployment.version, deployment.url, deployment.note, deployment.concurrency_key)
@@ -286,7 +289,7 @@ pub async fn get_deployment_info(
     )
     .fetch_optional(client)
     .await?;
-    
+
     Ok(deployment)
 }
 

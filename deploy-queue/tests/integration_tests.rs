@@ -10,12 +10,15 @@ mod deployment_fixtures;
 // Import the functions we need from the main module
 // For binaries, we need to compile them as a library for testing
 extern crate deploy_queue;
-use deploy_queue::{Deployment, insert_deployment_record, get_deployment_info, start_deployment, finish_deployment, cancel_deployment};
+use deploy_queue::{
+    Deployment, cancel_deployment, finish_deployment, get_deployment_info,
+    insert_deployment_record, start_deployment,
+};
 
 #[tokio::test]
 async fn test_insert_deployment_record() -> Result<()> {
     let pool = database_helpers::setup_test_db().await?;
-    
+
     let region = "insert-test-region".to_string();
     let component = "insert-test-component".to_string();
     let environment = "prod";
@@ -23,7 +26,7 @@ async fn test_insert_deployment_record() -> Result<()> {
     let url = Some("https://github.com/example/test".to_string());
     let note = Some("Integration test deployment".to_string());
     let concurrency_key = None;
-    
+
     let deployment = Deployment {
         region: region.clone(),
         component: component.clone(),
@@ -34,10 +37,10 @@ async fn test_insert_deployment_record() -> Result<()> {
         concurrency_key,
         ..Default::default()
     };
-    
+
     // Test the insert function
     let deployment_id = insert_deployment_record(&pool, deployment).await?;
-    
+
     // Verify it was inserted
     assert!(deployment_id > 0, "Deployment ID should be positive");
 
@@ -50,7 +53,7 @@ async fn test_insert_deployment_record() -> Result<()> {
     )
     .fetch_one(&pool)
     .await?;
-    
+
     // Verify the fields were inserted correctly
     assert_eq!(row.id, deployment_id);
     assert_eq!(row.region, region);
@@ -59,13 +62,13 @@ async fn test_insert_deployment_record() -> Result<()> {
     assert_eq!(row.version, version);
     assert_eq!(row.url, url);
     assert_eq!(row.note, note);
-    
-    // Timestamps should be None initially 
+
+    // Timestamps should be None initially
     assert!(row.start_timestamp.is_none());
     assert!(row.finish_timestamp.is_none());
     assert!(row.cancellation_timestamp.is_none());
     assert!(row.cancellation_note.is_none());
-    
+
     // No cleanup needed - using unique test data
     Ok(())
 }
@@ -73,22 +76,22 @@ async fn test_insert_deployment_record() -> Result<()> {
 #[tokio::test]
 async fn test_insert_deployment_record_minimal_data() -> Result<()> {
     let pool = database_helpers::setup_test_db().await?;
-    
+
     // Test with minimal required fields only
     let region = "minimal-test-region".to_string();
     let component = "minimal-test-component".to_string();
     let environment = "dev";
-    
+
     let deployment = Deployment {
         region,
         component,
         environment: environment.to_string(),
         ..Default::default()
     };
-    
+
     let deployment_id = insert_deployment_record(&pool, deployment).await?;
     assert!(deployment_id > 0);
-    
+
     // Verify optional fields are None
     let row = sqlx::query!(
         "SELECT version, url, note FROM deployments WHERE id = $1",
@@ -96,18 +99,18 @@ async fn test_insert_deployment_record_minimal_data() -> Result<()> {
     )
     .fetch_one(&pool)
     .await?;
-    
+
     assert_eq!(row.version, None);
     assert_eq!(row.url, None);
     assert_eq!(row.note, None);
-    
+
     Ok(())
 }
 
 #[tokio::test]
 async fn test_get_deployment_info() -> Result<()> {
     let pool = database_helpers::setup_test_db().await?;
-    
+
     let region = "get-info-test-region";
     let component = "get-info-test-component";
     let environment = "prod";
@@ -115,7 +118,7 @@ async fn test_get_deployment_info() -> Result<()> {
     let url = "https://github.com/example/get-info";
     let note = "Test deployment for get_deployment_info";
     let concurrency_key = "test-key-123";
-    
+
     // Insert test data
     let record = sqlx::query!(
         "INSERT INTO deployments (region, component, environment, version, url, note, concurrency_key) 
@@ -130,13 +133,13 @@ async fn test_get_deployment_info() -> Result<()> {
     )
     .fetch_one(&pool)
     .await?;
-    
+
     let deployment_id = record.id;
-    
+
     // Test successful retrieval
     let retrieved = get_deployment_info(&pool, deployment_id).await?;
     assert!(retrieved.is_some(), "Should retrieve existing deployment");
-    
+
     let retrieved = retrieved.unwrap();
     assert_eq!(retrieved.id, deployment_id);
     assert_eq!(retrieved.region, region);
@@ -147,13 +150,13 @@ async fn test_get_deployment_info() -> Result<()> {
     assert_eq!(retrieved.note, Some(note.to_string()));
     assert_eq!(retrieved.concurrency_key, Some(concurrency_key.to_string()));
     assert_eq!(retrieved.buffer_time, 10); // prod environment has 10 minute buffer
-    
+
     // Initially all timestamps should be None
     assert!(retrieved.start_timestamp.is_none());
     assert!(retrieved.finish_timestamp.is_none());
     assert!(retrieved.cancellation_timestamp.is_none());
     assert!(retrieved.cancellation_note.is_none());
-    
+
     Ok(())
 }
 
@@ -182,13 +185,17 @@ async fn test_start_deployment_success() -> Result<()> {
     .fetch_one(&pool)
     .await?;
     assert!(row.start_timestamp.is_some());
-    
+
     // Should be very recent (within last 10 seconds)
     let now = OffsetDateTime::now_utc();
     let started = row.start_timestamp.unwrap();
     let duration = now - started;
     let diff_seconds = duration.whole_seconds().abs();
-    assert!(diff_seconds < 10, "Start timestamp should be recent, but was {} seconds ago", diff_seconds);
+    assert!(
+        diff_seconds < 10,
+        "Start timestamp should be recent, but was {} seconds ago",
+        diff_seconds
+    );
 
     // No cleanup needed - using unique test data
     Ok(())
@@ -219,13 +226,17 @@ async fn test_finish_deployment_success() -> Result<()> {
     .fetch_one(&pool)
     .await?;
     assert!(row.finish_timestamp.is_some());
-    
+
     // Should be very recent (within last 10 seconds)
     let now = OffsetDateTime::now_utc();
     let finished = row.finish_timestamp.unwrap();
     let duration = now - finished;
     let diff_seconds = duration.whole_seconds().abs();
-    assert!(diff_seconds < 10, "Finish timestamp should be recent, but was {} seconds ago", diff_seconds);
+    assert!(
+        diff_seconds < 10,
+        "Finish timestamp should be recent, but was {} seconds ago",
+        diff_seconds
+    );
 
     // No cleanup needed - using unique test data
     Ok(())
@@ -250,13 +261,17 @@ async fn test_cancel_queued_deployment_with_note() -> Result<()> {
     assert!(row.cancellation_timestamp.is_some());
     assert!(row.cancellation_note.is_some());
     assert_eq!(row.cancellation_note.as_ref().unwrap(), cancel_note);
-    
+
     // Should be very recent (within last 10 seconds)
     let now = OffsetDateTime::now_utc();
     let cancelled = row.cancellation_timestamp.unwrap();
     let duration = now - cancelled;
     let diff_seconds = duration.whole_seconds().abs();
-    assert!(diff_seconds < 10, "Cancellation timestamp should be recent, but was {} seconds ago", diff_seconds);
+    assert!(
+        diff_seconds < 10,
+        "Cancellation timestamp should be recent, but was {} seconds ago",
+        diff_seconds
+    );
 
     // No cleanup needed - using unique test data
     Ok(())
@@ -283,7 +298,6 @@ async fn test_cancel_running_deployment_without_note() -> Result<()> {
     // No cleanup needed - using unique test data
     Ok(())
 }
-
 
 #[tokio::test]
 async fn test_deployment_state_transitions() -> Result<()> {
@@ -332,59 +346,80 @@ async fn test_deployment_state_transitions() -> Result<()> {
 #[tokio::test]
 async fn test_invalid_state_transitions() -> Result<()> {
     let pool = database_helpers::setup_test_db().await?;
-    
+
     // Test finishing a deployment that was never started (queued → finished is invalid)
     let queued_deployment_id = deployment_fixtures::create_test_deployment(&pool).await?;
     let result = finish_deployment(&pool, queued_deployment_id).await;
-    assert!(result.is_err(), "Should not be able to finish a queued deployment");
-    
+    assert!(
+        result.is_err(),
+        "Should not be able to finish a queued deployment"
+    );
+
     Ok(())
 }
 
 #[tokio::test]
 async fn test_operations_on_finished_deployment() -> Result<()> {
     let pool = database_helpers::setup_test_db().await?;
-    
+
     // Create a finished deployment
     let deployment_id = deployment_fixtures::create_finished_deployment(&pool).await?;
-    
+
     // All further operations on finished deployment should fail
     let result = start_deployment(&pool, deployment_id).await;
-    assert!(result.is_err(), "Should not be able to start a finished deployment");
-    
+    assert!(
+        result.is_err(),
+        "Should not be able to start a finished deployment"
+    );
+
     let result = finish_deployment(&pool, deployment_id).await;
-    assert!(result.is_err(), "Should not be able to finish a finished deployment again");
-    
+    assert!(
+        result.is_err(),
+        "Should not be able to finish a finished deployment again"
+    );
+
     let result = cancel_deployment(&pool, deployment_id, Some("test")).await;
-    assert!(result.is_err(), "Should not be able to cancel a finished deployment");
-    
+    assert!(
+        result.is_err(),
+        "Should not be able to cancel a finished deployment"
+    );
+
     Ok(())
 }
 
 #[tokio::test]
 async fn test_operations_on_cancelled_deployment() -> Result<()> {
     let pool = database_helpers::setup_test_db().await?;
-    
+
     // Create a cancelled deployment
     let deployment_id = deployment_fixtures::create_cancelled_deployment(&pool).await?;
-    
+
     // All further operations on cancelled deployment should fail
     let result = start_deployment(&pool, deployment_id).await;
-    assert!(result.is_err(), "Should not be able to start a cancelled deployment");
-    
+    assert!(
+        result.is_err(),
+        "Should not be able to start a cancelled deployment"
+    );
+
     let result = finish_deployment(&pool, deployment_id).await;
-    assert!(result.is_err(), "Should not be able to finish a cancelled deployment");
-    
+    assert!(
+        result.is_err(),
+        "Should not be able to finish a cancelled deployment"
+    );
+
     let result = cancel_deployment(&pool, deployment_id, Some("test again")).await;
-    assert!(result.is_err(), "Should not be able to cancel a cancelled deployment again");
-    
+    assert!(
+        result.is_err(),
+        "Should not be able to cancel a cancelled deployment again"
+    );
+
     Ok(())
 }
 
 #[tokio::test]
 async fn test_database_constraint_violations() -> Result<()> {
     let pool = database_helpers::setup_test_db().await?;
-    
+
     // Test invalid environment value (should fail due to CHECK constraint)
     let result = sqlx::query!(
         "INSERT INTO deployments (region, component, environment, version, url, note, concurrency_key) 
@@ -392,8 +427,11 @@ async fn test_database_constraint_violations() -> Result<()> {
     )
     .execute(&pool)
     .await;
-    assert!(result.is_err(), "Should not be able to insert deployment with invalid environment");
-    
+    assert!(
+        result.is_err(),
+        "Should not be able to insert deployment with invalid environment"
+    );
+
     // Test NULL required fields (should fail)
     let result = sqlx::query!(
         "INSERT INTO deployments (region, component, environment, version, url, note, concurrency_key) 
@@ -401,15 +439,21 @@ async fn test_database_constraint_violations() -> Result<()> {
     )
     .execute(&pool)
     .await;
-    assert!(result.is_err(), "Should not be able to insert deployment with NULL region");
-    
+    assert!(
+        result.is_err(),
+        "Should not be able to insert deployment with NULL region"
+    );
+
     let result = sqlx::query!(
         "INSERT INTO deployments (region, component, environment, version, url, note, concurrency_key) 
          VALUES ('test-region', NULL, 'dev', 'v1.0.0', NULL, NULL, NULL)"
     )
     .execute(&pool)
     .await;
-    assert!(result.is_err(), "Should not be able to insert deployment with NULL component");
-    
+    assert!(
+        result.is_err(),
+        "Should not be able to insert deployment with NULL component"
+    );
+
     Ok(())
 }
