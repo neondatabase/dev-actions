@@ -124,7 +124,7 @@ async fn test_get_deployment_info() -> Result<()> {
         "INSERT INTO deployments (region, component, environment, version, url, note, concurrency_key) 
          VALUES ($1, $2, $3, $4, $5, $6, $7) RETURNING id",
         region,
-        component, 
+        component,
         environment,
         Some(version),
         Some(url),
