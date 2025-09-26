@@ -336,13 +336,13 @@ jobs:
         uses: ./deploy-queue
         with:
           mode: finish
-          deployment_id: ${{ steps.start-deployment.outputs.deployment_id }}
+          deployment_id: ${{ steps.start-deployment.outputs.deployment-id }}
 
       - name: Verify finished deployment info
         uses: ./deploy-queue
         with:
           mode: info
-          deployment_id: ${{ steps.start-deployment.outputs.deployment_id }}
+          deployment_id: ${{ steps.start-deployment.outputs.deployment-id }}
 
       # ==============================================================================
       # Test 2: Blocking Behavior (same region + component)
@@ -377,7 +377,7 @@ jobs:
         uses: ./deploy-queue
         with:
           mode: finish
-          deployment_id: ${{ steps.blocking-deployment.outputs.deployment_id }}
+          deployment_id: ${{ steps.blocking-deployment.outputs.deployment-id }}
 
       # ==============================================================================
       # Test 3: Non-Blocking Behavior (different region)
@@ -411,13 +411,13 @@ jobs:
         uses: ./deploy-queue
         with:
           mode: finish
-          deployment_id: ${{ steps.region-a-deployment.outputs.deployment_id }}
+          deployment_id: ${{ steps.region-a-deployment.outputs.deployment-id }}
 
       - name: Finish region B deployment
         uses: ./deploy-queue
         with:
           mode: finish
-          deployment_id: ${{ steps.region-b-deployment.outputs.deployment_id }}
+          deployment_id: ${{ steps.region-b-deployment.outputs.deployment-id }}
 
       # ==============================================================================
       # Test 4: Cancellation Flow
@@ -439,11 +439,11 @@ jobs:
         uses: ./deploy-queue
         with:
           mode: cancel
-          deployment_id: ${{ steps.cancel-deployment.outputs.deployment_id }}
+          deployment_id: ${{ steps.cancel-deployment.outputs.deployment-id }}
           cancellation_note: E2E test cancellation
 
       - name: Verify cancelled deployment info
         uses: ./deploy-queue
         with:
           mode: info
-          deployment_id: ${{ steps.cancel-deployment.outputs.deployment_id }}
+          deployment_id: ${{ steps.cancel-deployment.outputs.deployment-id }}
