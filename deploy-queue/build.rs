@@ -14,8 +14,9 @@ fn main() -> Result<()> {
     create_dir_all("assets/completions")?;
     render_shell_completions::<cli::Cli>("assets/completions")?;
 
-    // Rerun the build script if migrations change
+    // Rerun the build script if migrations or queries change
     println!("cargo:rerun-if-changed=migrations");
+    println!("cargo:rerun-if-changed=queries");
 
     Ok(())
 }
