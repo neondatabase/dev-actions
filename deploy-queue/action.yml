@@ -31,6 +31,11 @@ inputs:
     description: Cancellation note (for cancel mode)
     default: ''
 
+outputs:
+  deployment-id:
+    description: ID of the created deployment (only set for start mode)
+    value: ${{ steps.run-deploy-queue.outputs.deployment_id }}
+
 runs:
   using: "composite"
   steps:
@@ -83,6 +88,7 @@ runs:
         ACTION_REPO: ${{ github.action_repository }}
 
     - name: Run deploy-queue
+      id: run-deploy-queue
       shell: bash
       env:
         MODE: ${{ inputs.mode }}
