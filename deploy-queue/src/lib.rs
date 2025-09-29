@@ -98,13 +98,21 @@ pub async fn run_migrations(pool: &Pool<Postgres>) -> Result<()> {
     Ok(())
 }
 
-pub async fn insert_deployment_record(client: &Pool<Postgres>, deployment: Deployment) -> Result<i64> {
+pub async fn insert_deployment_record(
+    client: &Pool<Postgres>,
+    deployment: Deployment,
+) -> Result<i64> {
     let record = sqlx::query!("INSERT INTO deployments (region, component, environment, version, url, note, concurrency_key) VALUES ($1, $2, $3, $4, $5, $6, $7) RETURNING id", 
         deployment.region, deployment.component, deployment.environment, deployment.version, deployment.url, deployment.note, deployment.concurrency_key)
         .fetch_one(client)
         .await?;
     let deployment_id = record.id;
-    log::info!("Successfully inserted deployment record: id={}, region={}, component={}", deployment_id, deployment.region, deployment.component);
+    log::info!(
+        "Successfully inserted deployment record: id={}, region={}, component={}",
+        deployment_id,
+        deployment.region,
+        deployment.component
+    );
     Ok(deployment_id)
 }
 
@@ -118,22 +126,30 @@ impl Deployment {
         );
         let state_verb = state.state_verb();
 
-        let mut summary = format!("{} {} {}(@{})", self.id, state_verb, self.component, 
-            self.version.as_deref().unwrap_or("unknown"));
-        
+        let mut summary = format!(
+            "{} {} {}(@{})",
+            self.id,
+            state_verb,
+            self.component,
+            self.version.as_deref().unwrap_or("unknown")
+        );
+
         if let Some(ref note) = self.note {
             summary.push_str(&format!(": ({})", note));
         }
-        
+
         if let Some(ref url) = self.url {
             summary.push_str(&format!(" ({})", url));
         }
-        
+
         summary
     }
 }
 
-pub async fn get_deployment_info(client: &Pool<Postgres>, deployment_id: i64) -> Result<Option<Deployment>> {
+pub async fn get_deployment_info(
+    client: &Pool<Postgres>,
+    deployment_id: i64,
+) -> Result<Option<Deployment>> {
     let row = sqlx::query!(
         r#"
         SELECT 
@@ -183,34 +199,41 @@ async fn check_blocking_deployments(
     client: &Pool<Postgres>,
     deployment_id: i64,
 ) -> Result<Vec<i64>> {
-    let rows = sqlx::query_file!(
-        "queries/blocking_deployments.sql",
-        deployment_id
-    )
-    .fetch_all(client)
-    .await?;
-    
+    let rows = sqlx::query_file!("queries/blocking_deployments.sql", deployment_id)
+        .fetch_all(client)
+        .await?;
+
     let blocking_ids: Vec<i64> = rows.iter().map(|row| row.id).collect();
     Ok(blocking_ids)
 }
 
 pub async fn start_deployment(client: &Pool<Postgres>, deployment_id: i64) -> Result<()> {
-    sqlx::query!("UPDATE deployments SET start_timestamp = NOW() WHERE id = $1", deployment_id)
-        .execute(client)
-        .await?;
+    sqlx::query!(
+        "UPDATE deployments SET start_timestamp = NOW() WHERE id = $1",
+        deployment_id
+    )
+    .execute(client)
+    .await?;
     log::info!("Deployment {} has been started", deployment_id);
     Ok(())
 }
 
 pub async fn finish_deployment(client: &Pool<Postgres>, deployment_id: i64) -> Result<()> {
-    sqlx::query!("UPDATE deployments SET finish_timestamp = NOW() WHERE id = $1", deployment_id)
-        .execute(client)
-        .await?;
+    sqlx::query!(
+        "UPDATE deployments SET finish_timestamp = NOW() WHERE id = $1",
+        deployment_id
+    )
+    .execute(client)
+    .await?;
     log::info!("Deployment {} has been finished", deployment_id);
     Ok(())
 }
 
-pub async fn cancel_deployment(client: &Pool<Postgres>, deployment_id: i64, cancellation_note: Option<&str>) -> Result<()> {
+pub async fn cancel_deployment(
+    client: &Pool<Postgres>,
+    deployment_id: i64,
+    cancellation_note: Option<&str>,
+) -> Result<()> {
     sqlx::query!("UPDATE deployments SET cancellation_timestamp = NOW(), cancellation_note = $2 WHERE id = $1", deployment_id, cancellation_note)
         .execute(client)
         .await?;
@@ -248,7 +271,8 @@ pub async fn run_deploy_queue(mode: cli::Mode) -> Result<()> {
                     concurrency_key,
                     ..Default::default()
                 },
-            ).await?;
+            )
+            .await?;
 
             // Write deployment ID to GitHub outputs
             if let Ok(github_output) = env::var("GITHUB_OUTPUT") {
