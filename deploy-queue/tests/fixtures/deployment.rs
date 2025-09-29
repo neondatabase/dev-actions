@@ -1,10 +1,11 @@
+#![allow(unused)]
+
 use anyhow::Result;
 use sqlx::{Pool, Postgres};
 use std::sync::atomic::{AtomicU32, Ordering};
 
 /// Helper to create a test deployment record and return its ID  
 /// Used by integration tests that need a simple deployment for testing application logic
-#[allow(dead_code)]
 pub async fn create_test_deployment(pool: &Pool<Postgres>) -> Result<i64> {
     static COUNTER: AtomicU32 = AtomicU32::new(0);
     let unique_id = COUNTER.fetch_add(1, Ordering::Relaxed);
@@ -23,7 +24,6 @@ pub async fn create_test_deployment(pool: &Pool<Postgres>) -> Result<i64> {
 
 /// Helper to create a test deployment record in running state and return its ID
 /// Used by tests that need deployments that are already started
-#[allow(dead_code)]
 pub async fn create_running_deployment(pool: &Pool<Postgres>) -> Result<i64> {
     static COUNTER: AtomicU32 = AtomicU32::new(1000); // Use different range to avoid ID conflicts
     let unique_id = COUNTER.fetch_add(1, Ordering::Relaxed);
@@ -42,7 +42,6 @@ pub async fn create_running_deployment(pool: &Pool<Postgres>) -> Result<i64> {
 
 /// Helper to create a test deployment record in finished state and return its ID
 /// Used by tests that need deployments that are already finished
-#[allow(dead_code)]
 pub async fn create_finished_deployment(pool: &Pool<Postgres>) -> Result<i64> {
     static COUNTER: AtomicU32 = AtomicU32::new(2000); // Use different range to avoid ID conflicts
     let unique_id = COUNTER.fetch_add(1, Ordering::Relaxed);
@@ -61,7 +60,6 @@ pub async fn create_finished_deployment(pool: &Pool<Postgres>) -> Result<i64> {
 
 /// Helper to create a test deployment record in cancelled state and return its ID  
 /// Used by tests that need deployments that are already cancelled
-#[allow(dead_code)]
 pub async fn create_cancelled_deployment(pool: &Pool<Postgres>) -> Result<i64> {
     static COUNTER: AtomicU32 = AtomicU32::new(3000); // Use different range to avoid ID conflicts
     let unique_id = COUNTER.fetch_add(1, Ordering::Relaxed);
