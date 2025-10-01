@@ -213,7 +213,7 @@ async fn test_null_vs_nonnull_concurrency_key_blocking() -> Result<()> {
 async fn test_sequential_deployments_blocking_by_id_order() -> Result<()> {
     let pool = database_helpers::setup_test_db().await?;
     sqlx::query!(
-        "INSERT INTO deployments (id, region, component, environment, version,, note, start_timestamp) 
+        "INSERT INTO deployments (id, region, component, environment, version, note, start_timestamp) 
          VALUES 
              (10001, 'us-east-2', 'api-gateway', 'prod', 'v2.1.0', 'Running deployment - blocks all others', NOW() - INTERVAL '10 minutes'),
              (10002, 'us-east-2', 'auth-service', 'prod', 'v1.5.0', 'Queued - should be blocked', NULL),
