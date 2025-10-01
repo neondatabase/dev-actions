@@ -177,10 +177,10 @@ async fn test_not_blocked_by_same_concurrency_key() -> Result<()> {
 async fn test_blocked_by_different_concurrency_keys() -> Result<()> {
     let pool = database_helpers::setup_test_db().await?;
     sqlx::query!(
-        "INSERT INTO deployments (id, region, component, environment, version, url, note, start_timestamp, finish_timestamp, cancellation_timestamp, concurrency_key) 
+        "INSERT INTO deployments (id, region, component, environment, version, note, start_timestamp, concurrency_key) 
          VALUES 
-             (8015, 'us-south-1', 'user-service', 'prod', 'v2.0.0', NULL, 'Different concurrency key', NOW() - INTERVAL '3 minutes', NULL, NULL, 'feature-2024-002'),
-             (8016, 'us-south-1', 'profile-service', 'prod', 'v1.9.0', NULL, 'Different concurrency - should be blocked', NULL, NULL, NULL, 'feature-2024-003')"
+             (8015, 'us-south-1', 'user-service', 'prod', 'v2.0.0', 'Different concurrency key', NOW() - INTERVAL '3 minutes', 'feature-2024-002'),
+             (8016, 'us-south-1', 'profile-service', 'prod', 'v1.9.0', 'Different concurrency - should be blocked', NULL, 'feature-2024-003')"
     ).execute(&pool).await?;
 
     // Expect: deployment 8016 should be blocked by deployment 8015 (different concurrency keys)
@@ -195,10 +195,10 @@ async fn test_blocked_by_different_concurrency_keys() -> Result<()> {
 async fn test_null_vs_nonnull_concurrency_key_blocking() -> Result<()> {
     let pool = database_helpers::setup_test_db().await?;
     sqlx::query!(
-        "INSERT INTO deployments (id, region, component, environment, version, url, note, start_timestamp, finish_timestamp, cancellation_timestamp, concurrency_key) 
+        "INSERT INTO deployments (id, region, component, environment, version, note, start_timestamp, concurrency_key) 
          VALUES 
-             (9001, 'ap-northeast-1', 'redis-service', 'prod', 'v1.3.0', NULL, 'Running with NULL concurrency key', NOW() - INTERVAL '5 minutes', NULL, NULL, NULL),
-             (9002, 'ap-northeast-1', 'cache-service', 'prod', 'v2.1.0', NULL, 'Queued with non-NULL concurrency key', NULL, NULL, NULL, 'performance-2024-001')"
+             (9001, 'ap-northeast-1', 'redis-service', 'prod', 'v1.3.0', 'Running with NULL concurrency key', NOW() - INTERVAL '5 minutes', NULL),
+             (9002, 'ap-northeast-1', 'cache-service', 'prod', 'v2.1.0', 'Queued with non-NULL concurrency key', NULL, 'performance-2024-001')"
     ).execute(&pool).await?;
 
     // Expect: deployment 9002 should be blocked by deployment 9001 (NULL vs non-NULL concurrency keys)
@@ -213,12 +213,12 @@ async fn test_null_vs_nonnull_concurrency_key_blocking() -> Result<()> {
 async fn test_sequential_deployments_blocking_by_id_order() -> Result<()> {
     let pool = database_helpers::setup_test_db().await?;
     sqlx::query!(
-        "INSERT INTO deployments (id, region, component, environment, version, url, note, start_timestamp, finish_timestamp, cancellation_timestamp, concurrency_key) 
+        "INSERT INTO deployments (id, region, component, environment, version,, note, start_timestamp) 
          VALUES 
-             (10001, 'us-east-2', 'api-gateway', 'prod', 'v2.1.0', NULL, 'Running deployment - blocks all others', NOW() - INTERVAL '10 minutes', NULL, NULL, NULL),
-             (10002, 'us-east-2', 'auth-service', 'prod', 'v1.5.0', NULL, 'Queued - should be blocked', NULL, NULL, NULL, NULL),
-             (10003, 'us-east-2', 'user-service', 'prod', 'v3.2.0', NULL, 'Queued - should be blocked', NULL, NULL, NULL, NULL),
-             (10004, 'us-east-2', 'notification-service', 'prod', 'v1.8.0', NULL, 'Queued - should be blocked', NULL, NULL, NULL, NULL)"
+             (10001, 'us-east-2', 'api-gateway', 'prod', 'v2.1.0', 'Running deployment - blocks all others', NOW() - INTERVAL '10 minutes'),
+             (10002, 'us-east-2', 'auth-service', 'prod', 'v1.5.0', 'Queued - should be blocked', NULL),
+             (10003, 'us-east-2', 'user-service', 'prod', 'v3.2.0', 'Queued - should be blocked', NULL),
+             (10004, 'us-east-2', 'notification-service', 'prod', 'v1.8.0', 'Queued - should be blocked', NULL)"
     ).execute(&pool).await?;
 
     // Expect: queued deployments are blocked by all deployments with lower IDs (running + queued)
