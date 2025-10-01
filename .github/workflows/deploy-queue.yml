@@ -114,17 +114,6 @@ jobs:
           ref: ${{ github.event.pull_request.head.sha || github.sha }}
           sparse-checkout: deploy-queue
 
-      - name: Setup database and run migrations
-        working-directory: deploy-queue
-        run: |
-          # Install sqlx-cli to run migrations
-          cargo install sqlx-cli --no-default-features --features postgres
-          
-          # Apply migrations for tests
-          sqlx migrate run
-          
-          echo "Database setup completed for tests"
-
       - name: Run tests
         working-directory: deploy-queue
         run: |
