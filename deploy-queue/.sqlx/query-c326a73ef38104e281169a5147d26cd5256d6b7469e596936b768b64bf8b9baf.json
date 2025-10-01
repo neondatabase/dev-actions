@@ -1,0 +1,12 @@
+{
+  "db_name": "PostgreSQL",
+  "query": "INSERT INTO deployments (id, region, component, environment, version, note, start_timestamp, concurrency_key) \n         VALUES \n             (7013, 'us-west-3', 'worker-service', 'prod', 'v1.0.0', 'Part of concurrent deployment group', NOW() - INTERVAL '8 minutes', 'hotfix-2024-001'),\n             (7014, 'us-west-3', 'queue-processor', 'prod', 'v1.0.1', 'Same concurrency key - should not block', NULL, 'hotfix-2024-001')",
+  "describe": {
+    "columns": [],
+    "parameters": {
+      "Left": []
+    },
+    "nullable": []
+  },
+  "hash": "c326a73ef38104e281169a5147d26cd5256d6b7469e596936b768b64bf8b9baf"
+}

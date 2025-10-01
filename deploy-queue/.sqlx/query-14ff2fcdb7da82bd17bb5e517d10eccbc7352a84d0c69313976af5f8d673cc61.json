@@ -1,0 +1,12 @@
+{
+  "db_name": "PostgreSQL",
+  "query": "INSERT INTO deployments (id, region, component, environment, version, note, start_timestamp, finish_timestamp) \n         VALUES \n             (6011, 'dev-cluster', 'api-server', 'dev', 'v1.1.0-beta', 'Dev deployment finished 5min ago', NOW() - INTERVAL '10 minutes', NOW() - INTERVAL '5 minutes'),\n             (6012, 'dev-cluster', 'web-frontend', 'dev', 'v2.2.0-beta', 'Should not be blocked in dev (no buffer)', NULL, NULL)",
+  "describe": {
+    "columns": [],
+    "parameters": {
+      "Left": []
+    },
+    "nullable": []
+  },
+  "hash": "14ff2fcdb7da82bd17bb5e517d10eccbc7352a84d0c69313976af5f8d673cc61"
+}
