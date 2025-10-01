@@ -100,6 +100,7 @@ jobs:
           --health-retries 5
     env:
       TEST_DATABASE_URL: postgresql://postgres:postgres@localhost:5432/postgres
+      SQLX_OFFLINE: true
     steps:
       - name: Harden the runner (Audit all outbound calls)
         uses: step-security/harden-runner@4d991eb9b905ef189e4c376166672c3f2f230481 # v2.11.0
@@ -115,7 +116,7 @@ jobs:
       - name: Run tests
         working-directory: deploy-queue
         run: |
-          # Run all tests with output
+          # Run all tests with output using cached sqlx queries (SQLX_OFFLINE=true)
           cargo test --locked --all-targets --all-features
           
           echo "All tests completed successfully"
