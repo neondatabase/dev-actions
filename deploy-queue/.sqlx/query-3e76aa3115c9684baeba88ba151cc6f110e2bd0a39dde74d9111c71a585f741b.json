@@ -1,0 +1,12 @@
+{
+  "db_name": "PostgreSQL",
+  "query": "INSERT INTO deployments (id, region, component, environment, version, url, note, start_timestamp, finish_timestamp, cancellation_timestamp, concurrency_key) \n         VALUES \n             (2003, 'us-east-1', 'database-service', 'prod', 'v1.2.0', 'https://github.com/db/v1.2.0', 'Recently finished', NOW() - INTERVAL '15 minutes', NOW() - INTERVAL '5 minutes', NULL, NULL),\n             (2004, 'us-east-1', 'auth-service', 'prod', 'v3.0.0', 'https://github.com/auth/v3.0.0', 'Blocked by buffer time', NULL, NULL, NULL, NULL)",
+  "describe": {
+    "columns": [],
+    "parameters": {
+      "Left": []
+    },
+    "nullable": []
+  },
+  "hash": "3e76aa3115c9684baeba88ba151cc6f110e2bd0a39dde74d9111c71a585f741b"
+}

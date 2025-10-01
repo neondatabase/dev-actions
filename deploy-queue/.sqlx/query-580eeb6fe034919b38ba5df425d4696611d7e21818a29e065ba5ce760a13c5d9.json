@@ -1,0 +1,82 @@
+{
+  "db_name": "PostgreSQL",
+  "query": "SELECT id, region, component, environment, version, url, note, \n                start_timestamp, finish_timestamp, cancellation_timestamp, cancellation_note\n         FROM deployments \n         WHERE id = $1",
+  "describe": {
+    "columns": [
+      {
+        "ordinal": 0,
+        "name": "id",
+        "type_info": "Int8"
+      },
+      {
+        "ordinal": 1,
+        "name": "region",
+        "type_info": "Varchar"
+      },
+      {
+        "ordinal": 2,
+        "name": "component",
+        "type_info": "Varchar"
+      },
+      {
+        "ordinal": 3,
+        "name": "environment",
+        "type_info": "Varchar"
+      },
+      {
+        "ordinal": 4,
+        "name": "version",
+        "type_info": "Varchar"
+      },
+      {
+        "ordinal": 5,
+        "name": "url",
+        "type_info": "Text"
+      },
+      {
+        "ordinal": 6,
+        "name": "note",
+        "type_info": "Text"
+      },
+      {
+        "ordinal": 7,
+        "name": "start_timestamp",
+        "type_info": "Timestamptz"
+      },
+      {
+        "ordinal": 8,
+        "name": "finish_timestamp",
+        "type_info": "Timestamptz"
+      },
+      {
+        "ordinal": 9,
+        "name": "cancellation_timestamp",
+        "type_info": "Timestamptz"
+      },
+      {
+        "ordinal": 10,
+        "name": "cancellation_note",
+        "type_info": "Text"
+      }
+    ],
+    "parameters": {
+      "Left": [
+        "Int8"
+      ]
+    },
+    "nullable": [
+      false,
+      false,
+      false,
+      false,
+      true,
+      true,
+      true,
+      true,
+      true,
+      true,
+      true
+    ]
+  },
+  "hash": "580eeb6fe034919b38ba5df425d4696611d7e21818a29e065ba5ce760a13c5d9"
+}
