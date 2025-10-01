@@ -398,6 +398,7 @@ jobs:
           note: Blocking deployment test
 
       - name: Try to start blocked deployment (should fail due to blocking)
+        id: blocked-deployment-attempt
         uses: ./deploy-queue
         continue-on-error: true
         timeout-minutes: 1
@@ -409,6 +410,25 @@ jobs:
           version: v1.2.0
           url: https://github.com/test-blocked
           note: Should be blocked deployment
+
+      - name: Verify blocking actually occurred
+        run: |
+          if [[ "${{ steps.blocked-deployment-attempt.outcome }}" == "success" ]]; then
+            echo "ERROR: Blocked deployment should have failed but succeeded!"
+            exit 1
+          elif [[ "${{ steps.blocked-deployment-attempt.outcome }}" == "failure" ]]; then
+            echo "SUCCESS: Deployment was correctly blocked as expected"
+          else
+            echo "UNKNOWN: Unexpected outcome: ${{ steps.blocked-deployment-attempt.outcome }}"
+            exit 1
+          fi
+      
+      - name: Cancel the second deployment
+        uses: ./deploy-queue
+        with:
+          mode: cancel
+          deployment-id: ${{ steps.blocked-deployment-attempt.outputs.deployment-id }}
+          cancellation-note: E2E test cancellation
 
       - name: Finish blocking deployment to unblock
         uses: ./deploy-queue
