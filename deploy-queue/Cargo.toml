@@ -3,14 +3,6 @@ name = "deploy-queue"
 version = "0.1.0"
 edition = "2024"
 
-[[bin]]
-name = "deploy-queue"
-path = "src/main.rs"
-
-[lib]
-name = "deploy_queue"
-path = "src/lib.rs"
-
 [dependencies]
 anyhow = "1"
 clap = { version = "4", features = ["derive", "env"] }
