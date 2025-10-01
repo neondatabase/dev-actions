@@ -46,9 +46,7 @@ pub async fn create_test_db_connection() -> Result<Pool<Postgres>> {
     };
 
     // First, connect to postgres database to create our test database
-    let admin_pool = PgPoolOptions::new()
-        .connect(&admin_url)
-        .await?;
+    let admin_pool = PgPoolOptions::new().connect(&admin_url).await?;
 
     // Create the unique test database
     sqlx::query(&format!("CREATE DATABASE \"{}\"", unique_db_name))
