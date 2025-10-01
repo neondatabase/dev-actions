@@ -5,11 +5,21 @@ use std::time::Duration as StdDuration;
 use time::OffsetDateTime;
 
 use anyhow::{Context, Result};
+use clap::Parser;
 use log::info;
 use sqlx::{Pool, Postgres, postgres::PgPoolOptions};
 use tokio::time::sleep;
 
 pub mod cli;
+
+/// Main entry point for the deploy-queue application
+pub async fn main() -> Result<()> {
+    let log_env = env_logger::Env::default().filter_or("DEPLOY_QUEUE_LOG_LEVEL", "info");
+    env_logger::Builder::from_env(log_env).init();
+    let args = cli::Cli::parse();
+
+    run_deploy_queue(args.mode).await
+}
 
 // We don't read all of the fields
 #[allow(dead_code)]

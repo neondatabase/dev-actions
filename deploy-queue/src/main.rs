@@ -1,4 +1,6 @@
+use anyhow::Result;
+
 #[tokio::main]
 async fn main() -> Result<()> {
-	deploy_queue::main().await
+    deploy_queue::main().await
 }
