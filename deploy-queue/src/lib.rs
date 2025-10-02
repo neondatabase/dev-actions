@@ -290,7 +290,7 @@ pub async fn run_deploy_queue(mode: cli::Mode) -> Result<()> {
                     .create(true)
                     .append(true)
                     .open(github_output)?;
-                writeln!(file, "deployment_id={}", deployment_id)?;
+                writeln!(file, "deployment-id={}", deployment_id)?;
             }
 
             // Check for conflicting deployments

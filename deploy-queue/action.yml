@@ -34,7 +34,7 @@ inputs:
 outputs:
   deployment-id:
     description: ID of the created deployment (only set for start mode)
-    value: ${{ steps.run-deploy-queue.outputs.deployment_id }}
+    value: ${{ steps.run-deploy-queue.outputs.deployment-id }}
 
 runs:
   using: "composite"
