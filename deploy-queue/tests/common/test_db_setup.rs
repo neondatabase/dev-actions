@@ -1,26 +1,15 @@
-use anyhow::Result;
+use anyhow::{Context, Result};
 use sqlx::{Pool, Postgres, postgres::PgPoolOptions};
+use url::Url;
 
-/// Helper function to create local PostgreSQL connection URLs
-fn create_local_urls(unique_db_name: &str) -> (String, String) {
-    let base_url = format!("postgresql://localhost/{}?sslmode=disable", unique_db_name);
-    let admin_url = "postgresql://localhost/postgres?sslmode=disable".to_string();
-    (base_url, admin_url)
-}
+/// Replace the database name in a PostgreSQL URL with the specified name
+/// Returns the URL string with the new database name
+fn replace_database_name(database_url: &str, db_name: &str) -> Result<String> {
+    let mut url = Url::parse(database_url)
+        .with_context(|| format!("Failed to parse database URL: {}", database_url))?;
 
-/// Parse TEST_DATABASE_URL and replace the database name with a unique name
-/// Returns (base_url, admin_url) or falls back to local URLs if parsing fails
-fn parse_and_replace_database_url(test_url: &str, unique_db_name: &str) -> (String, String) {
-    let url_parts: Vec<&str> = test_url.rsplitn(2, '/').collect();
-    if url_parts.len() == 2 {
-        // url_parts[1] is everything before the last '/', url_parts[0] is the database name
-        let base_with_unique = format!("{}/{}", url_parts[1], unique_db_name);
-        let admin_with_postgres = format!("{}/postgres", url_parts[1]);
-        (base_with_unique, admin_with_postgres)
-    } else {
-        // Fallback to default local setup if URL parsing fails
-        create_local_urls(unique_db_name)
-    }
+    url.set_path(db_name);
+    Ok(url.to_string())
 }
 
 /// Helper to create a test database connection with unique database name
@@ -38,12 +27,13 @@ pub async fn create_test_db_connection() -> Result<Pool<Postgres>> {
         .replace("ThreadId(", "")
         .replace(")", "");
 
-    // Parse base connection URL (either from TEST_DATABASE_URL or default)
-    let (base_url, admin_url) = if let Ok(test_url) = std::env::var("TEST_DATABASE_URL") {
-        parse_and_replace_database_url(&test_url, &unique_db_name)
-    } else {
-        create_local_urls(&unique_db_name)
-    };
+    // Get the database URL from environment or use localhost fallback
+    let database_url = std::env::var("TEST_DATABASE_URL")
+        .unwrap_or_else(|_| "postgresql://localhost/postgres?sslmode=disable".into());
+
+    // Create URLs for both the unique test database and admin database
+    let test_db_url = replace_database_name(&database_url, &unique_db_name)?;
+    let admin_url = replace_database_name(&database_url, "postgres")?;
 
     // First, connect to postgres database to create our test database
     let admin_pool = PgPoolOptions::new().connect(&admin_url).await?;
@@ -54,7 +44,7 @@ pub async fn create_test_db_connection() -> Result<Pool<Postgres>> {
         .await?;
 
     // Now connect to our newly created database
-    let pool = PgPoolOptions::new().connect(&base_url).await?;
+    let pool = PgPoolOptions::new().connect(&test_db_url).await?;
 
     Ok(pool)
 }
