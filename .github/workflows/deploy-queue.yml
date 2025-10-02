@@ -83,7 +83,7 @@ jobs:
           
           echo "Linting and lockfile verification completed"
 
-  test:
+  test-integration:
     runs-on: ubuntu-24.04
     services:
       postgres:
@@ -322,7 +322,7 @@ jobs:
           COMMIT_SHA: ${{ github.event.pull_request.head.sha }}
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
 
-  test-deploy-queue-action:
+  test-e2e:
     if: github.event_name == 'pull_request' || github.ref_type == 'tag'
     needs: [create-release]
     runs-on: ubuntu-latest
