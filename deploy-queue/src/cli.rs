@@ -2,7 +2,7 @@ use clap::{Parser, Subcommand, ValueEnum};
 
 /// Environment enum for deployment targets
 #[derive(Clone, Debug, ValueEnum)]
-pub(crate) enum Environment {
+pub enum Environment {
     Dev,
     Prod,
 }
@@ -26,13 +26,13 @@ impl AsRef<str> for Environment {
 /// This CLI is used by the Deploy Queue GitHub Action.
 #[derive(Parser)]
 #[command(version, about, long_about)]
-pub(crate) struct Cli {
+pub struct Cli {
     #[command(subcommand)]
-    pub(crate) mode: Mode,
+    pub mode: Mode,
 }
 
 #[derive(Subcommand, Clone)]
-pub(crate) enum Mode {
+pub enum Mode {
     /// Start deployment for a component
     Start {
         /// Region to deploy

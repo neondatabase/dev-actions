@@ -16,3 +16,6 @@ time = { version = "0.3", features = ["serde", "macros"] }
 anyhow = "1"
 clap = { version = "4", features = ["derive", "env"] }
 clap_allgen = "0.2"
+
+[dev-dependencies]
+url = "2.5.7"

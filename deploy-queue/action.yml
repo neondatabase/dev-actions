@@ -15,7 +15,7 @@ inputs:
   version:
     description: Version to deploy
     default: ''
-  concurrency_key:
+  concurrency-key:
     description: Concurrency key for this deployment
     default: ''
   url:
@@ -24,12 +24,17 @@ inputs:
   note:
     description: Note for this deployment (for manual deployments)
     default: ''
-  deployment_id:
+  deployment-id:
     description: Deployment ID (for finish, cancel, info modes)
     default: ''
-  cancellation_note:
+  cancellation-note:
     description: Cancellation note (for cancel mode)
     default: ''
+
+outputs:
+  deployment-id:
+    description: ID of the created deployment (only set for start mode)
+    value: ${{ steps.run-deploy-queue.outputs.deployment-id }}
 
 runs:
   using: "composite"
@@ -83,6 +88,7 @@ runs:
         ACTION_REPO: ${{ github.action_repository }}
 
     - name: Run deploy-queue
+      id: run-deploy-queue
       shell: bash
       env:
         MODE: ${{ inputs.mode }}
@@ -90,11 +96,11 @@ runs:
         COMPONENT: ${{ inputs.component }}
         ENVIRONMENT: ${{ inputs.environment }}
         VERSION: ${{ inputs.version }}
-        CONCURRENCY_KEY: ${{ inputs.concurrency_key }}
+        CONCURRENCY_KEY: ${{ inputs.concurrency-key }}
         URL: ${{ inputs.url }}
         NOTE: ${{ inputs.note }}
-        DEPLOYMENT_ID: ${{ inputs.deployment_id }}
-        CANCELLATION_NOTE: ${{ inputs.cancellation_note }}
+        DEPLOYMENT_ID: ${{ inputs.deployment-id }}
+        CANCELLATION_NOTE: ${{ inputs.cancellation-note }}
       run: |
         set -euo pipefail
         

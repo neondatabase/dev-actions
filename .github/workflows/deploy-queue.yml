@@ -83,6 +83,43 @@ jobs:
           
           echo "Linting and lockfile verification completed"
 
+  test-integration:
+    runs-on: ubuntu-24.04
+    services:
+      postgres:
+        image: postgres:15
+        env:
+          POSTGRES_PASSWORD: postgres
+          POSTGRES_USER: postgres
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd pg_isready
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 5
+    env:
+      TEST_DATABASE_URL: postgresql://postgres:postgres@localhost:5432/postgres
+    steps:
+      - name: Harden the runner (Audit all outbound calls)
+        uses: step-security/harden-runner@4d991eb9b905ef189e4c376166672c3f2f230481 # v2.11.0
+        with:
+          egress-policy: audit
+
+      - name: Fetch deploy-queue folder
+        uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4.2.2
+        with:
+          ref: ${{ github.event.pull_request.head.sha || github.sha }}
+          sparse-checkout: deploy-queue
+
+      - name: Run tests
+        working-directory: deploy-queue
+        run: |
+          # Run all tests with output using cached sqlx queries (SQLX_OFFLINE=true)
+          cargo test --locked --all-targets --all-features
+          
+          echo "All tests completed successfully"
+
   build-image:
     runs-on: ${{ matrix.runner }}
     outputs:
@@ -285,7 +322,7 @@ jobs:
           COMMIT_SHA: ${{ github.event.pull_request.head.sha }}
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
 
-  test-deploy-queue-action:
+  test-e2e:
     if: github.event_name == 'pull_request' || github.ref_type == 'tag'
     needs: [create-release]
     runs-on: ubuntu-latest
@@ -316,48 +353,154 @@ jobs:
         with:
           sparse-checkout: deploy-queue
 
-      - name: Start deployment for test-resource as component A
+      # ==============================================================================
+      # Test 1: Complete Happy Path Lifecycle (start → finish)
+      # ==============================================================================
+      
+      - name: Start deployment (happy path test)
+        id: start-deployment
         uses: ./deploy-queue
         with:
           mode: start
-          region: test-region
-          component: test-component
+          region: test-region-happy
+          component: test-component-happy
           environment: dev
-          version: test-version
-          url: test-url
-          note: test-note
+          version: v1.0.0
+          url: https://github.com/test-happy
+          note: Happy path test deployment
 
-      - name: Try (and fail) to start deployment for test-resource as component B
+      - name: Finish the deployment successfully
         uses: ./deploy-queue
-        continue-on-error: true
-        timeout-minutes: 1
-        with:
-          mode: start
-          region: test-region
-          component: test-component
-          environment: dev
-          version: test-version
-          url: test-url
-          note: test-note
-
-      - name: Try (and fail) to finish deployment for component B
-        uses: ./deploy-queue
-        continue-on-error: true
-        timeout-minutes: 1
         with:
           mode: finish
-          deployment_id: 1234567890
+          deployment-id: ${{ steps.start-deployment.outputs.deployment-id }}
 
-
-      - name: Cancel deployment as component B
-        uses: ./deploy-queue
-        with:
-          mode: cancel
-          deployment_id: 1234567890
-          cancellation_note: test-cancellation-note
-
-      - name: Get info about deployment
+      - name: Verify finished deployment info
         uses: ./deploy-queue
         with:
           mode: info
-          deployment_id: 1234567890
+          deployment-id: ${{ steps.start-deployment.outputs.deployment-id }}
+
+      # ==============================================================================
+      # Test 2: Blocking Behavior (same region + component)
+      # ==============================================================================
+
+      - name: Start blocking deployment
+        id: blocking-deployment
+        uses: ./deploy-queue
+        with:
+          mode: start
+          region: test-region-block
+          component: test-component-block
+          environment: dev
+          version: v1.1.0
+          url: https://github.com/test-blocking
+          note: Blocking deployment test
+
+      - name: Try to start blocked deployment (should fail due to blocking)
+        id: blocked-deployment-attempt
+        uses: ./deploy-queue
+        continue-on-error: true
+        timeout-minutes: 1
+        with:
+          mode: start
+          region: test-region-block  # Same region
+          component: test-component-block  # Same component → should be blocked
+          environment: dev
+          version: v1.2.0
+          url: https://github.com/test-blocked
+          note: Should be blocked deployment
+
+      - name: Verify blocking actually occurred
+        run: |
+          if [[ "${{ steps.blocked-deployment-attempt.outcome }}" == "success" ]]; then
+            echo "ERROR: Blocked deployment should have failed but succeeded!"
+            exit 1
+          elif [[ "${{ steps.blocked-deployment-attempt.outcome }}" == "failure" ]]; then
+            echo "SUCCESS: Deployment was correctly blocked as expected"
+          else
+            echo "UNKNOWN: Unexpected outcome: ${{ steps.blocked-deployment-attempt.outcome }}"
+            exit 1
+          fi
+      
+      - name: Cancel the second deployment
+        uses: ./deploy-queue
+        with:
+          mode: cancel
+          deployment-id: ${{ steps.blocked-deployment-attempt.outputs.deployment-id }}
+          cancellation-note: E2E test cancellation
+
+      - name: Finish blocking deployment to unblock
+        uses: ./deploy-queue
+        with:
+          mode: finish
+          deployment-id: ${{ steps.blocking-deployment.outputs.deployment-id }}
+
+      # ==============================================================================
+      # Test 3: Non-Blocking Behavior (different region)
+      # ==============================================================================
+
+      - name: Start deployment in region A
+        id: region-a-deployment
+        uses: ./deploy-queue
+        with:
+          mode: start
+          region: test-region-a
+          component: shared-component
+          environment: dev
+          version: v2.0.0
+          url: https://github.com/test-region-a
+          note: Region A deployment
+
+      - name: Start deployment in region B (should NOT be blocked)
+        id: region-b-deployment
+        uses: ./deploy-queue
+        with:
+          mode: start
+          region: test-region-b  # Different region
+          component: shared-component  # Same component but different region
+          environment: dev
+          version: v2.1.0
+          url: https://github.com/test-region-b
+          note: Region B deployment (not blocked)
+
+      - name: Finish both regional deployments
+        uses: ./deploy-queue
+        with:
+          mode: finish
+          deployment-id: ${{ steps.region-a-deployment.outputs.deployment-id }}
+
+      - name: Finish region B deployment
+        uses: ./deploy-queue
+        with:
+          mode: finish
+          deployment-id: ${{ steps.region-b-deployment.outputs.deployment-id }}
+
+      # ==============================================================================
+      # Test 4: Cancellation Flow
+      # ==============================================================================
+
+      - name: Start deployment for cancellation test
+        id: cancel-deployment
+        uses: ./deploy-queue
+        with:
+          mode: start
+          region: test-region-cancel
+          component: test-component-cancel
+          environment: dev
+          version: v3.0.0
+          url: https://github.com/test-cancel
+          note: Cancellation test deployment
+
+      - name: Cancel the deployment
+        uses: ./deploy-queue
+        with:
+          mode: cancel
+          deployment-id: ${{ steps.cancel-deployment.outputs.deployment-id }}
+          cancellation-note: E2E test cancellation
+
+      - name: Verify cancelled deployment info
+        uses: ./deploy-queue
+        with:
+          mode: info
+          deployment-id: ${{ steps.cancel-deployment.outputs.deployment-id }}

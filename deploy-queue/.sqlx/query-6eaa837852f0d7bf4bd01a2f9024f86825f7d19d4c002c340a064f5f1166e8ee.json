@@ -1,6 +1,6 @@
 {
   "db_name": "PostgreSQL",
-  "query": "SELECT d.id, \n                d.region,\n                d.environment,\n                d.component, \n                d.version,\n                d.url, \n                d.note, \n                d.start_timestamp,\n                d.finish_timestamp,\n                d.cancellation_timestamp,\n                d.cancellation_note,\n                d.concurrency_key,\n                e.buffer_time\n         FROM deployments d\n         JOIN environments e ON d.environment = e.environment  \n         WHERE d.id = $1",
+  "query": "\n        SELECT \n            d.id, d.region, d.component, d.environment, d.version, d.url, d.note, d.concurrency_key,\n            d.start_timestamp, d.finish_timestamp, d.cancellation_timestamp, d.cancellation_note,\n            e.buffer_time\n        FROM deployments d\n        JOIN environments e ON d.environment = e.environment\n        WHERE d.id = $1\n        ",
   "describe": {
     "columns": [
       {
@@ -15,12 +15,12 @@
       },
       {
         "ordinal": 2,
-        "name": "environment",
+        "name": "component",
         "type_info": "Varchar"
       },
       {
         "ordinal": 3,
-        "name": "component",
+        "name": "environment",
         "type_info": "Varchar"
       },
       {
@@ -40,28 +40,28 @@
       },
       {
         "ordinal": 7,
+        "name": "concurrency_key",
+        "type_info": "Varchar"
+      },
+      {
+        "ordinal": 8,
         "name": "start_timestamp",
         "type_info": "Timestamptz"
       },
       {
-        "ordinal": 8,
+        "ordinal": 9,
         "name": "finish_timestamp",
         "type_info": "Timestamptz"
       },
       {
-        "ordinal": 9,
+        "ordinal": 10,
         "name": "cancellation_timestamp",
         "type_info": "Timestamptz"
       },
       {
-        "ordinal": 10,
+        "ordinal": 11,
         "name": "cancellation_note",
         "type_info": "Text"
-      },
-      {
-        "ordinal": 11,
-        "name": "concurrency_key",
-        "type_info": "Varchar"
       },
       {
         "ordinal": 12,
@@ -90,5 +90,5 @@
       false
     ]
   },
-  "hash": "91b702623c8e40346ac6369f37b0ecad7a2a9d6e4848d76295d2f47fbfde7c04"
+  "hash": "6eaa837852f0d7bf4bd01a2f9024f86825f7d19d4c002c340a064f5f1166e8ee"
 }
