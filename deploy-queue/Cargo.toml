@@ -11,6 +11,9 @@ log = "0.4"
 tokio = { version = "1", features = ["macros", "rt-multi-thread", "time"] }
 sqlx = { version = "0.8", default-features = false, features = ["runtime-tokio", "macros", "migrate", "postgres", "tls-rustls", "time"] }
 time = { version = "0.3", features = ["serde", "macros"] }
+serde = { version = "1", features = ["derive"] }
+serde_json = "1"
+humantime-serde = "1"
 
 [build-dependencies]
 anyhow = "1"
