@@ -1,0 +1,14 @@
+{
+  "db_name": "PostgreSQL",
+  "query": "UPDATE deployments SET start_timestamp = NOW() - INTERVAL '200 seconds' WHERE id = $1",
+  "describe": {
+    "columns": [],
+    "parameters": {
+      "Left": [
+        "Int8"
+      ]
+    },
+    "nullable": []
+  },
+  "hash": "d657db5b5d8fa84584c45227f46bd55a39643168521625b2ca6faf1edca2fbaf"
+}
