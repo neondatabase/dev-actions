@@ -10,21 +10,21 @@
 -- Parameters:
 -- $1: deployment_id - The ID of the deployment to check for blockers
 SELECT
-    d2.id,
-    d2.environment,
-    d2.cloud_provider,
-    d2.region,
-    d2.cell_index,
-    d2.component,
-    d2.version,
-    d2.url,
-    d2.note,
-    d2.start_timestamp,
-    d2.finish_timestamp,
-    d2.cancellation_timestamp,
-    d2.cancellation_note,
-    d2.concurrency_key,
-    e.buffer_time
+    blocking.id,
+    blocking.environment,
+    blocking.cloud_provider,
+    blocking.region,
+    blocking.cell_index,
+    blocking.component,
+    blocking.version,
+    blocking.url,
+    blocking.note,
+    blocking.start_timestamp,
+    blocking.finish_timestamp,
+    blocking.cancellation_timestamp,
+    blocking.cancellation_note,
+    blocking.concurrency_key,
+    env.buffer_time
 FROM
     (
         SELECT
@@ -33,24 +33,24 @@ FROM
             deployments
         WHERE
             id = $1
-    ) d1
-    JOIN environments e ON d1.environment = e.environment
-    JOIN deployments d2 ON (
-        d1.environment = d2.environment
-        AND d1.cloud_provider = d2.cloud_provider
-        AND d1.region = d2.region
-        AND d1.cell_index = d2.cell_index
+    ) self
+    JOIN environments env ON self.environment = env.environment
+    JOIN deployments blocking ON (
+        self.environment = blocking.environment
+        AND self.cloud_provider = blocking.cloud_provider
+        AND self.region = blocking.region
+        AND self.cell_index = blocking.cell_index
         AND (
-            d1.concurrency_key IS NULL
-            OR d2.concurrency_key IS NULL
-            OR d1.concurrency_key != d2.concurrency_key
+            self.concurrency_key IS NULL
+            OR blocking.concurrency_key IS NULL
+            OR self.concurrency_key != blocking.concurrency_key
         )
-        AND d2.id < d1.id
+        AND blocking.id < self.id
         AND (
-            d2.finish_timestamp IS NULL
-            OR d2.finish_timestamp > NOW() - INTERVAL '1 minute' * e.buffer_time
+            blocking.finish_timestamp IS NULL
+            OR blocking.finish_timestamp > NOW() - INTERVAL '1 minute' * env.buffer_time
         )
-        AND d2.cancellation_timestamp IS NULL
+        AND blocking.cancellation_timestamp IS NULL
     )
 ORDER BY
-    d2.id ASC
+    blocking.id ASC
