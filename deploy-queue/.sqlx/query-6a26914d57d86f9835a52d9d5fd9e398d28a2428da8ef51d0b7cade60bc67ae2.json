@@ -1,0 +1,12 @@
+{
+  "db_name": "PostgreSQL",
+  "query": "INSERT INTO deployments (id, region, component, environment, version, note, start_timestamp, concurrency_key)\n         VALUES\n             (9001, 'ap-northeast-1', 'redis-service', 'prod', 'v1.3.0', 'Running with NULL concurrency key', NOW() - INTERVAL '5 minutes', NULL),\n             (9002, 'ap-northeast-1', 'cache-service', 'prod', 'v2.1.0', 'Queued with non-NULL concurrency key', NULL, 'performance-2024-001')",
+  "describe": {
+    "columns": [],
+    "parameters": {
+      "Left": []
+    },
+    "nullable": []
+  },
+  "hash": "6a26914d57d86f9835a52d9d5fd9e398d28a2428da8ef51d0b7cade60bc67ae2"
+}

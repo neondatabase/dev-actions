@@ -1,6 +1,6 @@
 {
   "db_name": "PostgreSQL",
-  "query": "\n        SELECT \n            d.id, d.region, d.component, d.environment, d.version, d.url, d.note, d.concurrency_key,\n            d.start_timestamp, d.finish_timestamp, d.cancellation_timestamp, d.cancellation_note,\n            e.buffer_time\n        FROM deployments d\n        JOIN environments e ON d.environment = e.environment\n        WHERE d.id = $1\n        ",
+  "query": "\n        SELECT\n            d.id, d.region, d.component, d.environment, d.version, d.url, d.note, d.concurrency_key,\n            d.start_timestamp, d.finish_timestamp, d.cancellation_timestamp, d.cancellation_note,\n            e.buffer_time\n        FROM deployments d\n        JOIN environments e ON d.environment = e.environment\n        WHERE d.id = $1\n        ",
   "describe": {
     "columns": [
       {
@@ -90,5 +90,5 @@
       false
     ]
   },
-  "hash": "6eaa837852f0d7bf4bd01a2f9024f86825f7d19d4c002c340a064f5f1166e8ee"
+  "hash": "bb5be73b17354b17702da0bfe8048b13ad5e7d7f1f461a8a4fed45aab4a99713"
 }

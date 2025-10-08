@@ -1,0 +1,23 @@
+{
+  "db_name": "PostgreSQL",
+  "query": "INSERT INTO deployments (region, component, environment, version, url, note, concurrency_key)\n         VALUES ($1, $2, 'dev', 'v1.0.0', 'https://github.com/test', 'test deployment', NULL) RETURNING id",
+  "describe": {
+    "columns": [
+      {
+        "ordinal": 0,
+        "name": "id",
+        "type_info": "Int8"
+      }
+    ],
+    "parameters": {
+      "Left": [
+        "Varchar",
+        "Varchar"
+      ]
+    },
+    "nullable": [
+      false
+    ]
+  },
+  "hash": "f6ad3c51d5398baa552fc98d38a05a60f3c59f429c9d4c34a3d8dfe9825982ab"
+}

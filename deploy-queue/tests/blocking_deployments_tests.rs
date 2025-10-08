@@ -56,8 +56,8 @@ async fn assert_blocking_deployments(
 async fn test_blocked_by_running_component_same_region() -> Result<()> {
     let pool = database_helpers::setup_test_db().await?;
     sqlx::query!(
-        "INSERT INTO deployments (id, region, component, environment, version, url, note, start_timestamp) 
-         VALUES 
+        "INSERT INTO deployments (id, region, component, environment, version, url, note, start_timestamp)
+         VALUES
              (1001, 'us-west-2', 'api-server', 'prod', 'v1.0.0', 'https://github.com/api-server/v1.0.0', 'Running deployment', NOW() - INTERVAL '5 minutes'),
              (1002, 'us-west-2', 'web-frontend', 'prod', 'v2.1.0', 'https://github.com/web-frontend/v2.1.0', 'Queued deployment', NULL)"
     ).execute(&pool).await?;
@@ -74,8 +74,8 @@ async fn test_blocked_by_running_component_same_region() -> Result<()> {
 async fn test_blocked_by_finished_component_within_buffer_time() -> Result<()> {
     let pool = database_helpers::setup_test_db().await?;
     sqlx::query!(
-        "INSERT INTO deployments (id, region, component, environment, version, url, note, start_timestamp, finish_timestamp) 
-         VALUES 
+        "INSERT INTO deployments (id, region, component, environment, version, url, note, start_timestamp, finish_timestamp)
+         VALUES
              (2003, 'us-east-1', 'database-service', 'prod', 'v1.2.0', 'https://github.com/db/v1.2.0', 'Recently finished', NOW() - INTERVAL '15 minutes', NOW() - INTERVAL '5 minutes'),
              (2004, 'us-east-1', 'auth-service', 'prod', 'v3.0.0', 'https://github.com/auth/v3.0.0', 'Blocked by buffer time', NULL, NULL)"
     ).execute(&pool).await?;
@@ -92,8 +92,8 @@ async fn test_blocked_by_finished_component_within_buffer_time() -> Result<()> {
 async fn test_not_blocked_by_finished_component_outside_buffer_time() -> Result<()> {
     let pool = database_helpers::setup_test_db().await?;
     sqlx::query!(
-        "INSERT INTO deployments (id, region, component, environment, version, url, note, start_timestamp, finish_timestamp) 
-         VALUES 
+        "INSERT INTO deployments (id, region, component, environment, version, url, note, start_timestamp, finish_timestamp)
+         VALUES
              (3005, 'eu-west-1', 'notification-service', 'prod', 'v2.0.0', 'https://github.com/notifications/v2.0.0', 'Finished long ago', NOW() - INTERVAL '30 minutes', NOW() - INTERVAL '15 minutes'),
              (3006, 'eu-west-1', 'payment-service', 'prod', 'v1.5.0', 'https://github.com/payments/v1.5.0', 'Should not be blocked', NULL, NULL)"
     ).execute(&pool).await?;
@@ -109,8 +109,8 @@ async fn test_not_blocked_by_finished_component_outside_buffer_time() -> Result<
 async fn test_not_blocked_by_running_component_different_region() -> Result<()> {
     let pool = database_helpers::setup_test_db().await?;
     sqlx::query!(
-        "INSERT INTO deployments (id, region, component, environment, version, note, start_timestamp) 
-         VALUES 
+        "INSERT INTO deployments (id, region, component, environment, version, note, start_timestamp)
+         VALUES
              (4007, 'ap-southeast-1', 'cache-service', 'prod', 'v1.1.0', 'Running in APAC', NOW() - INTERVAL '10 minutes'),
              (4008, 'us-central-1', 'cache-service', 'prod', 'v1.1.0', 'Should not be blocked by APAC', NULL)"
     ).execute(&pool).await?;
@@ -126,8 +126,8 @@ async fn test_not_blocked_by_running_component_different_region() -> Result<()> 
 async fn test_not_blocked_by_cancelled_deployment() -> Result<()> {
     let pool = database_helpers::setup_test_db().await?;
     sqlx::query!(
-        "INSERT INTO deployments (id, region, component, environment, version, note, start_timestamp, cancellation_timestamp, cancellation_note) 
-         VALUES 
+        "INSERT INTO deployments (id, region, component, environment, version, note, start_timestamp, cancellation_timestamp, cancellation_note)
+         VALUES
              (5009, 'us-west-1', 'monitoring-service', 'prod', 'v2.2.0', 'Cancelled deployment', NOW() - INTERVAL '20 minutes', NOW() - INTERVAL '18 minutes', 'Cancelled due to critical bug'),
              (5010, 'us-west-1', 'logging-service', 'prod', 'v1.8.0', 'Should not be blocked by cancelled', NULL, NULL, NULL)"
     ).execute(&pool).await?;
@@ -143,8 +143,8 @@ async fn test_not_blocked_by_cancelled_deployment() -> Result<()> {
 async fn test_not_blocked_in_dev_environment_no_buffer() -> Result<()> {
     let pool = database_helpers::setup_test_db().await?;
     sqlx::query!(
-        "INSERT INTO deployments (id, region, component, environment, version, note, start_timestamp, finish_timestamp) 
-         VALUES 
+        "INSERT INTO deployments (id, region, component, environment, version, note, start_timestamp, finish_timestamp)
+         VALUES
              (6011, 'dev-cluster', 'api-server', 'dev', 'v1.1.0-beta', 'Dev deployment finished 5min ago', NOW() - INTERVAL '10 minutes', NOW() - INTERVAL '5 minutes'),
              (6012, 'dev-cluster', 'web-frontend', 'dev', 'v2.2.0-beta', 'Should not be blocked in dev (no buffer)', NULL, NULL)"
     ).execute(&pool).await?;
@@ -160,8 +160,8 @@ async fn test_not_blocked_in_dev_environment_no_buffer() -> Result<()> {
 async fn test_not_blocked_by_same_concurrency_key() -> Result<()> {
     let pool = database_helpers::setup_test_db().await?;
     sqlx::query!(
-        "INSERT INTO deployments (id, region, component, environment, version, note, start_timestamp, concurrency_key) 
-         VALUES 
+        "INSERT INTO deployments (id, region, component, environment, version, note, start_timestamp, concurrency_key)
+         VALUES
              (7013, 'us-west-3', 'worker-service', 'prod', 'v1.0.0', 'Part of concurrent deployment group', NOW() - INTERVAL '8 minutes', 'hotfix-2024-001'),
              (7014, 'us-west-3', 'queue-processor', 'prod', 'v1.0.1', 'Same concurrency key - should not block', NULL, 'hotfix-2024-001')"
     ).execute(&pool).await?;
@@ -177,8 +177,8 @@ async fn test_not_blocked_by_same_concurrency_key() -> Result<()> {
 async fn test_blocked_by_different_concurrency_keys() -> Result<()> {
     let pool = database_helpers::setup_test_db().await?;
     sqlx::query!(
-        "INSERT INTO deployments (id, region, component, environment, version, note, start_timestamp, concurrency_key) 
-         VALUES 
+        "INSERT INTO deployments (id, region, component, environment, version, note, start_timestamp, concurrency_key)
+         VALUES
              (8015, 'us-south-1', 'user-service', 'prod', 'v2.0.0', 'Different concurrency key', NOW() - INTERVAL '3 minutes', 'feature-2024-002'),
              (8016, 'us-south-1', 'profile-service', 'prod', 'v1.9.0', 'Different concurrency - should be blocked', NULL, 'feature-2024-003')"
     ).execute(&pool).await?;
@@ -195,8 +195,8 @@ async fn test_blocked_by_different_concurrency_keys() -> Result<()> {
 async fn test_null_vs_nonnull_concurrency_key_blocking() -> Result<()> {
     let pool = database_helpers::setup_test_db().await?;
     sqlx::query!(
-        "INSERT INTO deployments (id, region, component, environment, version, note, start_timestamp, concurrency_key) 
-         VALUES 
+        "INSERT INTO deployments (id, region, component, environment, version, note, start_timestamp, concurrency_key)
+         VALUES
              (9001, 'ap-northeast-1', 'redis-service', 'prod', 'v1.3.0', 'Running with NULL concurrency key', NOW() - INTERVAL '5 minutes', NULL),
              (9002, 'ap-northeast-1', 'cache-service', 'prod', 'v2.1.0', 'Queued with non-NULL concurrency key', NULL, 'performance-2024-001')"
     ).execute(&pool).await?;
@@ -213,8 +213,8 @@ async fn test_null_vs_nonnull_concurrency_key_blocking() -> Result<()> {
 async fn test_sequential_deployments_blocking_by_id_order() -> Result<()> {
     let pool = database_helpers::setup_test_db().await?;
     sqlx::query!(
-        "INSERT INTO deployments (id, region, component, environment, version, note, start_timestamp) 
-         VALUES 
+        "INSERT INTO deployments (id, region, component, environment, version, note, start_timestamp)
+         VALUES
              (10001, 'us-east-2', 'api-gateway', 'prod', 'v2.1.0', 'Running deployment - blocks all others', NOW() - INTERVAL '10 minutes'),
              (10002, 'us-east-2', 'auth-service', 'prod', 'v1.5.0', 'Queued - should be blocked', NULL),
              (10003, 'us-east-2', 'user-service', 'prod', 'v3.2.0', 'Queued - should be blocked', NULL),
@@ -223,7 +223,7 @@ async fn test_sequential_deployments_blocking_by_id_order() -> Result<()> {
 
     // Expect: queued deployments are blocked by all deployments with lower IDs (running + queued)
     assert_blocking_deployments(&pool, 10002, vec![10001]).await?; // blocked by running 10001
-    assert_blocking_deployments(&pool, 10003, vec![10001, 10002]).await?; // blocked by running 10001 + queued 10002  
+    assert_blocking_deployments(&pool, 10003, vec![10001, 10002]).await?; // blocked by running 10001 + queued 10002
     assert_blocking_deployments(&pool, 10004, vec![10001, 10002, 10003]).await?; // blocked by running 10001 + queued 10002, 10003
 
     Ok(())
