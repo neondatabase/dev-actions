@@ -1,0 +1,94 @@
+{
+  "db_name": "PostgreSQL",
+  "query": "-- Check for blocking deployments in the same region\n--\n-- This query finds deployments that are blocking the specified deployment from starting.\n-- A deployment is blocked by other deployments in the same region that:\n-- 1. Have a smaller ID (were queued earlier)\n-- 2. Have different or no concurrency keys (cannot run concurrently)\n-- 3. Are still running (no finish_timestamp) OR finished within the buffer time\n-- 4. Are not cancelled\n--\n-- Parameters:\n-- $1: deployment_id - The ID of the deployment to check for blockers\nSELECT\n    blocking.id,\n    blocking.region,\n    blocking.environment,\n    blocking.component,\n    blocking.version,\n    blocking.url,\n    blocking.note,\n    blocking.start_timestamp,\n    blocking.finish_timestamp,\n    blocking.cancellation_timestamp,\n    blocking.cancellation_note,\n    blocking.concurrency_key,\n    environments.buffer_time\nFROM\n    (\n        SELECT\n            *\n        FROM\n            deployments\n        WHERE\n            id = $1\n    ) self\n    JOIN environments ON self.environment = environments.environment\n    JOIN deployments blocking ON (\n        self.region = blocking.region\n        AND (\n            self.concurrency_key IS NULL\n            OR blocking.concurrency_key IS NULL\n            OR self.concurrency_key != blocking.concurrency_key\n        )\n        AND blocking.id < self.id\n        AND (\n            blocking.finish_timestamp IS NULL\n            OR blocking.finish_timestamp > NOW() - INTERVAL '1 minute' * environments.buffer_time\n        )\n        AND blocking.cancellation_timestamp IS NULL\n    )\nORDER BY\n    blocking.id ASC\n",
+  "describe": {
+    "columns": [
+      {
+        "ordinal": 0,
+        "name": "id",
+        "type_info": "Int8"
+      },
+      {
+        "ordinal": 1,
+        "name": "region",
+        "type_info": "Varchar"
+      },
+      {
+        "ordinal": 2,
+        "name": "environment",
+        "type_info": "Varchar"
+      },
+      {
+        "ordinal": 3,
+        "name": "component",
+        "type_info": "Varchar"
+      },
+      {
+        "ordinal": 4,
+        "name": "version",
+        "type_info": "Varchar"
+      },
+      {
+        "ordinal": 5,
+        "name": "url",
+        "type_info": "Text"
+      },
+      {
+        "ordinal": 6,
+        "name": "note",
+        "type_info": "Text"
+      },
+      {
+        "ordinal": 7,
+        "name": "start_timestamp",
+        "type_info": "Timestamptz"
+      },
+      {
+        "ordinal": 8,
+        "name": "finish_timestamp",
+        "type_info": "Timestamptz"
+      },
+      {
+        "ordinal": 9,
+        "name": "cancellation_timestamp",
+        "type_info": "Timestamptz"
+      },
+      {
+        "ordinal": 10,
+        "name": "cancellation_note",
+        "type_info": "Text"
+      },
+      {
+        "ordinal": 11,
+        "name": "concurrency_key",
+        "type_info": "Varchar"
+      },
+      {
+        "ordinal": 12,
+        "name": "buffer_time",
+        "type_info": "Int4"
+      }
+    ],
+    "parameters": {
+      "Left": [
+        "Int8"
+      ]
+    },
+    "nullable": [
+      false,
+      false,
+      false,
+      false,
+      true,
+      true,
+      true,
+      true,
+      true,
+      true,
+      true,
+      true,
+      false
+    ]
+  },
+  "hash": "47702f2a4d84a28bf1b7d63aadbd0a95090375a3c2aa8a63d2156afb09a37768"
+}
