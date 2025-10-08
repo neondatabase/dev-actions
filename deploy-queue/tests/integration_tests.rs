@@ -149,7 +149,7 @@ async fn test_get_deployment_info() -> Result<()> {
     assert_eq!(retrieved.url, Some(url.to_string()));
     assert_eq!(retrieved.note, Some(note.to_string()));
     assert_eq!(retrieved.concurrency_key, Some(concurrency_key.to_string()));
-    assert_eq!(retrieved.buffer_time, 10); // prod environment has 10 minute buffer
+    assert_eq!(retrieved.buffer_time, time::Duration::minutes(10)); // prod environment has 10 minute buffer
 
     // Initially all timestamps should be None
     assert!(retrieved.start_timestamp.is_none());
