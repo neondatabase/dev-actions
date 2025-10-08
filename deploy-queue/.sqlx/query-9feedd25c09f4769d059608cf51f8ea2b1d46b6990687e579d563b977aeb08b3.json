@@ -1,6 +1,6 @@
 {
   "db_name": "PostgreSQL",
-  "query": "INSERT INTO deployments (environment, cloud_provider, region, cell_index, component, version, url, note, concurrency_key, cancellation_timestamp, cancellation_note) \n         VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, NOW(), 'Test cancellation') RETURNING id",
+  "query": "INSERT INTO deployments (environment, cloud_provider, region, cell_index, component, version, url, note, concurrency_key, cancellation_timestamp, cancellation_note)\n         VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, NOW(), 'Test cancellation') RETURNING id",
   "describe": {
     "columns": [
       {
@@ -26,5 +26,5 @@
       false
     ]
   },
-  "hash": "bb8115efacff305a6d7abcb6ab2eaf0af835b1480aa77e2feb772b720e30b6df"
+  "hash": "9feedd25c09f4769d059608cf51f8ea2b1d46b6990687e579d563b977aeb08b3"
 }

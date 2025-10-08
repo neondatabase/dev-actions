@@ -182,7 +182,7 @@ pub async fn insert_deployment_record(
     client: &Pool<Postgres>,
     deployment: Deployment,
 ) -> Result<i64> {
-    let record = sqlx::query!("INSERT INTO deployments (environment, cloud_provider, region, cell_index, component, version, url, note, concurrency_key) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9) RETURNING id", 
+    let record = sqlx::query!("INSERT INTO deployments (environment, cloud_provider, region, cell_index, component, version, url, note, concurrency_key) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9) RETURNING id",
         deployment.environment, deployment.cloud_provider, deployment.region, deployment.cell_index, deployment.component, deployment.version, deployment.url, deployment.note, deployment.concurrency_key)
         .fetch_one(client)
         .await?;
@@ -235,7 +235,7 @@ pub async fn get_deployment_info(
 ) -> Result<Option<Deployment>> {
     let row = sqlx::query!(
         r#"
-        SELECT 
+        SELECT
             d.id, d.environment, d.cloud_provider, d.region, d.cell_index, d.component, d.version, d.url, d.note, d.concurrency_key,
             d.start_timestamp, d.finish_timestamp, d.cancellation_timestamp, d.cancellation_note,
             e.buffer_time

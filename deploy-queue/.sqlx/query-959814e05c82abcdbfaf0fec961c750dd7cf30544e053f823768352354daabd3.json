@@ -1,0 +1,12 @@
+{
+  "db_name": "PostgreSQL",
+  "query": "INSERT INTO deployments (environment, cloud_provider, region, cell_index, component, version, url, note, concurrency_key)\n         VALUES ('dev', 'aws', 'test-region', NULL, 'test-component', 'v1.0.0', NULL, NULL, NULL)",
+  "describe": {
+    "columns": [],
+    "parameters": {
+      "Left": []
+    },
+    "nullable": []
+  },
+  "hash": "959814e05c82abcdbfaf0fec961c750dd7cf30544e053f823768352354daabd3"
+}
