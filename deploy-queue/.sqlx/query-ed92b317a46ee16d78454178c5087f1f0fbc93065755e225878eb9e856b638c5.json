@@ -1,6 +1,6 @@
 {
   "db_name": "PostgreSQL",
-  "query": "SELECT id, environment, cloud_provider, region, cell_index, component, version, url, note, \n                start_timestamp, finish_timestamp, cancellation_timestamp, cancellation_note\n         FROM deployments \n         WHERE id = $1",
+  "query": "\n        SELECT\n            d.id, d.environment, d.cloud_provider, d.region, d.cell_index, d.component, d.version, d.url, d.note, d.concurrency_key,\n            d.start_timestamp, d.finish_timestamp, d.cancellation_timestamp, d.cancellation_note,\n            e.buffer_time\n        FROM deployments d\n        JOIN environments e ON d.environment = e.environment\n        WHERE d.id = $1\n        ",
   "describe": {
     "columns": [
       {
@@ -50,23 +50,33 @@
       },
       {
         "ordinal": 9,
+        "name": "concurrency_key",
+        "type_info": "Varchar"
+      },
+      {
+        "ordinal": 10,
         "name": "start_timestamp",
         "type_info": "Timestamptz"
       },
       {
-        "ordinal": 10,
+        "ordinal": 11,
         "name": "finish_timestamp",
         "type_info": "Timestamptz"
       },
       {
-        "ordinal": 11,
+        "ordinal": 12,
         "name": "cancellation_timestamp",
         "type_info": "Timestamptz"
       },
       {
-        "ordinal": 12,
+        "ordinal": 13,
         "name": "cancellation_note",
         "type_info": "Text"
+      },
+      {
+        "ordinal": 14,
+        "name": "buffer_time",
+        "type_info": "Int4"
       }
     ],
     "parameters": {
@@ -87,8 +97,10 @@
       true,
       true,
       true,
-      true
+      true,
+      true,
+      false
     ]
   },
-  "hash": "b66da55bdfd772b880ae6ceda0924110a1a2f21f0d471cc2117c037c72a12b99"
+  "hash": "ed92b317a46ee16d78454178c5087f1f0fbc93065755e225878eb9e856b638c5"
 }

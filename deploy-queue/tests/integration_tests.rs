@@ -49,9 +49,9 @@ async fn test_insert_deployment_record() -> Result<()> {
     assert!(deployment_id > 0, "Deployment ID should be positive");
 
     let row = sqlx::query!(
-        "SELECT id, environment, cloud_provider, region, cell_index, component, version, url, note, 
+        "SELECT id, environment, cloud_provider, region, cell_index, component, version, url, note,
                 start_timestamp, finish_timestamp, cancellation_timestamp, cancellation_note
-         FROM deployments 
+         FROM deployments
          WHERE id = $1",
         deployment_id
     )
@@ -133,7 +133,7 @@ async fn test_get_deployment_info() -> Result<()> {
 
     // Insert test data
     let record = sqlx::query!(
-        "INSERT INTO deployments (environment, cloud_provider, region, cell_index, component, version, url, note, concurrency_key) 
+        "INSERT INTO deployments (environment, cloud_provider, region, cell_index, component, version, url, note, concurrency_key)
          VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9) RETURNING id",
         environment,
         cloud_provider,
@@ -438,7 +438,7 @@ async fn test_database_constraint_violations() -> Result<()> {
 
     // Test invalid environment value (should fail due to CHECK constraint)
     let result = sqlx::query!(
-        "INSERT INTO deployments (environment, cloud_provider, region, cell_index, component, version, url, note, concurrency_key) 
+        "INSERT INTO deployments (environment, cloud_provider, region, cell_index, component, version, url, note, concurrency_key)
          VALUES ('invalid-env', 'aws', 'test-region', 1, 'test-component', 'v1.0.0', NULL, NULL, NULL)"
     )
     .execute(&pool)
@@ -450,7 +450,7 @@ async fn test_database_constraint_violations() -> Result<()> {
 
     // Test NULL required fields (should fail)
     let result = sqlx::query!(
-        "INSERT INTO deployments (environment, cloud_provider, region, cell_index, component, version, url, note, concurrency_key) 
+        "INSERT INTO deployments (environment, cloud_provider, region, cell_index, component, version, url, note, concurrency_key)
          VALUES ('dev', NULL, 'test-region', 1, 'test-component', 'v1.0.0', NULL, NULL, NULL)"
     )
     .execute(&pool)
@@ -461,7 +461,7 @@ async fn test_database_constraint_violations() -> Result<()> {
     );
 
     let result = sqlx::query!(
-        "INSERT INTO deployments (environment, cloud_provider, region, cell_index, component, version, url, note, concurrency_key) 
+        "INSERT INTO deployments (environment, cloud_provider, region, cell_index, component, version, url, note, concurrency_key)
          VALUES ('dev', 'aws', NULL, 1, 'test-component', 'v1.0.0', NULL, NULL, NULL)"
     )
     .execute(&pool)
@@ -472,7 +472,7 @@ async fn test_database_constraint_violations() -> Result<()> {
     );
 
     let result = sqlx::query!(
-        "INSERT INTO deployments (environment, cloud_provider, region, cell_index, component, version, url, note, concurrency_key) 
+        "INSERT INTO deployments (environment, cloud_provider, region, cell_index, component, version, url, note, concurrency_key)
          VALUES ('dev', 'aws', 'test-region', NULL, 'test-component', 'v1.0.0', NULL, NULL, NULL)"
     )
     .execute(&pool)
@@ -483,7 +483,7 @@ async fn test_database_constraint_violations() -> Result<()> {
     );
 
     let result = sqlx::query!(
-        "INSERT INTO deployments (environment, cloud_provider, region, cell_index, component, version, url, note, concurrency_key) 
+        "INSERT INTO deployments (environment, cloud_provider, region, cell_index, component, version, url, note, concurrency_key)
          VALUES ('dev', 'aws', 'test-region', 1, NULL, 'v1.0.0', NULL, NULL, NULL)"
     )
     .execute(&pool)
