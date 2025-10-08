@@ -61,17 +61,11 @@ async fn create_running_deployment(
     region: &str,
     environment: &str,
     started_ago: Duration,
-    version: Option<&str>,
-    url: Option<&str>,
-    note: Option<&str>,
 ) -> Result<i64> {
     let deployment = Deployment {
         region: region.to_string(),
         component: component.to_string(),
         environment: environment.to_string(),
-        version: version.map(|s| s.to_string()),
-        url: url.map(|s| s.to_string()),
-        note: note.map(|s| s.to_string()),
         ..Default::default()
     };
 
@@ -120,9 +114,6 @@ async fn test_outlier_detection_basic() -> Result<()> {
         region,
         environment,
         Duration::seconds(200),
-        Some("v1.2.3"),
-        Some("https://github.com/test/run/123"),
-        Some("Manual deployment"),
     )
     .await?;
 
@@ -134,9 +125,6 @@ async fn test_outlier_detection_basic() -> Result<()> {
         region,
         environment,
         Duration::seconds(140),
-        None,
-        None,
-        None,
     )
     .await?;
 
@@ -149,12 +137,6 @@ async fn test_outlier_detection_basic() -> Result<()> {
     assert_eq!(outliers[0].component, component);
     assert_eq!(outliers[0].region, region);
     assert_eq!(outliers[0].env, environment);
-    assert_eq!(outliers[0].version, Some("v1.2.3".to_string()));
-    assert_eq!(
-        outliers[0].url,
-        Some("https://github.com/test/run/123".to_string())
-    );
-    assert_eq!(outliers[0].note, Some("Manual deployment".to_string()));
 
     Ok(())
 }
@@ -186,9 +168,6 @@ async fn test_no_outliers_when_all_within_range() -> Result<()> {
         region,
         environment,
         Duration::seconds(120),
-        None,
-        None,
-        None,
     )
     .await?;
 
@@ -239,9 +218,6 @@ async fn test_no_outliers_when_no_analytics_data() -> Result<()> {
         region,
         environment,
         Duration::seconds(1000),
-        None,
-        None,
-        None,
     )
     .await?;
 
@@ -281,30 +257,11 @@ async fn test_outliers_per_component_region_env() -> Result<()> {
     }
 
     // Running deployment in region1 that's an outlier for region1 (> 20 + 2*~8 ≈ 36)
-    let outlier1_id = create_running_deployment(
-        &pool,
-        "comp1",
-        "region1",
-        "dev",
-        Duration::seconds(60),
-        None,
-        None,
-        None,
-    )
-    .await?;
+    let outlier1_id =
+        create_running_deployment(&pool, "comp1", "region1", "dev", Duration::seconds(60)).await?;
 
     // Running deployment in region2 that's normal for region2
-    create_running_deployment(
-        &pool,
-        "comp1",
-        "region2",
-        "dev",
-        Duration::seconds(130),
-        None,
-        None,
-        None,
-    )
-    .await?;
+    create_running_deployment(&pool, "comp1", "region2", "dev", Duration::seconds(130)).await?;
 
     let outliers = get_outlier_deployments(&pool).await?;
 
@@ -431,9 +388,6 @@ async fn test_outliers_optional_fields_omitted() -> Result<()> {
         region,
         environment,
         Duration::seconds(100),
-        None, // no version
-        None, // no url
-        None, // no note
     )
     .await?;
 
@@ -441,9 +395,6 @@ async fn test_outliers_optional_fields_omitted() -> Result<()> {
 
     assert_eq!(outliers.len(), 1);
     assert_eq!(outliers[0].id, outlier_id);
-    assert_eq!(outliers[0].version, None);
-    assert_eq!(outliers[0].url, None);
-    assert_eq!(outliers[0].note, None);
 
     Ok(())
 }
@@ -475,9 +426,6 @@ async fn test_multiple_outliers() -> Result<()> {
         region,
         environment,
         Duration::seconds(100),
-        Some("v1.0.0"),
-        None,
-        None,
     )
     .await?;
 
@@ -487,9 +435,6 @@ async fn test_multiple_outliers() -> Result<()> {
         region,
         environment,
         Duration::seconds(150),
-        Some("v2.0.0"),
-        None,
-        None,
     )
     .await?;
 

@@ -22,7 +22,9 @@ SELECT
     blocking.cancellation_timestamp,
     blocking.cancellation_note,
     blocking.concurrency_key,
-    environments.buffer_time
+    environments.buffer_time,
+    analytics.avg_duration,
+    analytics.stddev_duration
 FROM
     (
         SELECT
@@ -46,6 +48,11 @@ FROM
             OR blocking.finish_timestamp > NOW() - environments.buffer_time
         )
         AND blocking.cancellation_timestamp IS NULL
+    )
+    LEFT JOIN deployment_duration_analytics analytics ON (
+        blocking.component = analytics.component
+        AND blocking.region = analytics.region
+        AND blocking.environment = analytics.environment
     )
 ORDER BY
     blocking.id ASC

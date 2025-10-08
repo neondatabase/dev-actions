@@ -6,8 +6,8 @@ use time::Duration;
 mod database_helpers;
 
 extern crate deploy_queue;
-use deploy_queue::{Deployment, finish_deployment, insert_deployment_record, start_deployment};
 use deploy_queue::duration_ext::DurationExt;
+use deploy_queue::{Deployment, finish_deployment, insert_deployment_record, start_deployment};
 
 /// Check if two durations are approximately equal (within 1ms tolerance)
 /// Needed due to floating-point precision differences between Rust and PostgreSQL
@@ -168,7 +168,8 @@ async fn test_basic_analytics_calculation() -> Result<()> {
     assert_eq!(row.deployment_count, Some(expected_count));
 
     // Convert PgInterval to Duration and compare
-    let actual_avg = row.avg_duration
+    let actual_avg = row
+        .avg_duration
         .expect("avg_duration should not be null")
         .to_duration()?;
     assert!(
@@ -178,7 +179,8 @@ async fn test_basic_analytics_calculation() -> Result<()> {
         actual_avg
     );
 
-    let actual_stddev = row.stddev_duration
+    let actual_stddev = row
+        .stddev_duration
         .expect("stddev_duration should not be null")
         .to_duration()?;
     assert!(
@@ -289,7 +291,8 @@ async fn test_row_limiting_hundred_deployments() -> Result<()> {
 
     assert_eq!(row.deployment_count, Some(100));
 
-    let actual_avg = row.avg_duration
+    let actual_avg = row
+        .avg_duration
         .expect("avg_duration should not be null")
         .to_duration()?;
     assert!(
@@ -299,7 +302,8 @@ async fn test_row_limiting_hundred_deployments() -> Result<()> {
         actual_avg
     );
 
-    let actual_stddev = row.stddev_duration
+    let actual_stddev = row
+        .stddev_duration
         .expect("stddev_duration should not be null")
         .to_duration()?;
     assert!(
