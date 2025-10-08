@@ -29,7 +29,7 @@ pub async fn create_test_db_connection() -> Result<Pool<Postgres>> {
 
     // Get the database URL from environment or use localhost fallback
     let database_url = std::env::var("TEST_DATABASE_URL")
-        .unwrap_or_else(|_| "postgresql://localhost/postgres?sslmode=disable".into());
+        .context("TEST_DATABASE_URL environment variable is not set")?;
 
     // Create URLs for both the unique test database and admin database
     let test_db_url = replace_database_name(&database_url, &unique_db_name)?;
