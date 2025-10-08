@@ -1,0 +1,24 @@
+{
+  "db_name": "PostgreSQL",
+  "query": "SELECT deployment_count FROM deployment_duration_analytics\n         WHERE component = $1 AND region = $2 AND environment = $3",
+  "describe": {
+    "columns": [
+      {
+        "ordinal": 0,
+        "name": "deployment_count",
+        "type_info": "Int8"
+      }
+    ],
+    "parameters": {
+      "Left": [
+        "Text",
+        "Text",
+        "Text"
+      ]
+    },
+    "nullable": [
+      true
+    ]
+  },
+  "hash": "3ae56c59f748a58e13ec5780ef2a2a3844e12004f8ae05573d22bdba0351ff66"
+}
