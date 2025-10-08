@@ -76,7 +76,7 @@
       {
         "ordinal": 14,
         "name": "buffer_time",
-        "type_info": "Int4"
+        "type_info": "Interval"
       }
     ],
     "parameters": {

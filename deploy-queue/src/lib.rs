@@ -40,7 +40,7 @@ pub struct Deployment {
     pub cancellation_timestamp: Option<OffsetDateTime>,
     pub cancellation_note: Option<String>,
     pub concurrency_key: Option<String>,
-    pub buffer_time: i32,
+    pub buffer_time: Duration,
 }
 
 #[derive(Debug, Clone, Copy, PartialEq)]
@@ -247,7 +247,7 @@ pub async fn get_deployment_info(
             finish_timestamp: row.finish_timestamp,
             cancellation_timestamp: row.cancellation_timestamp,
             cancellation_note: row.cancellation_note,
-            buffer_time: row.buffer_time,
+            buffer_time: Duration::microseconds(row.buffer_time.microseconds),
         }))
     } else {
         Ok(None)
