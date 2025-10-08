@@ -84,4 +84,6 @@ pub enum Mode {
         /// Deployment ID to get info for
         deployment_id: i64,
     },
+    /// List deployments that are taking substantially longer than expected
+    Outliers,
 }

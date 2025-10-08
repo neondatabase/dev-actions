@@ -2,12 +2,13 @@ use std::env;
 use std::fs::OpenOptions;
 use std::io::Write;
 use std::time::Duration as StdDuration;
-use time::OffsetDateTime;
+use time::{Duration, OffsetDateTime};
 
 use anyhow::{Context, Result};
 use backon::{ExponentialBuilder, Retryable};
 use clap::Parser;
 use log::{info, warn};
+use serde::Serialize;
 use sqlx::{Pool, Postgres, postgres::PgPoolOptions};
 use tokio::time::{sleep, timeout};
 
@@ -90,6 +91,39 @@ const BUSY_RETRY: StdDuration = StdDuration::from_secs(5);
 const CONNECTION_TIMEOUT: StdDuration = StdDuration::from_secs(10);
 const ACQUIRE_TIMEOUT: StdDuration = StdDuration::from_secs(10);
 const IDLE_TIMEOUT: StdDuration = StdDuration::from_secs(10);
+
+/// Convert time::Duration to std::time::Duration for humantime serialization
+/// Rounds to whole seconds for cleaner output
+fn serialize_duration_humantime<S>(duration: &Duration, serializer: S) -> Result<S::Ok, S::Error>
+where
+    S: serde::Serializer,
+{
+    let std_duration = StdDuration::from_secs(duration.whole_seconds() as u64);
+    humantime_serde::serialize(&std_duration, serializer)
+}
+
+/// Represents a deployment that is taking substantially longer than expected
+#[derive(Debug, Clone, Serialize)]
+pub struct OutlierDeployment {
+    pub id: i64,
+    pub env: String,
+    pub cloud_provider: String,
+    pub region: String,
+    pub cell_index: i32,
+    pub component: String,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub url: Option<String>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub note: Option<String>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub version: Option<String>,
+    #[serde(serialize_with = "serialize_duration_humantime")]
+    pub current_duration: Duration,
+    #[serde(serialize_with = "serialize_duration_humantime")]
+    pub avg_duration: Duration,
+    #[serde(serialize_with = "serialize_duration_humantime")]
+    pub stddev_duration: Duration,
+}
 
 /// Write a key-value pair to GitHub Actions output file
 /// The value is computed lazily via the provided closure, only if GITHUB_OUTPUT is set
@@ -292,6 +326,54 @@ pub async fn cancel_deployment(
     Ok(())
 }
 
+pub async fn get_outlier_deployments(client: &Pool<Postgres>) -> Result<Vec<OutlierDeployment>> {
+    let rows = sqlx::query_file!("queries/active_outliers.sql")
+        .fetch_all(client)
+        .await?;
+
+    let outliers: Vec<OutlierDeployment> = rows
+        .into_iter()
+        .map(|row| OutlierDeployment {
+            id: row.id,
+            env: row.env,
+            cloud_provider: row.cloud_provider,
+            region: row.region,
+            cell_index: row.cell_index,
+            component: row.component,
+            url: row.url,
+            note: row.note,
+            version: row.version,
+            current_duration: row
+                .current_duration
+                .map(|i| Duration::microseconds(i.microseconds))
+                .unwrap_or_default(),
+            avg_duration: row
+                .avg_duration
+                .map(|i| Duration::microseconds(i.microseconds))
+                .unwrap_or_default(),
+            stddev_duration: row
+                .stddev_duration
+                .map(|i| Duration::microseconds(i.microseconds))
+                .unwrap_or_default(),
+        })
+        .collect();
+
+    Ok(outliers)
+}
+
+async fn handle_outliers(client: &Pool<Postgres>) -> Result<()> {
+    let outliers = get_outlier_deployments(client).await?;
+
+    write_github_output("active-outliers", || {
+        serde_json::to_string(&outliers).context("Failed to serialize outliers to JSON")
+    })?;
+    // When not in GitHub Actions, just print to stdout
+    let json_output = serde_json::to_string_pretty(&outliers)?;
+    println!("{}", json_output);
+
+    Ok(())
+}
+
 pub async fn run_deploy_queue(mode: cli::Mode, skip_migrations: bool) -> Result<()> {
     // Create a single database connection for all operations
     let db_client = create_db_connection().await?;
@@ -373,6 +455,9 @@ pub async fn run_deploy_queue(mode: cli::Mode, skip_migrations: bool) -> Result<
         }
         cli::Mode::Info { deployment_id } => {
             show_deployment_info(&db_client, deployment_id).await?;
+        }
+        cli::Mode::Outliers => {
+            handle_outliers(&db_client).await?;
         }
     }
 
