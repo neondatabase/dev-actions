@@ -48,7 +48,7 @@ FROM
         AND blocking.id < self.id
         AND (
             blocking.finish_timestamp IS NULL
-            OR blocking.finish_timestamp > NOW() - INTERVAL '1 minute' * env.buffer_time
+            OR blocking.finish_timestamp > NOW() - env.buffer_time
         )
         AND blocking.cancellation_timestamp IS NULL
     )
