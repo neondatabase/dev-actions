@@ -379,6 +379,7 @@ dependencies = [
  "clap",
  "clap_allgen",
  "env_logger",
+ "humantime",
  "humantime-serde",
  "log",
  "serde",
