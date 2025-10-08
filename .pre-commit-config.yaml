@@ -1,0 +1,38 @@
+repos:
+  - repo: https://github.com/pre-commit/pre-commit-hooks
+    rev: v6.0.0
+    hooks:
+      - id: end-of-file-fixer
+      - id: trailing-whitespace
+      - id: check-yaml
+  - repo: local
+    hooks:
+      - id: cargo-fmt
+        name: cargo fmt
+        entry: bash -c 'cd deploy-queue && cargo fmt'
+        language: system
+        types: [rust]
+        pass_filenames: false
+      - id: cargo-clippy
+        name: cargo clippy
+        entry: bash -c 'cd deploy-queue && cargo clippy --all-targets'
+        language: system
+        types: [rust]
+        pass_filenames: false
+      - id: cargo-sqlx-prepare
+        name: cargo sqlx prepare
+        entry: bash -c 'cd deploy-queue && cargo sqlx prepare -- --all-targets --all-features'
+        language: system
+        types: [rust]
+        pass_filenames: false
+      - id: cargo-test
+        name: cargo test
+        entry: bash -c 'cd deploy-queue && cargo test'
+        language: system
+        types: [rust]
+        pass_filenames: false
+      - id: sleek
+        name: sleek
+        entry: sleek
+        language: system
+        types: [sql]
