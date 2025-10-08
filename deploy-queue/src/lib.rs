@@ -91,6 +91,23 @@ const CONNECTION_TIMEOUT: StdDuration = StdDuration::from_secs(10);
 const ACQUIRE_TIMEOUT: StdDuration = StdDuration::from_secs(10);
 const IDLE_TIMEOUT: StdDuration = StdDuration::from_secs(10);
 
+/// Write a key-value pair to GitHub Actions output file
+/// The value is computed lazily via the provided closure, only if GITHUB_OUTPUT is set
+fn write_github_output<F>(key: &str, value_fn: F) -> Result<()>
+where
+    F: FnOnce() -> Result<String>,
+{
+    if let Ok(github_output) = env::var("GITHUB_OUTPUT") {
+        let value = value_fn()?;
+        let mut file = OpenOptions::new()
+            .create(true)
+            .append(true)
+            .open(github_output)?;
+        writeln!(file, "{key}={value}")?;
+    }
+    Ok(())
+}
+
 pub async fn create_db_connection() -> Result<Pool<Postgres>> {
     let database_url = env::var("DEPLOY_QUEUE_DATABASE_URL")
         .context("DEPLOY_QUEUE_DATABASE_URL environment variable is not set")?;
@@ -317,13 +334,7 @@ pub async fn run_deploy_queue(mode: cli::Mode, skip_migrations: bool) -> Result<
             .await?;
 
             // Write deployment ID to GitHub outputs
-            if let Ok(github_output) = env::var("GITHUB_OUTPUT") {
-                let mut file = OpenOptions::new()
-                    .create(true)
-                    .append(true)
-                    .open(github_output)?;
-                writeln!(file, "deployment-id={}", deployment_id)?;
-            }
+            write_github_output("deployment-id", || Ok(deployment_id.to_string()))?;
 
             // Check for conflicting deployments
             loop {
