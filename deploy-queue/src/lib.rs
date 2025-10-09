@@ -12,6 +12,9 @@ use sqlx::{Pool, Postgres, postgres::PgPoolOptions};
 use tokio::time::sleep;
 
 pub mod cli;
+pub mod duration_ext;
+
+use duration_ext::DurationExt;
 
 /// Main entry point for the deploy-queue application
 pub async fn main() -> Result<()> {
@@ -92,7 +95,9 @@ fn serialize_duration_humantime<S>(duration: &Duration, serializer: S) -> Result
 where
     S: serde::Serializer,
 {
-    let std_duration = StdDuration::from_secs(duration.whole_seconds() as u64);
+    let std_duration = duration
+        .to_std_duration()
+        .map_err(|e| serde::ser::Error::custom(e.to_string()))?;
     humantime_serde::serialize(&std_duration, serializer)
 }
 
@@ -238,7 +243,10 @@ pub async fn get_deployment_info(
             finish_timestamp: row.finish_timestamp,
             cancellation_timestamp: row.cancellation_timestamp,
             cancellation_note: row.cancellation_note,
-            buffer_time: Duration::microseconds(row.buffer_time.microseconds),
+            buffer_time: row
+                .buffer_time
+                .to_duration()
+                .context("Failed to convert buffer_time from database")?,
         }))
     } else {
         Ok(None)
