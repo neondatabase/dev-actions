@@ -53,10 +53,10 @@ jobs:
           # PostgreSQL is already healthy thanks to health checks
           # Install sqlx-cli to run migrations
           cargo install sqlx-cli --no-default-features --features postgres
-          
+
           # Apply migrations to verify they work correctly
           sqlx migrate run
-          
+
           echo "Database migrations completed successfully"
 
       - name: Verify SQLx query cache is up-to-date
@@ -64,7 +64,7 @@ jobs:
         run: |
           # Check that the query cache matches current queries
           cargo sqlx prepare --check
-          
+
           echo "SQLx query cache is up-to-date"
 
       - name: Check code formatting
@@ -72,7 +72,7 @@ jobs:
         run: |
           # Verify code is properly formatted
           cargo fmt --all -- --check
-          
+
           echo "Code formatting check passed"
 
       - name: Lint and verify lockfile
@@ -80,7 +80,7 @@ jobs:
         run: |
           # Run clippy with locked dependencies to ensure lockfile is up-to-date
           cargo clippy --locked --all-targets --all-features -- -D warnings
-          
+
           echo "Linting and lockfile verification completed"
 
   test-integration:
@@ -117,7 +117,7 @@ jobs:
         run: |
           # Run all tests with output using cached sqlx queries (SQLX_OFFLINE=true)
           cargo test --locked --all-targets --all-features
-          
+
           echo "All tests completed successfully"
 
   build-image:
@@ -284,7 +284,7 @@ jobs:
             chmod a+x "${artifact}/deploy-queue"
             tar cvf "${artifact}.tar.zst" "${artifact}"
           done
-          
+
       - name: Create release from tag
         if: github.ref_type == 'tag'
         run: |
@@ -356,7 +356,7 @@ jobs:
       # ==============================================================================
       # Test 1: Complete Happy Path Lifecycle (start → finish)
       # ==============================================================================
-      
+
       - name: Start deployment (happy path test)
         id: start-deployment
         uses: ./deploy-queue
@@ -422,7 +422,7 @@ jobs:
             echo "UNKNOWN: Unexpected outcome: ${{ steps.blocked-deployment-attempt.outcome }}"
             exit 1
           fi
-      
+
       - name: Cancel the second deployment
         uses: ./deploy-queue
         with:

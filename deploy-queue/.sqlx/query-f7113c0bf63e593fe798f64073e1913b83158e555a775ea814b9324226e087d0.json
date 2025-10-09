@@ -1,0 +1,23 @@
+{
+  "db_name": "PostgreSQL",
+  "query": "INSERT INTO deployments (region, component, environment, version, url, note, concurrency_key, cancellation_timestamp, cancellation_note)\n         VALUES ($1, $2, 'dev', 'v1.0.0', 'https://github.com/test-cancelled', 'cancelled test deployment', NULL, NOW(), 'Test cancellation') RETURNING id",
+  "describe": {
+    "columns": [
+      {
+        "ordinal": 0,
+        "name": "id",
+        "type_info": "Int8"
+      }
+    ],
+    "parameters": {
+      "Left": [
+        "Varchar",
+        "Varchar"
+      ]
+    },
+    "nullable": [
+      false
+    ]
+  },
+  "hash": "f7113c0bf63e593fe798f64073e1913b83158e555a775ea814b9324226e087d0"
+}

@@ -1,0 +1,12 @@
+{
+  "db_name": "PostgreSQL",
+  "query": "INSERT INTO deployments (id, region, component, environment, version, note, start_timestamp)\n         VALUES\n             (10001, 'us-east-2', 'api-gateway', 'prod', 'v2.1.0', 'Running deployment - blocks all others', NOW() - INTERVAL '10 minutes'),\n             (10002, 'us-east-2', 'auth-service', 'prod', 'v1.5.0', 'Queued - should be blocked', NULL),\n             (10003, 'us-east-2', 'user-service', 'prod', 'v3.2.0', 'Queued - should be blocked', NULL),\n             (10004, 'us-east-2', 'notification-service', 'prod', 'v1.8.0', 'Queued - should be blocked', NULL)",
+  "describe": {
+    "columns": [],
+    "parameters": {
+      "Left": []
+    },
+    "nullable": []
+  },
+  "hash": "a5a1e0d8558d48a4d1c732c539b51723eb3f4a31d1e1bb319b91fb70ea074782"
+}

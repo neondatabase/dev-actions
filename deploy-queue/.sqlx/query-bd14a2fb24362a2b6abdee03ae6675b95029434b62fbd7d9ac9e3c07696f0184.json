@@ -1,6 +1,6 @@
 {
   "db_name": "PostgreSQL",
-  "query": "INSERT INTO deployments (region, component, environment, version, url, note, concurrency_key) \n         VALUES ($1, $2, $3, $4, $5, $6, $7) RETURNING id",
+  "query": "INSERT INTO deployments (region, component, environment, version, url, note, concurrency_key)\n         VALUES ($1, $2, $3, $4, $5, $6, $7) RETURNING id",
   "describe": {
     "columns": [
       {
@@ -24,5 +24,5 @@
       false
     ]
   },
-  "hash": "a5a27b54905a7d368ff7be88a3f717605729318c509b4ad91890659172901c7c"
+  "hash": "bd14a2fb24362a2b6abdee03ae6675b95029434b62fbd7d9ac9e3c07696f0184"
 }

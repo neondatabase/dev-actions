@@ -1,0 +1,12 @@
+{
+  "db_name": "PostgreSQL",
+  "query": "INSERT INTO deployments (id, region, component, environment, version, url, note, start_timestamp)\n         VALUES\n             (1001, 'us-west-2', 'api-server', 'prod', 'v1.0.0', 'https://github.com/api-server/v1.0.0', 'Running deployment', NOW() - INTERVAL '5 minutes'),\n             (1002, 'us-west-2', 'web-frontend', 'prod', 'v2.1.0', 'https://github.com/web-frontend/v2.1.0', 'Queued deployment', NULL)",
+  "describe": {
+    "columns": [],
+    "parameters": {
+      "Left": []
+    },
+    "nullable": []
+  },
+  "hash": "676db1626f9368e636d51e4605902552d9bb52c9732d5d4fc809b2cc950cc2f7"
+}

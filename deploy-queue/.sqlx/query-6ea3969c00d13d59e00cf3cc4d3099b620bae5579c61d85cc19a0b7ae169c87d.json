@@ -1,0 +1,12 @@
+{
+  "db_name": "PostgreSQL",
+  "query": "INSERT INTO deployments (id, region, component, environment, version, note, start_timestamp, cancellation_timestamp, cancellation_note)\n         VALUES\n             (5009, 'us-west-1', 'monitoring-service', 'prod', 'v2.2.0', 'Cancelled deployment', NOW() - INTERVAL '20 minutes', NOW() - INTERVAL '18 minutes', 'Cancelled due to critical bug'),\n             (5010, 'us-west-1', 'logging-service', 'prod', 'v1.8.0', 'Should not be blocked by cancelled', NULL, NULL, NULL)",
+  "describe": {
+    "columns": [],
+    "parameters": {
+      "Left": []
+    },
+    "nullable": []
+  },
+  "hash": "6ea3969c00d13d59e00cf3cc4d3099b620bae5579c61d85cc19a0b7ae169c87d"
+}
