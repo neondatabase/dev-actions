@@ -1,5 +1,4 @@
 use anyhow::Result;
-use sqlx::postgres::types::PgInterval;
 use sqlx::{Pool, Postgres};
 use time::Duration;
 
@@ -7,21 +6,8 @@ use time::Duration;
 mod database_helpers;
 
 extern crate deploy_queue;
+use deploy_queue::duration_ext::DurationExt;
 use deploy_queue::{Deployment, finish_deployment, insert_deployment_record, start_deployment};
-
-/// Convert time::Duration to PgInterval
-fn duration_to_interval(duration: Duration) -> PgInterval {
-    PgInterval {
-        months: 0,
-        days: 0,
-        microseconds: duration.whole_microseconds() as i64,
-    }
-}
-
-/// Convert PgInterval to time::Duration
-fn interval_to_duration(interval: PgInterval) -> Duration {
-    Duration::microseconds(interval.microseconds)
-}
 
 /// Check if two durations are approximately equal (within 1ms tolerance)
 /// Needed due to floating-point precision differences between Rust and PostgreSQL
@@ -81,7 +67,7 @@ async fn create_finished_deployment_with_details(
             deployment.cell_index,
             deployment.component,
             deployment.concurrency_key,
-            duration_to_interval(created_at_offset)
+            created_at_offset.to_pg_interval()?
         )
         .fetch_one(pool)
         .await?
@@ -93,7 +79,7 @@ async fn create_finished_deployment_with_details(
     // Start the deployment with specific timing
     sqlx::query!(
         "UPDATE deployments SET start_timestamp = NOW() + $1 WHERE id = $2",
-        duration_to_interval(start_delay),
+        start_delay.to_pg_interval()?,
         deployment_id
     )
     .execute(pool)
@@ -102,7 +88,7 @@ async fn create_finished_deployment_with_details(
     // Finish the deployment with specific duration
     sqlx::query!(
         "UPDATE deployments SET finish_timestamp = start_timestamp + $1 WHERE id = $2",
-        duration_to_interval(duration),
+        duration.to_pg_interval()?,
         deployment_id
     )
     .execute(pool)
@@ -186,8 +172,10 @@ async fn test_basic_analytics_calculation() -> Result<()> {
     assert_eq!(row.deployment_count, Some(expected_count));
 
     // Convert PgInterval to Duration and compare
-    let actual_avg =
-        interval_to_duration(row.avg_duration.expect("avg_duration should not be null"));
+    let actual_avg = row
+        .avg_duration
+        .expect("avg_duration should not be null")
+        .to_duration()?;
     assert!(
         durations_approx_eq(actual_avg, expected_avg),
         "Expected average {:?}, got {:?}",
@@ -195,10 +183,10 @@ async fn test_basic_analytics_calculation() -> Result<()> {
         actual_avg
     );
 
-    let actual_stddev = interval_to_duration(
-        row.stddev_duration
-            .expect("stddev_duration should not be null"),
-    );
+    let actual_stddev = row
+        .stddev_duration
+        .expect("stddev_duration should not be null")
+        .to_duration()?;
     assert!(
         durations_approx_eq(actual_stddev, expected_stddev),
         "Expected stddev {:?}, got {:?}",
@@ -307,8 +295,10 @@ async fn test_row_limiting_hundred_deployments() -> Result<()> {
 
     assert_eq!(row.deployment_count, Some(100));
 
-    let actual_avg =
-        interval_to_duration(row.avg_duration.expect("avg_duration should not be null"));
+    let actual_avg = row
+        .avg_duration
+        .expect("avg_duration should not be null")
+        .to_duration()?;
     assert!(
         durations_approx_eq(actual_avg, expected_avg),
         "Expected average {:?}, got {:?}",
@@ -316,10 +306,10 @@ async fn test_row_limiting_hundred_deployments() -> Result<()> {
         actual_avg
     );
 
-    let actual_stddev = interval_to_duration(
-        row.stddev_duration
-            .expect("stddev_duration should not be null"),
-    );
+    let actual_stddev = row
+        .stddev_duration
+        .expect("stddev_duration should not be null")
+        .to_duration()?;
     assert!(
         durations_approx_eq(actual_stddev, expected_stddev),
         "Expected stddev {:?}, got {:?}",
