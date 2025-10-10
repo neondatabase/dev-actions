@@ -1,6 +1,16 @@
 -- ============================================================================
--- DEPLOYMENT STATUS FUNCTION
+-- DEPLOYMENT STATUS TYPE & FUNCTION
 -- ============================================================================
+
+-- Enum representing the lifecycle states of a deployment:
+--   'pending'   - Deployment version exists but hasn't been deployed to this region yet
+--   'queued'    - Deployment has been queued but not yet started
+--   'running'   - Deployment is currently in progress
+--   'buffering' - Deployment has finished but is within the buffer time window
+--   'finished'  - Deployment has finished and buffer time has elapsed
+--   'cancelled' - Deployment was cancelled
+CREATE TYPE deployment_status AS ENUM ('pending', 'queued', 'running', 'buffering', 'finished', 'cancelled');
+
 -- Function to determine deployment status based on timestamps and buffer time
 CREATE
 OR REPLACE FUNCTION get_deployment_status(
@@ -8,7 +18,7 @@ OR REPLACE FUNCTION get_deployment_status(
     finish_timestamp TIMESTAMPTZ,
     cancellation_timestamp TIMESTAMPTZ,
     buffer_time INTERVAL
-) RETURNS VARCHAR(50) AS
+) RETURNS deployment_status AS
 $$
 BEGIN
 -- Cancelled deployments take priority
