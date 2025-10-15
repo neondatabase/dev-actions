@@ -25,6 +25,16 @@ A deployment goes through these states:
 4. **Finished** - Deployment completed successfully
 5. **Cancelled** - Deployment was cancelled before or during execution
 
+```mermaid
+stateDiagram-v2
+    [*] --> Queued
+    Queued --> Running
+    Queued --> Canceled
+    Running --> Buffering
+    Running --> Canceled
+    Buffering --> Finished
+```
+
 ### Blocking Logic
 
 A deployment is blocked by other deployments in the same region when:
