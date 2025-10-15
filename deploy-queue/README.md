@@ -234,7 +234,7 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - name: Start deployment
-        id: start
+        id: deploy-queue-start
         uses: neondatabase/dev-actions/deploy-queue@v1
         with:
           mode: start
@@ -253,14 +253,14 @@ jobs:
         uses: neondatabase/dev-actions/deploy-queue@v1
         with:
           mode: finish
-          deployment-id: ${{ steps.start.outputs.deployment-id }}
+          deployment-id: ${{ steps.deploy-queue-start.outputs.deployment-id }}
 
       - name: Cancel deployment
         if: failure()
         uses: neondatabase/dev-actions/deploy-queue@v1
         with:
           mode: cancel
-          deployment-id: ${{ steps.start.outputs.deployment-id }}
+          deployment-id: ${{ steps.deploy-queue-start.outputs.deployment-id }}
           cancellation-note: "Deployment failed"
 ```
 
@@ -277,6 +277,55 @@ jobs:
     version: v1.2.4
     concurrency-key: hotfix-2024-001  # Same key = can run in parallel
 ```
+
+### Breaking Glass: Emergency Deployments
+
+For emergency situations where you need to bypass the deploy queue entirely, use a repository variable to conditionally enable/disable the queue:
+
+```yaml
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Start deployment (with queue)
+        id: deploy-queue-start
+        if: ${{ vars.DEPLOY_QUEUE_ENABLED == 'true' }}
+        uses: neondatabase/dev-actions/deploy-queue@v1
+        with:
+          mode: start
+          region: us-west-2
+          component: api
+          environment: prod
+          version: v1.2.3
+          url: https://github.com/org/repo/actions/runs/123
+
+      - name: Run actual deployment
+        run: |
+          # Your deployment commands here
+          echo "Deploying..."
+          
+      - name: Finish deployment (with queue)
+        if: ${{ success() && vars.DEPLOY_QUEUE_ENABLED == 'true' }}
+        uses: neondatabase/dev-actions/deploy-queue@v1
+        with:
+          mode: finish
+          deployment-id: ${{ steps.deploy-queue-start.outputs.deployment-id }}
+
+      - name: Cancel deployment (with queue)
+        if: ${{ failure() && vars.DEPLOY_QUEUE_ENABLED == 'true' }}
+        uses: neondatabase/dev-actions/deploy-queue@v1
+        with:
+          mode: cancel
+          deployment-id: ${{ steps.deploy-queue-start.outputs.deployment-id }}
+          cancellation-note: "Deployment failed"
+```
+
+**To bypass the queue in emergencies:**
+1. Set the repository variable `DEPLOY_QUEUE_ENABLED` to `false`
+2. Trigger the deployment - it will skip all queue operations
+3. After the emergency, set `DEPLOY_QUEUE_ENABLED` back to `true`
+
+This "breaking glass" mechanism allows you to maintain deployment velocity during critical incidents while keeping the safety of the queue for normal operations.
 
 ## Development
 
