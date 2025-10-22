@@ -26,10 +26,10 @@ pub async fn main() -> Result<()> {
 #[derive(Default, Debug, Clone)]
 pub struct Deployment {
     pub id: i64,
+    pub environment: String,
     pub cloud_provider: String,
     pub region: String,
     pub cell_index: i32,
-    pub environment: String,
     pub component: String,
     pub version: Option<String>,
     pub url: Option<String>,
@@ -114,14 +114,15 @@ pub async fn insert_deployment_record(
     client: &Pool<Postgres>,
     deployment: Deployment,
 ) -> Result<i64> {
-    let record = sqlx::query!("INSERT INTO deployments (cloud_provider, region, cell_index, component, environment, version, url, note, concurrency_key) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9) RETURNING id", 
-        deployment.cloud_provider, deployment.region, deployment.cell_index, deployment.component, deployment.environment, deployment.version, deployment.url, deployment.note, deployment.concurrency_key)
+    let record = sqlx::query!("INSERT INTO deployments (environment, cloud_provider, region, cell_index, component, version, url, note, concurrency_key) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9) RETURNING id", 
+        deployment.environment, deployment.cloud_provider, deployment.region, deployment.cell_index, deployment.component, deployment.version, deployment.url, deployment.note, deployment.concurrency_key)
         .fetch_one(client)
         .await?;
     let deployment_id = record.id;
     log::info!(
-        "Successfully inserted deployment record: id={}, cloud_provider={}, region={}, cell_index={}, component={}",
+        "Successfully inserted deployment record: id={}, environment={}, cloud_provider={}, region={}, cell_index={}, component={}",
         deployment_id,
+        deployment.environment,
         deployment.cloud_provider,
         deployment.region,
         deployment.cell_index,
@@ -167,7 +168,7 @@ pub async fn get_deployment_info(
     let row = sqlx::query!(
         r#"
         SELECT 
-            d.id, d.cloud_provider, d.region, d.cell_index, d.component, d.environment, d.version, d.url, d.note, d.concurrency_key,
+            d.id, d.environment, d.cloud_provider, d.region, d.cell_index, d.component, d.version, d.url, d.note, d.concurrency_key,
             d.start_timestamp, d.finish_timestamp, d.cancellation_timestamp, d.cancellation_note,
             e.buffer_time
         FROM deployments d
@@ -182,10 +183,10 @@ pub async fn get_deployment_info(
     if let Some(row) = row {
         Ok(Some(Deployment {
             id: row.id,
+            environment: row.environment,
             cloud_provider: row.cloud_provider,
             region: row.region,
             cell_index: row.cell_index,
-            environment: row.environment,
             component: row.component,
             version: row.version,
             url: row.url,
@@ -266,11 +267,11 @@ pub async fn run_deploy_queue(mode: cli::Mode) -> Result<()> {
 
     match mode {
         cli::Mode::Start {
+            environment,
             cloud_provider,
             region,
             cell_index,
             component,
-            environment,
             version,
             url,
             note,
@@ -280,11 +281,11 @@ pub async fn run_deploy_queue(mode: cli::Mode) -> Result<()> {
             let deployment_id = insert_deployment_record(
                 &db_client,
                 Deployment {
+                    environment: environment.to_string(),
                     cloud_provider: cloud_provider.clone(),
                     region: region.clone(),
                     cell_index: cell_index as i32,
                     component: component.clone(),
-                    environment: environment.to_string(),
                     version,
                     url,
                     note,

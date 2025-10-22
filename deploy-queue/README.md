@@ -198,10 +198,10 @@ Stores all deployment records with metadata and timestamps.
 | Column | Type | Description |
 |--------|------|-------------|
 | `id` | BIGSERIAL | Auto-incrementing primary key |
+| `environment` | VARCHAR(50) | Target environment (dev/prod) |
 | `cloud_provider` | VARCHAR(100) | Cloud provider (aws, azure, gcp, etc.) |
 | `region` | VARCHAR(100) | Target region |
 | `cell_index` | INTEGER | Cell index |
-| `environment` | VARCHAR(50) | Target environment (dev/prod) |
 | `component` | VARCHAR(200) | Component being deployed |
 | `version` | VARCHAR(100) | Version identifier (optional) |
 | `url` | TEXT | Link to deployment job (optional) |
@@ -243,11 +243,11 @@ jobs:
         uses: neondatabase/dev-actions/deploy-queue@v1
         with:
           mode: start
+          environment: prod
           cloud-provider: aws
           region: us-west-2
           cell-index: 1
           component: api
-          environment: prod
           version: ${{ github.sha }}
 
       - name: Run actual deployment
@@ -278,11 +278,11 @@ jobs:
   uses: neondatabase/dev-actions/deploy-queue@v1
   with:
     mode: start
+    environment: prod
     cloud-provider: aws
     region: us-west-2
     cell-index: 1
     component: api
-    environment: prod
     version: v1.2.4
     concurrency-key: hotfix-2024-001  # Same key = can run in parallel
 ```
@@ -302,11 +302,11 @@ jobs:
         uses: neondatabase/dev-actions/deploy-queue@v1
         with:
           mode: start
+          environment: prod
           cloud-provider: aws
           region: us-west-2
           cell-index: 1
           component: api
-          environment: prod
           version: v1.2.3
           url: https://github.com/org/repo/actions/runs/123
 

@@ -24,15 +24,15 @@ RETURNS TRIGGER AS $$
 BEGIN
     -- Prevent changes to immutable fields
     IF (OLD.id IS DISTINCT FROM NEW.id 
+        OR OLD.environment IS DISTINCT FROM NEW.environment 
         OR OLD.cloud_provider IS DISTINCT FROM NEW.cloud_provider 
         OR OLD.region IS DISTINCT FROM NEW.region 
         OR OLD.cell_index IS DISTINCT FROM NEW.cell_index 
-        OR OLD.environment IS DISTINCT FROM NEW.environment 
         OR OLD.component IS DISTINCT FROM NEW.component 
         OR OLD.version IS DISTINCT FROM NEW.version 
         OR OLD.url IS DISTINCT FROM NEW.url 
         OR OLD.note IS DISTINCT FROM NEW.note) THEN
-        RAISE EXCEPTION 'Cannot modify immutable fields (id, cloud_provider, region, cell_index, environment, component, version, url, note) for deployment %', OLD.id;
+        RAISE EXCEPTION 'Cannot modify immutable fields (id, environment, cloud_provider, region, cell_index, component, version, url, note) for deployment %', OLD.id;
     END IF;
 
     -- Prevent both finish_timestamp and cancellation_timestamp from being set

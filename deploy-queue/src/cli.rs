@@ -50,8 +50,6 @@ pub enum Mode {
         #[arg(long)]
         /// Component to deploy
         component: String,
-        /// Environment where to deploy
-        environment: Environment,
         #[arg(long)]
         /// Version of the component to deploy
         version: Option<String>,
