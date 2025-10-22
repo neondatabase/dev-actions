@@ -88,17 +88,17 @@ The deploy-queue CLI has four main commands:
 Queues a new deployment and waits for conflicting deployments to complete before starting.
 
 ```bash
-deploy-queue start <CLOUD_PROVIDER> <REGION> <CELL_INDEX> <COMPONENT> <ENVIRONMENT> [OPTIONS]
+deploy-queue start --environment <ENVIRONMENT> --provider <PROVIDER> --region <REGION> --cell-index <CELL_INDEX> --component <COMPONENT> [OPTIONS]
 ```
 
-**Arguments:**
-- `<CLOUD_PROVIDER>` - Cloud provider (e.g., `aws`, `azure`, `gcp`)
-- `<REGION>` - Target region (e.g., `us-west-2`, `eu-central-1`)
-- `<CELL_INDEX>` - Cell index to deploy (e.g., `0`, `1`, `2`)
-- `<COMPONENT>` - Component being deployed (e.g., `api`, `web`, `database`)
-- `<ENVIRONMENT>` - Target environment: `dev` or `prod`
+**Required Flags:**
+- `--environment <ENVIRONMENT>` - Target environment: `dev` or `prod`
+- `--provider <PROVIDER>` - Cloud provider (e.g., `aws`, `azure`, `gcp`)
+- `--region <REGION>` - Target region (e.g., `us-west-2`, `eu-central-1`)
+- `--cell-index <CELL_INDEX>` - Cell index to deploy (e.g., `0`, `1`, `2`)
+- `--component <COMPONENT>` - Component being deployed (e.g., `api`, `web`, `database`)
 
-**Options:**
+**Optional Flags:**
 - `--version <VERSION>` - Version of the component
 - `--url <URL>` - Link to the GitHub Actions job or deployment info
 - `--note <NOTE>` - Additional notes for manual deployments
@@ -106,7 +106,7 @@ deploy-queue start <CLOUD_PROVIDER> <REGION> <CELL_INDEX> <COMPONENT> <ENVIRONME
 
 **Example:**
 ```bash
-deploy-queue start aws us-west-2 1 api prod \
+deploy-queue start --environment prod --provider aws --region us-west-2 --cell-index 1 --component api \
   --version "v1.2.3" \
   --url "https://github.com/org/repo/actions/runs/123" \
   --note "Hotfix for critical bug"
@@ -425,7 +425,7 @@ If compilation fails in CI without a database, ensure the `.sqlx/` directory is 
 
 3. Run the CLI:
    ```bash
-   cargo run -- start aws us-west-2 1 api dev --version v1.0.0
+   cargo run -- start --environment dev --provider aws --region us-west-2 --cell-index 1 --component api --version v1.0.0
    ```
 
 ## Architecture
