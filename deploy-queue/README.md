@@ -6,9 +6,9 @@ A deployment orchestration system that manages and coordinates deployments acros
 
 Deploy Queue solves the problem of coordinating multiple concurrent deployments across different cloud providers, regions, cells, and environments. It acts as a centralized queue that prevents deployment conflicts by:
 
-- **Blocking conflicting deployments**: Prevents multiple deployments in the same cloud provider, region, and cell from running simultaneously
+- **Blocking conflicting deployments**: Prevents multiple deployments in the same environment, cloud provider, region, and cell from running simultaneously
 - **Automatic queueing**: Automatically waits for blocking deployments to complete before starting, ensuring deployments start in the order they entered the queue
-- **Multi-dimensional isolation**: Deployments in different cloud providers, regions, or cells can run in parallel
+- **Multi-dimensional isolation**: Deployments in different environment, cloud providers, regions, or cells can run in parallel
 - **Buffer time management**: Enforces cooldown periods after deployments (configurable per environment)
 - **Concurrency key support**: Allows specific deployments to run in parallel when they share a concurrency key
 - **State tracking**: Tracks deployment lifecycle (queued → running → finished/cancelled)
@@ -40,7 +40,7 @@ stateDiagram-v2
 A deployment is blocked by other deployments in the same cloud provider, region, and cell when:
 
 1. ✅ The blocking deployment has a **smaller ID** (was queued earlier)
-2. ✅ They are in the **same cloud provider, region, and cell**
+2. ✅ They are in the **same environment, cloud provider, region, and cell**
 3. ✅ They have **different or no concurrency keys** (cannot run concurrently)
 4. ✅ The blocker is either:
    - Still **running** (no finish timestamp), OR
@@ -445,8 +445,8 @@ If compilation fails in CI without a database, ensure the `.sqlx/` directory is 
 The core query (`queries/blocking_deployments.sql`) finds deployments blocking a specific deployment. 
 It consists of the following steps:
 
-1. Get the target deployment's cloud provider, region, cell, and environment
-2. Find all deployments in the same cloud provider, region, and cell with earlier IDs
+1. Get the target deployment's environment, cloud provider, region and cell
+2. Find all deployments in the same environment, cloud provider, region, and cell with earlier IDs
 3. Filter for different/null concurrency keys
 4. Exclude finished (outside buffer) and cancelled deployments
 

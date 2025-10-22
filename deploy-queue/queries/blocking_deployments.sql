@@ -30,7 +30,8 @@ FROM
    FROM deployments
    WHERE id = $1) d1
 JOIN environments e ON d1.environment = e.environment
-JOIN deployments d2 ON (d1.cloud_provider = d2.cloud_provider
+JOIN deployments d2 ON (d1.environment = d2.environment
+                        AND d1.cloud_provider = d2.cloud_provider
                         AND d1.region = d2.region
                         AND d1.cell_index = d2.cell_index
                         AND (
