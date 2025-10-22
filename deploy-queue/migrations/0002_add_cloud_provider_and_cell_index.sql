@@ -3,11 +3,11 @@
 
 -- Add cloud_provider column
 ALTER TABLE deployments
-ADD COLUMN cloud_provider VARCHAR(100) NOT NULL;
+ADD COLUMN cloud_provider VARCHAR(100) NOT NULL DEFAULT 'aws';
 
 -- Add cell_index column  
 ALTER TABLE deployments
-ADD COLUMN cell_index INTEGER NOT NULL;
+ADD COLUMN cell_index INTEGER NOT NULL DEFAULT 1;
 
 -- Create indexes for efficient queries
 CREATE INDEX idx_deployments_cloud_provider ON deployments(cloud_provider);
