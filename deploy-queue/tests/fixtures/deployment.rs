@@ -21,7 +21,7 @@ pub async fn create_test_deployment(pool: &Pool<Postgres>) -> Result<i64> {
         "v1.0.0",
         "https://github.com/test",
         "test deployment",
-        NULL
+        None::<String>
     )
     .fetch_one(pool)
     .await?;
@@ -46,8 +46,7 @@ pub async fn create_running_deployment(pool: &Pool<Postgres>) -> Result<i64> {
         "v1.0.0",
         "https://github.com/test-running",
         "running test deployment",
-        NULL,
-        NULL
+        None::<String>
     )
     .fetch_one(pool)
     .await?;
@@ -72,9 +71,7 @@ pub async fn create_finished_deployment(pool: &Pool<Postgres>) -> Result<i64> {
         "v1.0.0",
         "https://github.com/test-finished",
         "finished test deployment",
-        NULL,
-        format!("finished-region-{}", unique_id),
-        format!("finished-component-{}", unique_id)
+        None::<String>
     )
     .fetch_one(pool)
     .await?;
@@ -99,8 +96,7 @@ pub async fn create_cancelled_deployment(pool: &Pool<Postgres>) -> Result<i64> {
         "v1.0.0",
         "https://github.com/test-cancelled",
         "cancelled test deployment",
-        format!("cancelled-region-{}", unique_id),
-        format!("cancelled-component-{}", unique_id)
+        None::<String>
     )
     .fetch_one(pool)
     .await?;
