@@ -1,0 +1,12 @@
+{
+  "db_name": "PostgreSQL",
+  "query": "INSERT INTO deployments (id, environment, cloud_provider, region, cell_index, component, version, note, start_timestamp) \n         VALUES \n             (4007, 'prod', 'aws', 'ap-southeast-1', 1, 'cache-service', 'v1.1.0', 'Running in APAC', NOW() - INTERVAL '10 minutes'),\n             (4008, 'prod', 'aws', 'us-central-1', 1, 'cache-service', 'v1.1.0', 'Should not be blocked by APAC', NULL)",
+  "describe": {
+    "columns": [],
+    "parameters": {
+      "Left": []
+    },
+    "nullable": []
+  },
+  "hash": "e8d9fb37b5911ae86a3db254d1225ed482dce10c1363d9e8ab124935be9db771"
+}

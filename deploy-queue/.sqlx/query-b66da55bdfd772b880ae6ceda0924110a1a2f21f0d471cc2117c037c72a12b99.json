@@ -1,0 +1,94 @@
+{
+  "db_name": "PostgreSQL",
+  "query": "SELECT id, environment, cloud_provider, region, cell_index, component, version, url, note, \n                start_timestamp, finish_timestamp, cancellation_timestamp, cancellation_note\n         FROM deployments \n         WHERE id = $1",
+  "describe": {
+    "columns": [
+      {
+        "ordinal": 0,
+        "name": "id",
+        "type_info": "Int8"
+      },
+      {
+        "ordinal": 1,
+        "name": "environment",
+        "type_info": "Varchar"
+      },
+      {
+        "ordinal": 2,
+        "name": "cloud_provider",
+        "type_info": "Varchar"
+      },
+      {
+        "ordinal": 3,
+        "name": "region",
+        "type_info": "Varchar"
+      },
+      {
+        "ordinal": 4,
+        "name": "cell_index",
+        "type_info": "Int4"
+      },
+      {
+        "ordinal": 5,
+        "name": "component",
+        "type_info": "Varchar"
+      },
+      {
+        "ordinal": 6,
+        "name": "version",
+        "type_info": "Varchar"
+      },
+      {
+        "ordinal": 7,
+        "name": "url",
+        "type_info": "Text"
+      },
+      {
+        "ordinal": 8,
+        "name": "note",
+        "type_info": "Text"
+      },
+      {
+        "ordinal": 9,
+        "name": "start_timestamp",
+        "type_info": "Timestamptz"
+      },
+      {
+        "ordinal": 10,
+        "name": "finish_timestamp",
+        "type_info": "Timestamptz"
+      },
+      {
+        "ordinal": 11,
+        "name": "cancellation_timestamp",
+        "type_info": "Timestamptz"
+      },
+      {
+        "ordinal": 12,
+        "name": "cancellation_note",
+        "type_info": "Text"
+      }
+    ],
+    "parameters": {
+      "Left": [
+        "Int8"
+      ]
+    },
+    "nullable": [
+      false,
+      false,
+      false,
+      false,
+      false,
+      false,
+      true,
+      true,
+      true,
+      true,
+      true,
+      true,
+      true
+    ]
+  },
+  "hash": "b66da55bdfd772b880ae6ceda0924110a1a2f21f0d471cc2117c037c72a12b99"
+}
