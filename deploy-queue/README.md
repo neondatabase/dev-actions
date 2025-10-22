@@ -360,6 +360,8 @@ See [SAMPLE_DATA.md](SAMPLE_DATA.md) for information about test data and compreh
 Migrations are automatically applied when the CLI runs. Migration files are in `migrations/`:
 
 - `0001_initial_deployments_schema.sql` - Initial schema with deployments and environments tables
+- `0002_add_cloud_provider_and_cell_index.sql` - Adds cloud_provider and cell_index fields to deployments table
+
 
 To run migrations manually:
 
