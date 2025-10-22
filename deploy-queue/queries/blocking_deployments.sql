@@ -1,7 +1,7 @@
--- Check for blocking deployments in the same region
+-- Check for blocking deployments in the same cloud provider, region, and cell
 -- 
 -- This query finds deployments that are blocking the specified deployment from starting.
--- A deployment is blocked by other deployments in the same region that:
+-- A deployment is blocked by other deployments in the same cloud provider, region, and cell that:
 -- 1. Have a smaller ID (were queued earlier)
 -- 2. Have different or no concurrency keys (cannot run concurrently)
 -- 3. Are still running (no finish_timestamp) OR finished within the buffer time
@@ -11,7 +11,9 @@
 -- $1: deployment_id - The ID of the deployment to check for blockers
 
 SELECT d2.id,
+       d2.cloud_provider,
        d2.region,
+       d2.cell_index,
        d2.environment,
        d2.component,
        d2.version,
@@ -28,7 +30,9 @@ FROM
    FROM deployments
    WHERE id = $1) d1
 JOIN environments e ON d1.environment = e.environment
-JOIN deployments d2 ON (d1.region = d2.region
+JOIN deployments d2 ON (d1.cloud_provider = d2.cloud_provider
+                        AND d1.region = d2.region
+                        AND d1.cell_index = d2.cell_index
                         AND (
                           d1.concurrency_key IS NULL
                           OR d2.concurrency_key IS NULL
