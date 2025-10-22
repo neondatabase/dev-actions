@@ -1,14 +1,14 @@
 # Deploy Queue
 
-A deployment orchestration system that manages and coordinates deployments across regions and environments using PostgreSQL as a backend. This tool ensures safe, sequential deployments by preventing conflicting deployments from running simultaneously in the same region.
+A deployment orchestration system that manages and coordinates deployments across cloud providers, regions, cells, and environments using PostgreSQL as a backend. This tool ensures safe, sequential deployments by preventing conflicting deployments from running simultaneously in the same cloud provider, region, and cell.
 
 ## Overview
 
-Deploy Queue solves the problem of coordinating multiple concurrent deployments across different regions and environments. It acts as a centralized queue that prevents deployment conflicts by:
+Deploy Queue solves the problem of coordinating multiple concurrent deployments across different cloud providers, regions, cells, and environments. It acts as a centralized queue that prevents deployment conflicts by:
 
-- **Blocking conflicting deployments**: Prevents multiple deployments in the same region from running simultaneously
+- **Blocking conflicting deployments**: Prevents multiple deployments in the same cloud provider, region, and cell from running simultaneously
 - **Automatic queueing**: Automatically waits for blocking deployments to complete before starting, ensuring deployments start in the order they entered the queue
-- **Region-based isolation**: Deployments in different regions can run in parallel
+- **Multi-dimensional isolation**: Deployments in different cloud providers, regions, or cells can run in parallel
 - **Buffer time management**: Enforces cooldown periods after deployments (configurable per environment)
 - **Concurrency key support**: Allows specific deployments to run in parallel when they share a concurrency key
 - **State tracking**: Tracks deployment lifecycle (queued → running → finished/cancelled)
@@ -37,18 +37,19 @@ stateDiagram-v2
 
 ### Blocking Logic
 
-A deployment is blocked by other deployments in the same region when:
+A deployment is blocked by other deployments in the same cloud provider, region, and cell when:
 
 1. ✅ The blocking deployment has a **smaller ID** (was queued earlier)
-2. ✅ They have **different or no concurrency keys** (cannot run concurrently)
-3. ✅ The blocker is either:
+2. ✅ They are in the **same cloud provider, region, and cell**
+3. ✅ They have **different or no concurrency keys** (cannot run concurrently)
+4. ✅ The blocker is either:
    - Still **running** (no finish timestamp), OR
    - **Finished within the buffer time** (e.g., within last 10 minutes for prod)
-4. ✅ The blocker is **not cancelled**
+5. ✅ The blocker is **not cancelled**
 
 **Example:**
 ```
-Region: us-west-2, Environment: prod (10-minute buffer)
+Cloud Provider: aws, Region: us-west-2, Cell: 1, Environment: prod (10-minute buffer)
 
 ID | Component | State    | Time
 ---+-----------+----------+------------
@@ -87,11 +88,13 @@ The deploy-queue CLI has four main commands:
 Queues a new deployment and waits for conflicting deployments to complete before starting.
 
 ```bash
-deploy-queue start <REGION> <COMPONENT> <ENVIRONMENT> [OPTIONS]
+deploy-queue start <CLOUD_PROVIDER> <REGION> <CELL_INDEX> <COMPONENT> <ENVIRONMENT> [OPTIONS]
 ```
 
 **Arguments:**
+- `<CLOUD_PROVIDER>` - Cloud provider (e.g., `aws`, `azure`, `gcp`)
 - `<REGION>` - Target region (e.g., `us-west-2`, `eu-central-1`)
+- `<CELL_INDEX>` - Cell index to deploy (e.g., `0`, `1`, `2`)
 - `<COMPONENT>` - Component being deployed (e.g., `api`, `web`, `database`)
 - `<ENVIRONMENT>` - Target environment: `dev` or `prod`
 
@@ -103,7 +106,7 @@ deploy-queue start <REGION> <COMPONENT> <ENVIRONMENT> [OPTIONS]
 
 **Example:**
 ```bash
-deploy-queue start us-west-2 api prod \
+deploy-queue start aws us-west-2 1 api prod \
   --version "v1.2.3" \
   --url "https://github.com/org/repo/actions/runs/123" \
   --note "Hotfix for critical bug"
@@ -195,7 +198,9 @@ Stores all deployment records with metadata and timestamps.
 | Column | Type | Description |
 |--------|------|-------------|
 | `id` | BIGSERIAL | Auto-incrementing primary key |
+| `cloud_provider` | VARCHAR(100) | Cloud provider (aws, azure, gcp, etc.) |
 | `region` | VARCHAR(100) | Target region |
+| `cell_index` | INTEGER | Cell index |
 | `environment` | VARCHAR(50) | Target environment (dev/prod) |
 | `component` | VARCHAR(200) | Component being deployed |
 | `version` | VARCHAR(100) | Version identifier (optional) |
@@ -238,7 +243,9 @@ jobs:
         uses: neondatabase/dev-actions/deploy-queue@v1
         with:
           mode: start
+          cloud-provider: aws
           region: us-west-2
+          cell-index: 1
           component: api
           environment: prod
           version: ${{ github.sha }}
@@ -271,7 +278,9 @@ jobs:
   uses: neondatabase/dev-actions/deploy-queue@v1
   with:
     mode: start
+    cloud-provider: aws
     region: us-west-2
+    cell-index: 1
     component: api
     environment: prod
     version: v1.2.4
@@ -293,7 +302,9 @@ jobs:
         uses: neondatabase/dev-actions/deploy-queue@v1
         with:
           mode: start
+          cloud-provider: aws
           region: us-west-2
+          cell-index: 1
           component: api
           environment: prod
           version: v1.2.3
@@ -414,7 +425,7 @@ If compilation fails in CI without a database, ensure the `.sqlx/` directory is 
 
 3. Run the CLI:
    ```bash
-   cargo run -- start us-west-2 api dev --version v1.0.0
+   cargo run -- start aws us-west-2 1 api dev --version v1.0.0
    ```
 
 ## Architecture
@@ -434,8 +445,8 @@ If compilation fails in CI without a database, ensure the `.sqlx/` directory is 
 The core query (`queries/blocking_deployments.sql`) finds deployments blocking a specific deployment. 
 It consists of the following steps:
 
-1. Get the target deployment's region and environment
-2. Find all deployments in the same region with earlier IDs
+1. Get the target deployment's cloud provider, region, cell, and environment
+2. Find all deployments in the same cloud provider, region, and cell with earlier IDs
 3. Filter for different/null concurrency keys
 4. Exclude finished (outside buffer) and cancelled deployments
 

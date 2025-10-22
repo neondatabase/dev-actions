@@ -4,8 +4,12 @@ inputs:
   mode:
     description: Whether to start, finish or cancel the deployment
     default: reserve
+  cloud-provider:
+    description: Cloud provider to deploy
   region:
     description: Region to deploy
+  cell-index:
+    description: Cell index to deploy
   component:
     description: Component to deploy
     default: ''
@@ -92,7 +96,9 @@ runs:
       shell: bash
       env:
         MODE: ${{ inputs.mode }}
+        CLOUD_PROVIDER: ${{ inputs.cloud-provider }}
         REGION: ${{ inputs.region }}
+        CELL_INDEX: ${{ inputs.cell-index }}
         COMPONENT: ${{ inputs.component }}
         ENVIRONMENT: ${{ inputs.environment }}
         VERSION: ${{ inputs.version }}
@@ -110,7 +116,9 @@ runs:
           "start")
             args+=(
               "start"
+              "${CLOUD_PROVIDER}"
               "${REGION}"
+              "${CELL_INDEX}"
               "${COMPONENT}"
               "${ENVIRONMENT}"
             )
