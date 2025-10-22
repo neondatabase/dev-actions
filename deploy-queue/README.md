@@ -323,7 +323,7 @@ jobs:
           deployment-id: ${{ steps.deploy-queue-start.outputs.deployment-id }}
 
       - name: Cancel deployment (with queue)
-        if: ${{ failure() && vars.DEPLOY_QUEUE_ENABLED == 'true' }}
+        if: ${{ !success() && vars.DEPLOY_QUEUE_ENABLED == 'true' }}
         uses: neondatabase/dev-actions/deploy-queue@v1
         with:
           mode: cancel
