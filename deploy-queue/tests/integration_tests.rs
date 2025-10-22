@@ -33,7 +33,7 @@ async fn test_insert_deployment_record() -> Result<()> {
         environment: environment.to_string(),
         cloud_provider: cloud_provider.to_string(),
         region: region.clone(),
-        cell_index: cell_index,
+        cell_index,
         component: component.clone(),
         version: version.clone(),
         url: url.clone(),
@@ -90,12 +90,11 @@ async fn test_insert_deployment_record_minimal_data() -> Result<()> {
     let cell_index = 1;
     let component = "minimal-test-component".to_string();
 
-
     let deployment = Deployment {
         environment: environment.to_string(),
         cloud_provider: cloud_provider.to_string(),
         region,
-        cell_index: cell_index,
+        cell_index,
         component,
         ..Default::default()
     };
@@ -543,10 +542,7 @@ async fn test_immutable_fields_cannot_be_modified() -> Result<()> {
     )
     .execute(&pool)
     .await;
-    assert!(
-        result.is_err(),
-        "Should not be able to modify region field"
-    );
+    assert!(result.is_err(), "Should not be able to modify region field");
 
     // Try to modify cell_index (should fail)
     let result = sqlx::query!(
@@ -591,10 +587,7 @@ async fn test_immutable_fields_cannot_be_modified() -> Result<()> {
     )
     .execute(&pool)
     .await;
-    assert!(
-        result.is_err(),
-        "Should not be able to modify url field"
-    );
+    assert!(result.is_err(), "Should not be able to modify url field");
 
     // Try to modify note (should fail)
     let result = sqlx::query!(
@@ -603,10 +596,7 @@ async fn test_immutable_fields_cannot_be_modified() -> Result<()> {
     )
     .execute(&pool)
     .await;
-    assert!(
-        result.is_err(),
-        "Should not be able to modify note field"
-    );
+    assert!(result.is_err(), "Should not be able to modify note field");
 
     // Verify that mutable fields CAN still be modified
     // Try to set start_timestamp (should succeed)

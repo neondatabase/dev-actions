@@ -284,7 +284,7 @@ pub async fn run_deploy_queue(mode: cli::Mode) -> Result<()> {
                     environment: environment.to_string(),
                     cloud_provider: cloud_provider.clone(),
                     region: region.clone(),
-                    cell_index: cell_index as i32,
+                    cell_index,
                     component: component.clone(),
                     version,
                     url,
