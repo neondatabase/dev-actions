@@ -19,18 +19,22 @@ use deploy_queue::{
 async fn test_insert_deployment_record() -> Result<()> {
     let pool = database_helpers::setup_test_db().await?;
 
-    let region = "insert-test-region".to_string();
-    let component = "insert-test-component".to_string();
     let environment = "prod";
+    let cloud_provider = "aws";
+    let region = "insert-test-region".to_string();
+    let cell_index = 1;
+    let component = "insert-test-component".to_string();
     let version = Some("v2.1.0".to_string());
     let url = Some("https://github.com/example/test".to_string());
     let note = Some("Integration test deployment".to_string());
     let concurrency_key = None;
 
     let deployment = Deployment {
-        region: region.clone(),
-        component: component.clone(),
         environment: environment.to_string(),
+        cloud_provider: cloud_provider.to_string(),
+        region: region.clone(),
+        cell_index: cell_index,
+        component: component.clone(),
         version: version.clone(),
         url: url.clone(),
         note: note.clone(),
@@ -45,7 +49,7 @@ async fn test_insert_deployment_record() -> Result<()> {
     assert!(deployment_id > 0, "Deployment ID should be positive");
 
     let row = sqlx::query!(
-        "SELECT id, region, component, environment, version, url, note, 
+        "SELECT id, environment, cloud_provider, region, cell_index, component, version, url, note, 
                 start_timestamp, finish_timestamp, cancellation_timestamp, cancellation_note
          FROM deployments 
          WHERE id = $1",
@@ -56,9 +60,11 @@ async fn test_insert_deployment_record() -> Result<()> {
 
     // Verify the fields were inserted correctly
     assert_eq!(row.id, deployment_id);
-    assert_eq!(row.region, region);
-    assert_eq!(row.component, component);
     assert_eq!(row.environment, environment);
+    assert_eq!(row.cloud_provider, cloud_provider);
+    assert_eq!(row.region, region);
+    assert_eq!(row.cell_index, cell_index);
+    assert_eq!(row.component, component);
     assert_eq!(row.version, version);
     assert_eq!(row.url, url);
     assert_eq!(row.note, note);
@@ -78,14 +84,19 @@ async fn test_insert_deployment_record_minimal_data() -> Result<()> {
     let pool = database_helpers::setup_test_db().await?;
 
     // Test with minimal required fields only
-    let region = "minimal-test-region".to_string();
-    let component = "minimal-test-component".to_string();
     let environment = "dev";
+    let cloud_provider = "aws";
+    let region = "minimal-test-region".to_string();
+    let cell_index = 1;
+    let component = "minimal-test-component".to_string();
+
 
     let deployment = Deployment {
-        region,
-        component,
         environment: environment.to_string(),
+        cloud_provider: cloud_provider.to_string(),
+        region,
+        cell_index: cell_index,
+        component,
         ..Default::default()
     };
 
@@ -111,9 +122,11 @@ async fn test_insert_deployment_record_minimal_data() -> Result<()> {
 async fn test_get_deployment_info() -> Result<()> {
     let pool = database_helpers::setup_test_db().await?;
 
-    let region = "get-info-test-region";
-    let component = "get-info-test-component";
     let environment = "prod";
+    let cloud_provider = "aws";
+    let region = "get-info-test-region";
+    let cell_index = 1;
+    let component = "get-info-test-component";
     let version = "v1.2.3";
     let url = "https://github.com/example/get-info";
     let note = "Test deployment for get_deployment_info";
@@ -121,11 +134,13 @@ async fn test_get_deployment_info() -> Result<()> {
 
     // Insert test data
     let record = sqlx::query!(
-        "INSERT INTO deployments (region, component, environment, version, url, note, concurrency_key) 
-         VALUES ($1, $2, $3, $4, $5, $6, $7) RETURNING id",
-        region,
-        component,
+        "INSERT INTO deployments (environment, cloud_provider, region, cell_index, component, version, url, note, concurrency_key) 
+         VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9) RETURNING id",
         environment,
+        cloud_provider,
+        region,
+        cell_index,
+        component,
         Some(version),
         Some(url),
         Some(note),
@@ -142,9 +157,11 @@ async fn test_get_deployment_info() -> Result<()> {
 
     let retrieved = retrieved.unwrap();
     assert_eq!(retrieved.id, deployment_id);
+    assert_eq!(retrieved.environment, environment);
+    assert_eq!(retrieved.cloud_provider, cloud_provider);
+    assert_eq!(retrieved.cell_index, cell_index);
     assert_eq!(retrieved.region, region);
     assert_eq!(retrieved.component, component);
-    assert_eq!(retrieved.environment, environment);
     assert_eq!(retrieved.version, Some(version.to_string()));
     assert_eq!(retrieved.url, Some(url.to_string()));
     assert_eq!(retrieved.note, Some(note.to_string()));
@@ -422,8 +439,8 @@ async fn test_database_constraint_violations() -> Result<()> {
 
     // Test invalid environment value (should fail due to CHECK constraint)
     let result = sqlx::query!(
-        "INSERT INTO deployments (region, component, environment, version, url, note, concurrency_key) 
-         VALUES ('test-region', 'test-component', 'invalid-env', 'v1.0.0', NULL, NULL, NULL)"
+        "INSERT INTO deployments (environment, cloud_provider, region, cell_index, component, version, url, note, concurrency_key) 
+         VALUES ('invalid-env', 'aws', 'test-region', 1, 'test-component', 'v1.0.0', NULL, NULL, NULL)"
     )
     .execute(&pool)
     .await;
@@ -434,8 +451,19 @@ async fn test_database_constraint_violations() -> Result<()> {
 
     // Test NULL required fields (should fail)
     let result = sqlx::query!(
-        "INSERT INTO deployments (region, component, environment, version, url, note, concurrency_key) 
-         VALUES (NULL, 'test-component', 'dev', 'v1.0.0', NULL, NULL, NULL)"
+        "INSERT INTO deployments (environment, cloud_provider, region, cell_index, component, version, url, note, concurrency_key) 
+         VALUES ('dev', NULL, 'test-region', 1, 'test-component', 'v1.0.0', NULL, NULL, NULL)"
+    )
+    .execute(&pool)
+    .await;
+    assert!(
+        result.is_err(),
+        "Should not be able to insert deployment with NULL cloud provider"
+    );
+
+    let result = sqlx::query!(
+        "INSERT INTO deployments (environment, cloud_provider, region, cell_index, component, version, url, note, concurrency_key) 
+         VALUES ('dev', 'aws', NULL, 1, 'test-component', 'v1.0.0', NULL, NULL, NULL)"
     )
     .execute(&pool)
     .await;
@@ -445,8 +473,19 @@ async fn test_database_constraint_violations() -> Result<()> {
     );
 
     let result = sqlx::query!(
-        "INSERT INTO deployments (region, component, environment, version, url, note, concurrency_key) 
-         VALUES ('test-region', NULL, 'dev', 'v1.0.0', NULL, NULL, NULL)"
+        "INSERT INTO deployments (environment, cloud_provider, region, cell_index, component, version, url, note, concurrency_key) 
+         VALUES ('dev', 'aws', 'test-region', NULL, 'test-component', 'v1.0.0', NULL, NULL, NULL)"
+    )
+    .execute(&pool)
+    .await;
+    assert!(
+        result.is_err(),
+        "Should not be able to insert deployment with NULL cell index"
+    );
+
+    let result = sqlx::query!(
+        "INSERT INTO deployments (environment, cloud_provider, region, cell_index, component, version, url, note, concurrency_key) 
+         VALUES ('dev', 'aws', 'test-region', 1, NULL, 'v1.0.0', NULL, NULL, NULL)"
     )
     .execute(&pool)
     .await;
