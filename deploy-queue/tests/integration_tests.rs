@@ -496,3 +496,130 @@ async fn test_database_constraint_violations() -> Result<()> {
 
     Ok(())
 }
+
+#[tokio::test]
+async fn test_immutable_fields_cannot_be_modified() -> Result<()> {
+    let pool = database_helpers::setup_test_db().await?;
+
+    // Create a test deployment
+    let deployment_id = deployment_fixtures::create_test_deployment(&pool).await?;
+
+    // Try to modify environment (should fail)
+    let result = sqlx::query!(
+        "UPDATE deployments SET environment = 'prod' WHERE id = $1",
+        deployment_id
+    )
+    .execute(&pool)
+    .await;
+    assert!(
+        result.is_err(),
+        "Should not be able to modify environment field"
+    );
+    if let Err(e) = result {
+        let error_msg = e.to_string();
+        assert!(
+            error_msg.contains("Cannot modify immutable fields"),
+            "Error should mention immutable fields, got: {}",
+            error_msg
+        );
+    }
+
+    // Try to modify cloud_provider (should fail)
+    let result = sqlx::query!(
+        "UPDATE deployments SET cloud_provider = 'azure' WHERE id = $1",
+        deployment_id
+    )
+    .execute(&pool)
+    .await;
+    assert!(
+        result.is_err(),
+        "Should not be able to modify cloud_provider field"
+    );
+
+    // Try to modify region (should fail)
+    let result = sqlx::query!(
+        "UPDATE deployments SET region = 'eu-west-1' WHERE id = $1",
+        deployment_id
+    )
+    .execute(&pool)
+    .await;
+    assert!(
+        result.is_err(),
+        "Should not be able to modify region field"
+    );
+
+    // Try to modify cell_index (should fail)
+    let result = sqlx::query!(
+        "UPDATE deployments SET cell_index = 99 WHERE id = $1",
+        deployment_id
+    )
+    .execute(&pool)
+    .await;
+    assert!(
+        result.is_err(),
+        "Should not be able to modify cell_index field"
+    );
+
+    // Try to modify component (should fail)
+    let result = sqlx::query!(
+        "UPDATE deployments SET component = 'different-component' WHERE id = $1",
+        deployment_id
+    )
+    .execute(&pool)
+    .await;
+    assert!(
+        result.is_err(),
+        "Should not be able to modify component field"
+    );
+
+    // Try to modify version (should fail)
+    let result = sqlx::query!(
+        "UPDATE deployments SET version = 'v99.0.0' WHERE id = $1",
+        deployment_id
+    )
+    .execute(&pool)
+    .await;
+    assert!(
+        result.is_err(),
+        "Should not be able to modify version field"
+    );
+
+    // Try to modify url (should fail)
+    let result = sqlx::query!(
+        "UPDATE deployments SET url = 'https://different-url.com' WHERE id = $1",
+        deployment_id
+    )
+    .execute(&pool)
+    .await;
+    assert!(
+        result.is_err(),
+        "Should not be able to modify url field"
+    );
+
+    // Try to modify note (should fail)
+    let result = sqlx::query!(
+        "UPDATE deployments SET note = 'different note' WHERE id = $1",
+        deployment_id
+    )
+    .execute(&pool)
+    .await;
+    assert!(
+        result.is_err(),
+        "Should not be able to modify note field"
+    );
+
+    // Verify that mutable fields CAN still be modified
+    // Try to set start_timestamp (should succeed)
+    let result = sqlx::query!(
+        "UPDATE deployments SET start_timestamp = NOW() WHERE id = $1",
+        deployment_id
+    )
+    .execute(&pool)
+    .await;
+    assert!(
+        result.is_ok(),
+        "Should be able to modify start_timestamp (mutable field)"
+    );
+
+    Ok(())
+}
