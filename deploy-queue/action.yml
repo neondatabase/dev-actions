@@ -116,11 +116,6 @@ runs:
           "start")
             args+=(
               "start"
-              "${CLOUD_PROVIDER}"
-              "${REGION}"
-              "${CELL_INDEX}"
-              "${COMPONENT}"
-              "${ENVIRONMENT}"
             )
 
             # Add required arguments as flags
