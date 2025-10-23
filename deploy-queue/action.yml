@@ -119,25 +119,12 @@ runs:
           "start")
             args+=(
               "start"
+              "--environment" "${ENVIRONMENT}"
+              "--provider" "${CLOUD_PROVIDER}"
+              "--region" "${REGION}"
+              "--cell-index" "${CELL_INDEX}"
+              "--component" "${COMPONENT}"
             )
-
-            # Add required arguments as flags
-            if [[ -n "${ENVIRONMENT:-}" ]]; then
-              args+=("--environment" "${ENVIRONMENT}")
-            fi
-            if [[ -n "${CLOUD_PROVIDER:-}" ]]; then
-              args+=("--provider" "${CLOUD_PROVIDER}")
-            fi
-            if [[ -n "${REGION:-}" ]]; then
-              args+=("--region" "${REGION}")
-            fi
-            if [[ -n "${CELL_INDEX:-}" ]]; then
-              args+=("--cell-index" "${CELL_INDEX}")
-            fi
-            if [[ -n "${COMPONENT:-}" ]]; then
-              args+=("--component" "${COMPONENT}")
-            fi
-
             
             # Add optional arguments as flags
             if [[ -n "${VERSION:-}" ]]; then
