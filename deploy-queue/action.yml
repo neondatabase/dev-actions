@@ -63,9 +63,9 @@ runs:
 
         if [[ "$REF" =~ ^[0-9a-f]{40}$ ]]; then
           echo "Ref is a commit SHA, resolving to release tag..."
-    
+
           tag=$(gh api repos/neondatabase/dev-actions/git/matching-refs/tags --paginate | jq -r --arg sha "$REF" 'map(select(.object.sha == $sha)) | first | .ref | ltrimstr("refs/tags/") // error("No release tag found for commit " + $sha)')
-    
+
           echo "tag=$tag" | tee -a "$GITHUB_OUTPUT"
         else
           echo "tag=$REF" | tee -a "$GITHUB_OUTPUT"
@@ -112,9 +112,9 @@ runs:
         CANCELLATION_NOTE: ${{ inputs.cancellation-note }}
       run: |
         set -euo pipefail
-        
+
         args=()
-        
+
         case "${MODE}" in
           "start")
             args+=(
@@ -125,27 +125,27 @@ runs:
               "--cell-index" "${CELL_INDEX}"
               "--component" "${COMPONENT}"
             )
-            
+
             # Add optional arguments as flags
             if [[ -n "${VERSION:-}" ]]; then
               args+=("--version" "${VERSION}")
             fi
-            
+
             # Use provided URL or generate GitHub Actions URL as fallback
             if [[ -n "${URL:-}" ]]; then
               args+=("--url" "${URL}")
             else
               args+=("--url" "Started by ${GITHUB_SERVER_URL}/${GITHUB_REPOSITORY}/actions/runs/${GITHUB_RUN_ID}")
             fi
-            
+
             if [[ -n "${NOTE:-}" ]]; then
               args+=("--note" "${NOTE}")
             fi
-            
+
             if [[ -n "${CONCURRENCY_KEY:-}" ]]; then
               args+=("--concurrency-key" "${CONCURRENCY_KEY}")
             fi
-            
+
             deploy-queue "${args[@]}"
             ;;
           "finish")

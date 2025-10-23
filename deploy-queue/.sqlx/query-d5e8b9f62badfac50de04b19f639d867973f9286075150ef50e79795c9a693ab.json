@@ -1,0 +1,86 @@
+{
+  "db_name": "PostgreSQL",
+  "query": "-- Find active deployments (running, not finished/cancelled) that are taking\n-- substantially longer than expected based on historical averages\n--\n-- An outlier is defined as a deployment where:\n-- current_duration > avg_duration + 2 * stddev_duration\n--\n-- This threshold represents approximately the 97.5th percentile, meaning we\n-- only flag deployments that are significantly slower than normal.\nSELECT\n    deployments.id,\n    deployments.environment AS env,\n    deployments.cloud_provider,\n    deployments.region,\n    deployments.cell_index,\n    deployments.component,\n    deployments.url,\n    deployments.note,\n    deployments.version,\n    NOW() - deployments.start_timestamp AS current_duration,\n    analytics.avg_duration,\n    analytics.stddev_duration\nFROM\n    deployments\n    INNER JOIN deployment_duration_analytics analytics ON deployments.environment = analytics.environment\n    AND deployments.cloud_provider = analytics.cloud_provider\n    AND deployments.region = analytics.region\n    AND deployments.cell_index = analytics.cell_index\n    AND deployments.component = analytics.component\nWHERE\n    -- Only consider running deployments\n    deployments.start_timestamp IS NOT NULL\n    AND deployments.finish_timestamp IS NULL\n    AND deployments.cancellation_timestamp IS NULL\n    -- Only flag if significantly over expected duration\n    AND (NOW() - deployments.start_timestamp) > (\n        analytics.avg_duration + 2 * analytics.stddev_duration\n    )\nORDER BY\n    deployments.id;\n",
+  "describe": {
+    "columns": [
+      {
+        "ordinal": 0,
+        "name": "id",
+        "type_info": "Int8"
+      },
+      {
+        "ordinal": 1,
+        "name": "env",
+        "type_info": "Varchar"
+      },
+      {
+        "ordinal": 2,
+        "name": "cloud_provider",
+        "type_info": "Varchar"
+      },
+      {
+        "ordinal": 3,
+        "name": "region",
+        "type_info": "Varchar"
+      },
+      {
+        "ordinal": 4,
+        "name": "cell_index",
+        "type_info": "Int4"
+      },
+      {
+        "ordinal": 5,
+        "name": "component",
+        "type_info": "Varchar"
+      },
+      {
+        "ordinal": 6,
+        "name": "url",
+        "type_info": "Text"
+      },
+      {
+        "ordinal": 7,
+        "name": "note",
+        "type_info": "Text"
+      },
+      {
+        "ordinal": 8,
+        "name": "version",
+        "type_info": "Varchar"
+      },
+      {
+        "ordinal": 9,
+        "name": "current_duration",
+        "type_info": "Interval"
+      },
+      {
+        "ordinal": 10,
+        "name": "avg_duration",
+        "type_info": "Interval"
+      },
+      {
+        "ordinal": 11,
+        "name": "stddev_duration",
+        "type_info": "Interval"
+      }
+    ],
+    "parameters": {
+      "Left": []
+    },
+    "nullable": [
+      false,
+      false,
+      false,
+      false,
+      false,
+      false,
+      true,
+      true,
+      true,
+      null,
+      true,
+      true
+    ]
+  },
+  "hash": "d5e8b9f62badfac50de04b19f639d867973f9286075150ef50e79795c9a693ab"
+}

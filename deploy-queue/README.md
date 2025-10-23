@@ -254,7 +254,7 @@ jobs:
         run: |
           # Your deployment commands here
           echo "Deploying..."
-          
+
       - name: Finish deployment
         if: success()
         uses: neondatabase/dev-actions/deploy-queue@v1
@@ -314,7 +314,7 @@ jobs:
         run: |
           # Your deployment commands here
           echo "Deploying..."
-          
+
       - name: Finish deployment (with queue)
         if: ${{ success() && vars.DEPLOY_QUEUE_ENABLED == 'true' }}
         uses: neondatabase/dev-actions/deploy-queue@v1
@@ -444,7 +444,7 @@ If compilation fails in CI without a database, ensure the `.sqlx/` directory is 
 
 ### Finding Blocking Deployments
 
-The core query (`queries/blocking_deployments.sql`) finds deployments blocking a specific deployment. 
+The core query (`queries/blocking_deployments.sql`) finds deployments blocking a specific deployment.
 It consists of the following steps:
 
 1. Get the target deployment's environment, cloud provider, region and cell
@@ -459,4 +459,3 @@ See [LICENSE](../LICENSE) at the repository root.
 ## Contributing
 
 This tool is part of the [neondatabase/dev-actions](https://github.com/neondatabase/dev-actions) repository. Please see the main repository for contribution guidelines.
-

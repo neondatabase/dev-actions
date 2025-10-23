@@ -1,0 +1,28 @@
+{
+  "db_name": "PostgreSQL",
+  "query": "INSERT INTO deployments (environment, cloud_provider, region, cell_index, component, concurrency_key, created_at)\n             VALUES ($1, $2, $3, $4, $5, $6, NOW() + $7) RETURNING id",
+  "describe": {
+    "columns": [
+      {
+        "ordinal": 0,
+        "name": "id",
+        "type_info": "Int8"
+      }
+    ],
+    "parameters": {
+      "Left": [
+        "Varchar",
+        "Varchar",
+        "Varchar",
+        "Int4",
+        "Varchar",
+        "Varchar",
+        "Interval"
+      ]
+    },
+    "nullable": [
+      false
+    ]
+  },
+  "hash": "24945b105850f593529a61fa2051ad1fc916bf33fe3e58bc3c815952e9172799"
+}

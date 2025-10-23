@@ -1,0 +1,14 @@
+{
+  "db_name": "PostgreSQL",
+  "query": "UPDATE deployments SET cancellation_timestamp = NOW(), cancellation_note = 'Test cancellation' WHERE id = $1",
+  "describe": {
+    "columns": [],
+    "parameters": {
+      "Left": [
+        "Int8"
+      ]
+    },
+    "nullable": []
+  },
+  "hash": "ce1952a8b2bc5193455558376ea88c71f41e3e588cedcf8a65962028dce01b2e"
+}
