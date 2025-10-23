@@ -11,10 +11,17 @@ pub async fn create_test_deployment(pool: &Pool<Postgres>) -> Result<i64> {
     let unique_id = COUNTER.fetch_add(1, Ordering::Relaxed);
 
     let record = sqlx::query!(
-        "INSERT INTO deployments (region, component, environment, version, url, note, concurrency_key) 
-         VALUES ($1, $2, 'dev', 'v1.0.0', 'https://github.com/test', 'test deployment', NULL) RETURNING id", 
+        "INSERT INTO deployments (environment, cloud_provider, region, cell_index, component, version, url, note, concurrency_key) 
+         VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9) RETURNING id", 
+        "dev",
+        "aws",
         format!("test-region-{}", unique_id),
-        format!("test-component-{}", unique_id)
+        1,
+        format!("test-component-{}", unique_id),
+        "v1.0.0",
+        "https://github.com/test",
+        "test deployment",
+        None::<String>
     )
     .fetch_one(pool)
     .await?;
@@ -29,10 +36,17 @@ pub async fn create_running_deployment(pool: &Pool<Postgres>) -> Result<i64> {
     let unique_id = COUNTER.fetch_add(1, Ordering::Relaxed);
 
     let record = sqlx::query!(
-        "INSERT INTO deployments (region, component, environment, version, url, note, concurrency_key, start_timestamp) 
-         VALUES ($1, $2, 'dev', 'v1.0.0', 'https://github.com/test-running', 'running test deployment', NULL, NOW()) RETURNING id", 
+        "INSERT INTO deployments (environment, cloud_provider, region, cell_index, component, version, url, note, concurrency_key, start_timestamp) 
+         VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, NOW()) RETURNING id", 
+        "dev",
+        "aws",
         format!("running-region-{}", unique_id),
-        format!("running-component-{}", unique_id)
+        1,
+        format!("running-component-{}", unique_id),
+        "v1.0.0",
+        "https://github.com/test-running",
+        "running test deployment",
+        None::<String>
     )
     .fetch_one(pool)
     .await?;
@@ -47,10 +61,17 @@ pub async fn create_finished_deployment(pool: &Pool<Postgres>) -> Result<i64> {
     let unique_id = COUNTER.fetch_add(1, Ordering::Relaxed);
 
     let record = sqlx::query!(
-        "INSERT INTO deployments (region, component, environment, version, url, note, concurrency_key, start_timestamp, finish_timestamp) 
-         VALUES ($1, $2, 'dev', 'v1.0.0', 'https://github.com/test-finished', 'finished test deployment', NULL, NOW() - INTERVAL '10 minutes', NOW()) RETURNING id", 
+        "INSERT INTO deployments (environment, cloud_provider, region, cell_index, component, version, url, note, concurrency_key, start_timestamp, finish_timestamp) 
+         VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, NOW() - INTERVAL '10 minutes', NOW()) RETURNING id", 
+        "dev",
+        "aws",
         format!("finished-region-{}", unique_id),
-        format!("finished-component-{}", unique_id)
+        1,
+        format!("finished-component-{}", unique_id),
+        "v1.0.0",
+        "https://github.com/test-finished",
+        "finished test deployment",
+        None::<String>
     )
     .fetch_one(pool)
     .await?;
@@ -65,10 +86,17 @@ pub async fn create_cancelled_deployment(pool: &Pool<Postgres>) -> Result<i64> {
     let unique_id = COUNTER.fetch_add(1, Ordering::Relaxed);
 
     let record = sqlx::query!(
-        "INSERT INTO deployments (region, component, environment, version, url, note, concurrency_key, cancellation_timestamp, cancellation_note) 
-         VALUES ($1, $2, 'dev', 'v1.0.0', 'https://github.com/test-cancelled', 'cancelled test deployment', NULL, NOW(), 'Test cancellation') RETURNING id", 
+        "INSERT INTO deployments (environment, cloud_provider, region, cell_index, component, version, url, note, concurrency_key, cancellation_timestamp, cancellation_note) 
+         VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, NOW(), 'Test cancellation') RETURNING id", 
+        "dev",
+        "aws",
         format!("cancelled-region-{}", unique_id),
-        format!("cancelled-component-{}", unique_id)
+        1,
+        format!("cancelled-component-{}", unique_id),
+        "v1.0.0",
+        "https://github.com/test-cancelled",
+        "cancelled test deployment",
+        None::<String>
     )
     .fetch_one(pool)
     .await?;

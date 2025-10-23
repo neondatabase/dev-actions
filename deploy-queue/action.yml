@@ -4,14 +4,21 @@ inputs:
   mode:
     description: Whether to start, finish or cancel the deployment
     default: reserve
-  region:
-    description: Region to deploy
-  component:
-    description: Component to deploy
-    default: ''
   environment:
     description: Environment where to deploy
-    default: ''
+    required: true
+  cloud-provider:
+    description: Cloud provider to deploy
+    required: true
+  region:
+    description: Region to deploy
+    required: true
+  cell-index:
+    description: Cell index to deploy
+    required: true
+  component:
+    description: Component to deploy
+    required: true
   version:
     description: Version to deploy
     default: ''
@@ -92,9 +99,11 @@ runs:
       shell: bash
       env:
         MODE: ${{ inputs.mode }}
-        REGION: ${{ inputs.region }}
-        COMPONENT: ${{ inputs.component }}
         ENVIRONMENT: ${{ inputs.environment }}
+        CLOUD_PROVIDER: ${{ inputs.cloud-provider }}
+        REGION: ${{ inputs.region }}
+        CELL_INDEX: ${{ inputs.cell-index }}
+        COMPONENT: ${{ inputs.component }}
         VERSION: ${{ inputs.version }}
         CONCURRENCY_KEY: ${{ inputs.concurrency-key }}
         URL: ${{ inputs.url }}
@@ -110,9 +119,11 @@ runs:
           "start")
             args+=(
               "start"
-              "${REGION}"
-              "${COMPONENT}"
-              "${ENVIRONMENT}"
+              "--environment" "${ENVIRONMENT}"
+              "--provider" "${CLOUD_PROVIDER}"
+              "--region" "${REGION}"
+              "--cell-index" "${CELL_INDEX}"
+              "--component" "${COMPONENT}"
             )
             
             # Add optional arguments as flags

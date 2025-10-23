@@ -35,12 +35,21 @@ pub struct Cli {
 pub enum Mode {
     /// Start deployment for a component
     Start {
-        /// Region to deploy
-        region: String,
-        /// Component to deploy
-        component: String,
+        #[arg(long)]
         /// Environment where to deploy
         environment: Environment,
+        #[arg(long = "provider")]
+        /// Cloud provider to deploy
+        cloud_provider: String,
+        #[arg(long)]
+        /// Region to deploy
+        region: String,
+        #[arg(long)]
+        /// Cell index to deploy
+        cell_index: i32,
+        #[arg(long)]
+        /// Component to deploy
+        component: String,
         #[arg(long)]
         /// Version of the component to deploy
         version: Option<String>,

@@ -362,9 +362,11 @@ jobs:
         uses: ./deploy-queue
         with:
           mode: start
-          region: test-region-happy
-          component: test-component-happy
           environment: dev
+          cloud-provider: aws
+          region: test-region-happy
+          cell-index: 1
+          component: test-component-happy
           version: v1.0.0
           url: https://github.com/test-happy
           note: Happy path test deployment
@@ -382,7 +384,7 @@ jobs:
           deployment-id: ${{ steps.start-deployment.outputs.deployment-id }}
 
       # ==============================================================================
-      # Test 2: Blocking Behavior (same region + component)
+      # Test 2: Blocking Behavior (same environment, region, cell index & component)
       # ==============================================================================
 
       - name: Start blocking deployment
@@ -390,9 +392,11 @@ jobs:
         uses: ./deploy-queue
         with:
           mode: start
-          region: test-region-block
-          component: test-component-block
           environment: dev
+          cloud-provider: aws
+          region: test-region-block
+          cell-index: 1
+          component: test-component-block
           version: v1.1.0
           url: https://github.com/test-blocking
           note: Blocking deployment test
@@ -404,9 +408,11 @@ jobs:
         timeout-minutes: 1
         with:
           mode: start
-          region: test-region-block  # Same region
-          component: test-component-block  # Same component → should be blocked
           environment: dev
+          cloud-provider: aws
+          region: test-region-block  # Same region
+          cell-index: 1
+          component: test-component-block  # Same component → should be blocked
           version: v1.2.0
           url: https://github.com/test-blocked
           note: Should be blocked deployment
@@ -437,7 +443,7 @@ jobs:
           deployment-id: ${{ steps.blocking-deployment.outputs.deployment-id }}
 
       # ==============================================================================
-      # Test 3: Non-Blocking Behavior (different region)
+      # Test 3: Non-Blocking Behavior (different region or cell index)
       # ==============================================================================
 
       - name: Start deployment in region A
@@ -445,9 +451,11 @@ jobs:
         uses: ./deploy-queue
         with:
           mode: start
-          region: test-region-a
-          component: shared-component
           environment: dev
+          cloud-provider: aws
+          region: test-region-a
+          cell-index: 1
+          component: shared-component
           version: v2.0.0
           url: https://github.com/test-region-a
           note: Region A deployment
@@ -457,14 +465,30 @@ jobs:
         uses: ./deploy-queue
         with:
           mode: start
-          region: test-region-b  # Different region
-          component: shared-component  # Same component but different region
           environment: dev
+          cloud-provider: aws
+          region: test-region-b  # Different region
+          cell-index: 1
+          component: shared-component  # Same component but different region
           version: v2.1.0
           url: https://github.com/test-region-b
           note: Region B deployment (not blocked)
 
-      - name: Finish both regional deployments
+      - name: Start deployment in region B with different cell index (should NOT be blocked)
+        id: region-b-deployment-different-cell-index
+        uses: ./deploy-queue
+        with:
+          mode: start
+          environment: dev
+          cloud-provider: aws
+          region: test-region-b 
+          cell-index: 2  # Different cell index
+          component: shared-component  # Same component but different cell index
+          version: v2.1.0
+          url: https://github.com/test-region-b
+          note: Region B deployment (not blocked)
+
+      - name: Finish region A deployment
         uses: ./deploy-queue
         with:
           mode: finish
@@ -476,6 +500,12 @@ jobs:
           mode: finish
           deployment-id: ${{ steps.region-b-deployment.outputs.deployment-id }}
 
+      - name: Finish region B deployment with different cell index
+        uses: ./deploy-queue
+        with:
+          mode: finish
+          deployment-id: ${{ steps.region-b-deployment-different-cell-index.outputs.deployment-id }}
+
       # ==============================================================================
       # Test 4: Cancellation Flow
       # ==============================================================================
@@ -485,9 +515,11 @@ jobs:
         uses: ./deploy-queue
         with:
           mode: start
-          region: test-region-cancel
-          component: test-component-cancel
           environment: dev
+          cloud-provider: aws
+          region: test-region-cancel
+          cell-index: 1
+          component: test-component-cancel
           version: v3.0.0
           url: https://github.com/test-cancel
           note: Cancellation test deployment
