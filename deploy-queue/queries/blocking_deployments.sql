@@ -1,7 +1,7 @@
--- Check for blocking deployments in the same cloud provider, region, and cell
+-- Check for blocking deployments in the same environment,cloud provider, region, and cell
 -- 
 -- This query finds deployments that are blocking the specified deployment from starting.
--- A deployment is blocked by other deployments in the same environment,cloud provider, region, and cell that:
+-- A deployment is blocked by other deployments in the same environment, cloud provider, region, and cell that:
 -- 1. Have a smaller ID (were queued earlier)
 -- 2. Have different or no concurrency keys (cannot run concurrently)
 -- 3. Are still running (no finish_timestamp) OR finished within the buffer time
