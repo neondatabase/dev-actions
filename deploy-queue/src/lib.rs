@@ -100,7 +100,7 @@ pub async fn create_db_connection() -> Result<Pool<Postgres>> {
             .acquire_timeout(CONNECTION_TIMEOUT)
             .idle_timeout(Some(IDLE_TIMEOUT))
             .connect(&database_url);
-        
+
         timeout(CONNECTION_TIMEOUT, connect_future)
             .await
             .context("Connection attempt timed out")?
