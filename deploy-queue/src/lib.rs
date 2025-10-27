@@ -108,8 +108,8 @@ pub async fn create_db_connection() -> Result<Pool<Postgres>> {
 
     (|| connect_to_database(&database_url))
         .retry(ExponentialBuilder::default())
-        .notify(|err: &sqlx::Error, _dur: StdDuration| {
-            warn!("Failed to connect to database: {}. Retrying...", err);
+        .notify(|err: &sqlx::Error, dur: StdDuration| {
+            warn!("Failed to connect to database: {}. Retrying in {:?}...", err, dur);
         })
         .await
         .context("Failed to connect to database after retries")
