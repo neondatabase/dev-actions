@@ -5,10 +5,11 @@ use std::time::Duration as StdDuration;
 use time::OffsetDateTime;
 
 use anyhow::{Context, Result};
+use backon::{ExponentialBuilder, Retryable};
 use clap::Parser;
-use log::info;
+use log::{info, warn};
 use sqlx::{Pool, Postgres, postgres::PgPoolOptions};
-use tokio::time::sleep;
+use tokio::time::{sleep, timeout};
 
 pub mod cli;
 
@@ -86,16 +87,32 @@ impl DeploymentState {
 }
 
 const BUSY_RETRY: StdDuration = StdDuration::from_secs(5);
+const CONNECTION_TIMEOUT: StdDuration = StdDuration::from_secs(10);
+const IDLE_TIMEOUT: StdDuration = StdDuration::from_secs(10);
+
+async fn connect_to_database(database_url: &str) -> Result<Pool<Postgres>, sqlx::Error> {
+    let connect_future = PgPoolOptions::new()
+        .max_connections(10)
+        .acquire_timeout(CONNECTION_TIMEOUT)
+        .idle_timeout(Some(IDLE_TIMEOUT))
+        .connect(database_url);
+
+    timeout(CONNECTION_TIMEOUT, connect_future)
+        .await
+        .map_err(|_| sqlx::Error::PoolTimedOut)?
+}
 
 pub async fn create_db_connection() -> Result<Pool<Postgres>> {
     let database_url = env::var("DEPLOY_QUEUE_DATABASE_URL")
         .context("DEPLOY_QUEUE_DATABASE_URL environment variable is not set")?;
 
-    let pool = PgPoolOptions::new()
-        .max_connections(10)
-        .connect(&database_url)
+    let pool = connect_to_database(&database_url)
+        .retry(ExponentialBuilder::default())
+        .notify(|err: &sqlx::Error, _dur: StdDuration| {
+            warn!("Failed to connect to database: {}. Retrying...", err);
+        })
         .await
-        .context("Failed to connect to database")?;
+        .context("Failed to connect to database after retries");
 
     Ok(pool)
 }
