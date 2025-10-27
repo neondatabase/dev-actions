@@ -88,6 +88,7 @@ impl DeploymentState {
 
 const BUSY_RETRY: StdDuration = StdDuration::from_secs(5);
 const CONNECTION_TIMEOUT: StdDuration = StdDuration::from_secs(10);
+const AQUIRE_TIMEOUT: StdDuration = StdDuration::from_secs(10);
 const IDLE_TIMEOUT: StdDuration = StdDuration::from_secs(10);
 
 pub async fn create_db_connection() -> Result<Pool<Postgres>> {
@@ -97,7 +98,7 @@ pub async fn create_db_connection() -> Result<Pool<Postgres>> {
     (async || {
         let connect_future = PgPoolOptions::new()
             .max_connections(10)
-            .acquire_timeout(CONNECTION_TIMEOUT)
+            .acquire_timeout(AQUIRE_TIMEOUT)
             .idle_timeout(Some(IDLE_TIMEOUT))
             .connect(&database_url);
 
