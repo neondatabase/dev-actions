@@ -106,15 +106,13 @@ pub async fn create_db_connection() -> Result<Pool<Postgres>> {
     let database_url = env::var("DEPLOY_QUEUE_DATABASE_URL")
         .context("DEPLOY_QUEUE_DATABASE_URL environment variable is not set")?;
 
-    let pool = connect_to_database(&database_url)
+    (|| connect_to_database(&database_url))
         .retry(ExponentialBuilder::default())
         .notify(|err: &sqlx::Error, _dur: StdDuration| {
             warn!("Failed to connect to database: {}. Retrying...", err);
         })
         .await
-        .context("Failed to connect to database after retries");
-
-    Ok(pool)
+        .context("Failed to connect to database after retries")
 }
 
 pub async fn run_migrations(pool: &Pool<Postgres>) -> Result<()> {
