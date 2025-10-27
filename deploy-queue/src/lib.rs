@@ -5,10 +5,11 @@ use std::time::Duration as StdDuration;
 use time::OffsetDateTime;
 
 use anyhow::{Context, Result};
+use backon::{ExponentialBuilder, Retryable};
 use clap::Parser;
-use log::info;
+use log::{info, warn};
 use sqlx::{Pool, Postgres, postgres::PgPoolOptions};
-use tokio::time::sleep;
+use tokio::time::{sleep, timeout};
 
 pub mod cli;
 
@@ -86,18 +87,34 @@ impl DeploymentState {
 }
 
 const BUSY_RETRY: StdDuration = StdDuration::from_secs(5);
+const CONNECTION_TIMEOUT: StdDuration = StdDuration::from_secs(10);
+const ACQUIRE_TIMEOUT: StdDuration = StdDuration::from_secs(10);
+const IDLE_TIMEOUT: StdDuration = StdDuration::from_secs(10);
 
 pub async fn create_db_connection() -> Result<Pool<Postgres>> {
     let database_url = env::var("DEPLOY_QUEUE_DATABASE_URL")
         .context("DEPLOY_QUEUE_DATABASE_URL environment variable is not set")?;
 
-    let pool = PgPoolOptions::new()
-        .max_connections(10)
-        .connect(&database_url)
-        .await
-        .context("Failed to connect to database")?;
+    (async || {
+        let connect_future = PgPoolOptions::new()
+            .max_connections(10)
+            .acquire_timeout(ACQUIRE_TIMEOUT)
+            .idle_timeout(Some(IDLE_TIMEOUT))
+            .connect(&database_url);
 
-    Ok(pool)
+        timeout(CONNECTION_TIMEOUT, connect_future)
+            .await
+            .context("Connection attempt timed out")?
+            .context("Failed to connect to database")
+    })
+    .retry(ExponentialBuilder::default())
+    .notify(|err: &anyhow::Error, dur: StdDuration| {
+        warn!(
+            "Failed to connect to database: {}. Retrying in {:?}...",
+            err, dur
+        );
+    })
+    .await
 }
 
 pub async fn run_migrations(pool: &Pool<Postgres>) -> Result<()> {
