@@ -98,7 +98,7 @@ pub async fn create_db_connection() -> Result<Pool<Postgres>> {
     (async || {
         let connect_future = PgPoolOptions::new()
             .max_connections(10)
-            .acquire_timeout(AQUIRE_TIMEOUT)
+            .acquire_timeout(ACQUIRE_TIMEOUT)
             .idle_timeout(Some(IDLE_TIMEOUT))
             .connect(&database_url);
 
