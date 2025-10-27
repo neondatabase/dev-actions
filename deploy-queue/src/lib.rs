@@ -94,7 +94,7 @@ pub async fn create_db_connection() -> Result<Pool<Postgres>> {
     let database_url = env::var("DEPLOY_QUEUE_DATABASE_URL")
         .context("DEPLOY_QUEUE_DATABASE_URL environment variable is not set")?;
 
-    (|| async {
+    (async || {
         let connect_future = PgPoolOptions::new()
             .max_connections(10)
             .acquire_timeout(CONNECTION_TIMEOUT)
