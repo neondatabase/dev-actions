@@ -90,29 +90,27 @@ const BUSY_RETRY: StdDuration = StdDuration::from_secs(5);
 const CONNECTION_TIMEOUT: StdDuration = StdDuration::from_secs(10);
 const IDLE_TIMEOUT: StdDuration = StdDuration::from_secs(10);
 
-async fn connect_to_database(database_url: &str) -> Result<Pool<Postgres>, sqlx::Error> {
-    let connect_future = PgPoolOptions::new()
-        .max_connections(10)
-        .acquire_timeout(CONNECTION_TIMEOUT)
-        .idle_timeout(Some(IDLE_TIMEOUT))
-        .connect(database_url);
-
-    timeout(CONNECTION_TIMEOUT, connect_future)
-        .await
-        .map_err(|_| sqlx::Error::PoolTimedOut)?
-}
-
 pub async fn create_db_connection() -> Result<Pool<Postgres>> {
     let database_url = env::var("DEPLOY_QUEUE_DATABASE_URL")
         .context("DEPLOY_QUEUE_DATABASE_URL environment variable is not set")?;
 
-    (|| connect_to_database(&database_url))
-        .retry(ExponentialBuilder::default())
-        .notify(|err: &sqlx::Error, dur: StdDuration| {
-            warn!("Failed to connect to database: {}. Retrying in {:?}...", err, dur);
-        })
-        .await
-        .context("Failed to connect to database after retries")
+    (|| async {
+        let connect_future = PgPoolOptions::new()
+            .max_connections(10)
+            .acquire_timeout(CONNECTION_TIMEOUT)
+            .idle_timeout(Some(IDLE_TIMEOUT))
+            .connect(&database_url);
+        
+        timeout(CONNECTION_TIMEOUT, connect_future)
+            .await
+            .context("Connection attempt timed out")?
+    })
+    .retry(ExponentialBuilder::default())
+    .notify(|err: &anyhow::Error, dur: StdDuration| {
+        warn!("Failed to connect to database: {}. Retrying in {:?}...", err, dur);
+    })
+    .await
+    .context("Failed to connect to database after retries")
 }
 
 pub async fn run_migrations(pool: &Pool<Postgres>) -> Result<()> {
