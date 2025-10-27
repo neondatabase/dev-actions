@@ -100,10 +100,11 @@ pub async fn create_db_connection() -> Result<Pool<Postgres>> {
             .acquire_timeout(CONNECTION_TIMEOUT)
             .idle_timeout(Some(IDLE_TIMEOUT))
             .connect(&database_url);
-
+        
         timeout(CONNECTION_TIMEOUT, connect_future)
             .await
             .context("Connection attempt timed out")?
+            .context("Failed to connect to database")
     })
     .retry(ExponentialBuilder::default())
     .notify(|err: &anyhow::Error, dur: StdDuration| {
@@ -113,7 +114,6 @@ pub async fn create_db_connection() -> Result<Pool<Postgres>> {
         );
     })
     .await
-    .context("Failed to connect to database after retries")
 }
 
 pub async fn run_migrations(pool: &Pool<Postgres>) -> Result<()> {
