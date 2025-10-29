@@ -115,6 +115,10 @@ runs:
         
         args=()
         
+        if [[ "${ENVIRONMENT}" == "prod" ]]; then
+          args+=("--skip-migrations")
+        fi
+        
         case "${MODE}" in
           "start")
             args+=(
