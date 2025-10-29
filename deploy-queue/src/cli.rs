@@ -27,6 +27,10 @@ impl AsRef<str> for Environment {
 #[derive(Parser)]
 #[command(version, about, long_about)]
 pub struct Cli {
+    /// Skip running database migrations
+    #[arg(long, global = true)]
+    pub skip_migrations: bool,
+
     #[command(subcommand)]
     pub mode: Mode,
 }
