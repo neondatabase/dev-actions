@@ -280,10 +280,10 @@ pub async fn run_deploy_queue(mode: cli::Mode, skip_migrations: bool) -> Result<
     let db_client = create_db_connection().await?;
 
     // Run new migrations after connecting to DB (unless skipped)
-    if !skip_migrations {
-        run_migrations(&db_client).await?;
+    if skip_migrations {
+            info!("Skipping database migrations (--skip-migrations flag set)");
     } else {
-        info!("Skipping database migrations (--skip-migrations flag set)");
+            run_migrations(&db_client).await?;
     }
 
     match mode {
