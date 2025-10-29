@@ -19,7 +19,7 @@ pub async fn main() -> Result<()> {
     env_logger::Builder::from_env(log_env).init();
     let args = cli::Cli::parse();
 
-    run_deploy_queue(args.mode).await
+    run_deploy_queue(args.mode, args.skip_migrations).await
 }
 
 // We don't read all of the fields
@@ -275,12 +275,16 @@ pub async fn cancel_deployment(
     Ok(())
 }
 
-pub async fn run_deploy_queue(mode: cli::Mode) -> Result<()> {
+pub async fn run_deploy_queue(mode: cli::Mode, skip_migrations: bool) -> Result<()> {
     // Create a single database connection for all operations
     let db_client = create_db_connection().await?;
 
-    // Run new migrations after connecting to DB
-    run_migrations(&db_client).await?;
+    // Run new migrations after connecting to DB (unless skipped)
+    if !skip_migrations {
+        run_migrations(&db_client).await?;
+    } else {
+        info!("Skipping database migrations (--skip-migrations flag set)");
+    }
 
     match mode {
         cli::Mode::Start {
