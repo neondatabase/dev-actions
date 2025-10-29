@@ -30,7 +30,7 @@ pub struct Cli {
     /// Skip running database migrations
     #[arg(long, global = true)]
     pub skip_migrations: bool,
-    
+
     #[command(subcommand)]
     pub mode: Mode,
 }
