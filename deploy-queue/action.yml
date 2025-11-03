@@ -175,7 +175,7 @@ runs:
 
      - name: Send start notification to Slack
         id: send-slack-start
-        if: steps.run-deploy-queue.outcome == 'success' && inputs.mode == 'start'
+        if: steps.run-deploy-queue.outcome == 'success' && inputs.mode == 'start' && inputs.environment == 'prod'
         uses: slackapi/slack-github-action@e28cf165c92ffef168d23c5c9000cffc8a25e117 # v1.24.0
         with:
           channel-id: 'C09QDUK37QW' # channel lakebase-deploy-queue-stream
@@ -197,7 +197,7 @@ runs:
 
       - name: Send finish/cancel notification to Slack
         id: send-slack-finish-cancel
-        if: steps.run-deploy-queue.outcome == 'success' && (inputs.mode == 'finish' || inputs.mode == 'cancel')
+        if: steps.run-deploy-queue.outcome == 'success' && (inputs.mode == 'finish' || inputs.mode == 'cancel') && inputs.environment == 'prod'
         uses: slackapi/slack-github-action@e28cf165c92ffef168d23c5c9000cffc8a25e117 # v1.24.0
         with:
           channel-id: 'C09QDUK37QW' # channel lakebase-deploy-queue-stream
