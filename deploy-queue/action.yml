@@ -172,3 +172,47 @@ runs:
             exit 1
             ;;
         esac
+
+     - name: Send start notification to Slack
+        id: send-slack-start
+        if: steps.run-deploy-queue.outcome == 'success' && inputs.mode == 'start'
+        uses: slackapi/slack-github-action@e28cf165c92ffef168d23c5c9000cffc8a25e117 # v1.24.0
+        with:
+          channel-id: 'C09QDUK37QW' # channel lakebase-deploy-queue-stream
+          payload: |
+            {
+              "text": "🚀 Deployment Started",
+              "blocks": [
+                {
+                  "type": "section",
+                  "text": {
+                    "type": "mrkdwn",
+                    "text": "*🚀 Deployment Started*\n*Component*: ${{ inputs.component }}\n*Version*: ${{ inputs.version }}\n*Environment*: ${{ inputs.environment }}\n*Cloud Provider*: ${{ inputs.cloud-provider }}\n*Region*: ${{ inputs.region }}\n*Cell Index*: ${{ inputs.cell-index }}\n*Deployment ID*: ${{ steps.run-deploy-queue.outputs.deployment-id }}"
+                  }
+                }
+              ]
+            }
+        env:
+          SLACK_BOT_TOKEN: ${{ secrets.SLACK_BOT_TOKEN }}
+
+      - name: Send finish/cancel notification to Slack
+        id: send-slack-finish-cancel
+        if: steps.run-deploy-queue.outcome == 'success' && (inputs.mode == 'finish' || inputs.mode == 'cancel')
+        uses: slackapi/slack-github-action@e28cf165c92ffef168d23c5c9000cffc8a25e117 # v1.24.0
+        with:
+          channel-id: 'C09QDUK37QW' # channel lakebase-deploy-queue-stream
+          payload: |
+            {
+              "text": "${{ inputs.mode == 'finish' && 'Deployment Finished' || 'Deployment Cancelled' }}",
+              "blocks": [
+                {
+                  "type": "section",
+                  "text": {
+                    "type": "mrkdwn",
+                    "text": "${{ inputs.mode == 'finish' && 'Deployment Finished' || 'Deployment Cancelled' }}\n*Deployment ID*: ${{ inputs.deployment-id }}"
+                  }
+                }
+              ]
+            }
+        env:
+          SLACK_BOT_TOKEN: ${{ secrets.SLACK_BOT_TOKEN }}        
