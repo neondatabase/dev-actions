@@ -182,7 +182,7 @@ runs:
 
     - name: Send start notification to Slack
       id: send-slack-start
-      if: steps.run-deploy-queue.outcome == 'success' && inputs.mode == 'start' && inputs.slack-channel-id != ''
+      if: inputs.mode == 'start' && inputs.slack-channel-id != ''
       uses: slackapi/slack-github-action@91efab103c0de0a537f72a35f6b8cda0ee76bf0a # v2.1.1
       with:
         method: chat.postMessage
@@ -196,7 +196,7 @@ runs:
                 "type": "section",
                 "text": {
                   "type": "mrkdwn",
-                  "text": "🚀 *Deployment Started*\n*Component*: ${{ inputs.component }}\n*Version*: ${{ inputs.version }}\n*Environment*: ${{ inputs.environment }}\n*Cloud Provider*: ${{ inputs.cloud-provider }}\n*Region*: ${{ inputs.region }}\n*Cell Index*: ${{ inputs.cell-index }}\n*Deployment ID*: ${{ steps.run-deploy-queue.outputs.deployment-id }}"
+                  "text": "🚀 *Deployment Started* - ${{ steps.run-deploy-queue.outcome }} \n*Component*: ${{ inputs.component }}\n*Version*: ${{ inputs.version }}\n*Environment*: ${{ inputs.environment }}\n*Cloud Provider*: ${{ inputs.cloud-provider }}\n*Region*: ${{ inputs.region }}\n*Cell Index*: ${{ inputs.cell-index }}\n*Deployment ID*: ${{ steps.run-deploy-queue.outputs.deployment-id }}"
                 }
               },
               {
@@ -207,13 +207,16 @@ runs:
                     "text": ":github: <${{ inputs.url }}|View GitHub Actions Job>"
                   }
                 ]
+              },
+              {
+                "type": "divider"
               }
             ]
           }
 
     - name: Send finish/cancel notification to Slack
       id: send-slack-finish-cancel
-      if: steps.run-deploy-queue.outcome == 'success' && (inputs.mode == 'finish' || inputs.mode == 'cancel') && inputs.slack-channel-id != ''
+      if: (inputs.mode == 'finish' || inputs.mode == 'cancel') && inputs.slack-channel-id != ''
       uses: slackapi/slack-github-action@91efab103c0de0a537f72a35f6b8cda0ee76bf0a # v2.1.1
       with:
         method: chat.postMessage
@@ -227,8 +230,11 @@ runs:
                 "type": "section",
                 "text": {
                   "type": "mrkdwn",
-                  "text": "${{ inputs.mode == 'finish' && 'Deployment Finished' || 'Deployment Cancelled' }}\n*Deployment ID*: ${{ inputs.deployment-id }}"
+                  "text": "${{ inputs.mode == 'finish' && '✅ *Deployment Finished*' || '❌ *Deployment Cancelled*' }} - ${{ steps.run-deploy-queue.outcome }} \n*Deployment ID*: ${{ inputs.deployment-id }}"
                 }
+              },
+              {
+                "type": "divider"
               }
             ]
           }      
