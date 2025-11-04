@@ -176,11 +176,13 @@ runs:
     - name: Send start notification to Slack
       id: send-slack-start
       if: steps.run-deploy-queue.outcome == 'success' && inputs.mode == 'start' && inputs.environment == 'prod'
-      uses: slackapi/slack-github-action@e28cf165c92ffef168d23c5c9000cffc8a25e117 # v1.24.0
+      uses: slackapi/slack-github-action@91efab103c0de0a537f72a35f6b8cda0ee76bf0a # v2.1.1
       with:
-        channel-id: 'C09QDUK37QW' # channel lakebase-deploy-queue-stream
+        method: chat.postMessage
+        token: ${{ secrets.SLACK_BOT_TOKEN }}
         payload: |
           {
+            "channel": "C09QDUK37QW",
             "text": "🚀 Deployment Started",
             "blocks": [
               {
@@ -192,17 +194,17 @@ runs:
               }
             ]
           }
-      env:
-        SLACK_BOT_TOKEN: ${{ secrets.SLACK_BOT_TOKEN }}
 
     - name: Send finish/cancel notification to Slack
       id: send-slack-finish-cancel
       if: steps.run-deploy-queue.outcome == 'success' && (inputs.mode == 'finish' || inputs.mode == 'cancel') && inputs.environment == 'prod'
-      uses: slackapi/slack-github-action@e28cf165c92ffef168d23c5c9000cffc8a25e117 # v1.24.0
+      uses: slackapi/slack-github-action@91efab103c0de0a537f72a35f6b8cda0ee76bf0a # v2.1.1
       with:
-        channel-id: 'C09QDUK37QW' # channel lakebase-deploy-queue-stream
+        method: chat.postMessage
+        token: ${{ secrets.SLACK_BOT_TOKEN }}
         payload: |
           {
+            "channel": "C09QDUK37QW",
             "text": "${{ inputs.mode == 'finish' && 'Deployment Finished' || 'Deployment Cancelled' }}",
             "blocks": [
               {
@@ -213,6 +215,4 @@ runs:
                 }
               }
             ]
-          }
-      env:
-        SLACK_BOT_TOKEN: ${{ secrets.SLACK_BOT_TOKEN }}        
+          }      
