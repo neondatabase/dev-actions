@@ -37,6 +37,13 @@ inputs:
   cancellation-note:
     description: Cancellation note (for cancel mode)
     default: ''
+  slack-channel-id:
+    description: Slack channel ID to send notifications to
+    default: ''
+  slack-bot-token:
+    description: Slack bot token to use for sending notifications
+    default: ''
+
 
 outputs:
   deployment-id:
@@ -175,14 +182,14 @@ runs:
 
     - name: Send start notification to Slack
       id: send-slack-start
-      if: steps.run-deploy-queue.outcome == 'success' && inputs.mode == 'start' && inputs.environment == 'prod'
+      if: steps.run-deploy-queue.outcome == 'success' && inputs.mode == 'start' && inputs.slack-channel-id != ''
       uses: slackapi/slack-github-action@91efab103c0de0a537f72a35f6b8cda0ee76bf0a # v2.1.1
       with:
         method: chat.postMessage
-        token: ${{ secrets.SLACK_BOT_TOKEN }}
+        token: ${{ inputs.slack-bot-token }}
         payload: |
           {
-            "channel": "C09QDUK37QW",
+            "channel": ${{ inputs.slack-channel-id }},
             "text": "🚀 Deployment Started",
             "blocks": [
               {
@@ -197,14 +204,14 @@ runs:
 
     - name: Send finish/cancel notification to Slack
       id: send-slack-finish-cancel
-      if: steps.run-deploy-queue.outcome == 'success' && (inputs.mode == 'finish' || inputs.mode == 'cancel') && inputs.environment == 'prod'
+      if: steps.run-deploy-queue.outcome == 'success' && (inputs.mode == 'finish' || inputs.mode == 'cancel') && inputs.slack-channel-id != ''
       uses: slackapi/slack-github-action@91efab103c0de0a537f72a35f6b8cda0ee76bf0a # v2.1.1
       with:
         method: chat.postMessage
-        token: ${{ secrets.SLACK_BOT_TOKEN }}
+        token: ${{ inputs.slack-bot-token }}
         payload: |
           {
-            "channel": "C09QDUK37QW",
+            "channel": ${{ inputs.slack-channel-id }},
             "text": "${{ inputs.mode == 'finish' && 'Deployment Finished' || 'Deployment Cancelled' }}",
             "blocks": [
               {
