@@ -37,6 +37,13 @@ inputs:
   cancellation-note:
     description: Cancellation note (for cancel mode)
     default: ''
+  slack-channel-id:
+    description: Slack channel ID to send notifications to
+    default: ''
+  slack-bot-token:
+    description: Slack bot token to use for sending notifications
+    default: ''
+
 
 outputs:
   deployment-id:
@@ -172,3 +179,62 @@ runs:
             exit 1
             ;;
         esac
+
+    - name: Send start notification to Slack
+      id: send-slack-start
+      if: inputs.mode == 'start' && inputs.slack-channel-id != ''
+      uses: slackapi/slack-github-action@91efab103c0de0a537f72a35f6b8cda0ee76bf0a # v2.1.1
+      with:
+        method: chat.postMessage
+        token: ${{ inputs.slack-bot-token }}
+        payload: |
+          {
+            "channel": ${{ inputs.slack-channel-id }},
+            "text": "🚀 Deployment Started",
+            "blocks": [
+              {
+                "type": "section",
+                "text": {
+                  "type": "mrkdwn",
+                  "text": "🚀 *Deployment Started* - ${{ steps.run-deploy-queue.outcome }} \n*Component*: ${{ inputs.component }}\n*Version*: ${{ inputs.version }}\n*Environment*: ${{ inputs.environment }}\n*Cloud Provider*: ${{ inputs.cloud-provider }}\n*Region*: ${{ inputs.region }}\n*Cell Index*: ${{ inputs.cell-index }}\n*Deployment ID*: ${{ steps.run-deploy-queue.outputs.deployment-id }}"
+                }
+              },
+              {
+                "type": "context",
+                "elements": [
+                  {
+                    "type": "mrkdwn",
+                    "text": ":github: <${{ inputs.url }}|View GitHub Actions Job>"
+                  }
+                ]
+              },
+              {
+                "type": "divider"
+              }
+            ]
+          }
+
+    - name: Send finish/cancel notification to Slack
+      id: send-slack-finish-cancel
+      if: (inputs.mode == 'finish' || inputs.mode == 'cancel') && inputs.slack-channel-id != ''
+      uses: slackapi/slack-github-action@91efab103c0de0a537f72a35f6b8cda0ee76bf0a # v2.1.1
+      with:
+        method: chat.postMessage
+        token: ${{ inputs.slack-bot-token }}
+        payload: |
+          {
+            "channel": ${{ inputs.slack-channel-id }},
+            "text": "${{ inputs.mode == 'finish' && 'Deployment Finished' || 'Deployment Cancelled' }}",
+            "blocks": [
+              {
+                "type": "section",
+                "text": {
+                  "type": "mrkdwn",
+                  "text": "${{ inputs.mode == 'finish' && '✅ *Deployment Finished*' || '❌ *Deployment Cancelled*' }} - ${{ steps.run-deploy-queue.outcome }} \n*Deployment ID*: ${{ inputs.deployment-id }}"
+                }
+              },
+              {
+                "type": "divider"
+              }
+            ]
+          }      
