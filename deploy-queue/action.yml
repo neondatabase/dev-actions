@@ -196,8 +196,17 @@ runs:
                 "type": "section",
                 "text": {
                   "type": "mrkdwn",
-                  "text": "*🚀 Deployment Started*\n*Component*: ${{ inputs.component }}\n*Version*: ${{ inputs.version }}\n*Environment*: ${{ inputs.environment }}\n*Cloud Provider*: ${{ inputs.cloud-provider }}\n*Region*: ${{ inputs.region }}\n*Cell Index*: ${{ inputs.cell-index }}\n*Deployment ID*: ${{ steps.run-deploy-queue.outputs.deployment-id }}"
+                  "text": "🚀 *Deployment Started*\n*Component*: ${{ inputs.component }}\n*Version*: ${{ inputs.version }}\n*Environment*: ${{ inputs.environment }}\n*Cloud Provider*: ${{ inputs.cloud-provider }}\n*Region*: ${{ inputs.region }}\n*Cell Index*: ${{ inputs.cell-index }}\n*Deployment ID*: ${{ steps.run-deploy-queue.outputs.deployment-id }}"
                 }
+              },
+              {
+                "type": "context",
+                "elements": [
+                  {
+                    "type": "mrkdwn",
+                    "text": ":github: <${{ inputs.url }}|View GitHub Actions Job>"
+                  }
+                ]
               }
             ]
           }
