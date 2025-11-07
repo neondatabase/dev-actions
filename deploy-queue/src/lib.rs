@@ -818,10 +818,10 @@ pub async fn run_deploy_queue(mode: cli::Mode, skip_migrations: bool) -> Result<
                 cancel_deployment(&db_client, deployment_id, cancellation_note.as_deref()).await?;
                 info!("Deployment {} cancelled", deployment_id);
             } else if let Some(version) = version {
-                // Cancel by component + version + environment
+                // Cancel by environment + component + version
                 info!(
-                    "Cancelling all deployments for component {} and version {} in environment {}",
-                    component, version, environment
+                    "Cancelling all deployments in environment {} for component {} and version {}",
+                    environment, component, version
                 );
                 cancel_deployments_by_component_version(
                     &db_client,
