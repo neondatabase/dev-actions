@@ -817,7 +817,7 @@ pub async fn run_deploy_queue(mode: cli::Mode, skip_migrations: bool) -> Result<
             if let Some(deployment_id) = deployment_id {
                 cancel_deployment(&db_client, deployment_id, cancellation_note.as_deref()).await?;
                 info!("Deployment {} cancelled", deployment_id);
-            } else if let Some(version) = version {
+            } else if let (Some(environment), Some(component), Some(version)) = (&environment, &component, &version) {
                 // Cancel by environment + component + version
                 info!(
                     "Cancelling all deployments in environment {} for component {} and version {}",
@@ -826,26 +826,31 @@ pub async fn run_deploy_queue(mode: cli::Mode, skip_migrations: bool) -> Result<
                 cancel_deployments_by_component_version(
                     &db_client,
                     environment.as_ref(),
-                    &component,
-                    &version,
+                    component,
+                    version,
                     cancellation_note.as_deref(),
                 )
                 .await?;
-            } else {
+            } else if let (Some(environment), Some(cloud_provider), Some(region)) = (&environment, &cloud_provider, &region) {
                 // Cancel by location (environment + cloud_provider + region + optional cell_index)
                 info!(
-                    "Cancelling all deployments for environment {} on cloud provider {} in region {} and cell index {}",
-                    environment, cloud_provider, region, cell_index
+                    "Cancelling all deployments for environment {} on cloud provider {} in region {}{}",
+                    environment,
+                    cloud_provider,
+                    region,
+                    cell_index.map(|cell_index| format!(" and cell index {}", cell_index)).unwrap_or_default()
                 );
                 cancel_deployments_by_location(
                     &db_client,
                     environment.as_ref(),
-                    &cloud_provider,
-                    &region,
-                    Some(cell_index),
+                    cloud_provider,
+                    region,
+                    cell_index,
                     cancellation_note.as_deref(),
                 )
                 .await?;
+            } else {
+                anyhow::bail!("Either deployment-id OR (environment + component + version) OR (environment + provider + region) must be provided for cancel mode");
             }
         }
         cli::Mode::Info { deployment_id } => {
