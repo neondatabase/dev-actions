@@ -518,6 +518,100 @@ pub async fn cancel_deployment(
     Ok(())
 }
 
+pub async fn cancel_deployments_by_component_version(
+    client: &Pool<Postgres>,
+    environment: &str,
+    component: &str,
+    version: &str,
+    cancellation_note: Option<&str>,
+) -> Result<u64> {
+    let result = sqlx::query!(
+        "UPDATE deployments 
+         SET cancellation_timestamp = NOW(), cancellation_note = $1 
+         WHERE environment = $2 
+           AND component = $3 
+           AND version = $4",
+        cancellation_note,
+        environment,
+        component,
+        version
+    )
+    .execute(client)
+    .await?;
+
+    let rows_affected = result.rows_affected();
+    log::info!(
+        "Cancelled {} deployment(s) for component {} version {} in environment {}",
+        rows_affected,
+        component,
+        version,
+        environment
+    );
+    Ok(rows_affected)
+}
+
+pub async fn cancel_deployments_by_location(
+    client: &Pool<Postgres>,
+    environment: &str,
+    cloud_provider: &str,
+    region: &str,
+    cell_index: Option<i32>,
+    cancellation_note: Option<&str>,
+) -> Result<u64> {
+    let result = if let Some(cell_idx) = cell_index {
+        sqlx::query!(
+            "UPDATE deployments 
+             SET cancellation_timestamp = NOW(), cancellation_note = $1 
+             WHERE environment = $2 
+               AND cloud_provider = $3 
+               AND region = $4
+               AND cell_index = $5",
+            cancellation_note,
+            environment,
+            cloud_provider,
+            region,
+            cell_idx
+        )
+        .execute(client)
+        .await?
+    } else {
+        sqlx::query!(
+            "UPDATE deployments 
+             SET cancellation_timestamp = NOW(), cancellation_note = $1 
+             WHERE environment = $2 
+               AND cloud_provider = $3 
+               AND region = $4",
+            cancellation_note,
+            environment,
+            cloud_provider,
+            region
+        )
+        .execute(client)
+        .await?
+    };
+
+    let rows_affected = result.rows_affected();
+    if let Some(cell_idx) = cell_index {
+        log::info!(
+            "Cancelled {} deployment(s) in environment {} / {} / {} / cell {}",
+            rows_affected,
+            environment,
+            cloud_provider,
+            region,
+            cell_idx
+        );
+    } else {
+        log::info!(
+            "Cancelled {} deployment(s) in environment {} / {} / {}",
+            rows_affected,
+            environment,
+            cloud_provider,
+            region
+        );
+    }
+    Ok(rows_affected)
+}
+
 pub async fn get_outlier_deployments(client: &Pool<Postgres>) -> Result<Vec<OutlierDeployment>> {
     let rows = sqlx::query_file!("queries/active_outliers.sql")
         .fetch_all(client)
@@ -713,9 +807,46 @@ pub async fn run_deploy_queue(mode: cli::Mode, skip_migrations: bool) -> Result<
         cli::Mode::Cancel {
             deployment_id,
             cancellation_note,
+            environment,
+            cloud_provider,
+            region,
+            cell_index,
+            component,
+            version,
         } => {
-            cancel_deployment(&db_client, deployment_id, cancellation_note.as_deref()).await?;
-            info!("Deployment {} cancelled", deployment_id);
+            if let Some(deployment_id) = deployment_id {
+                cancel_deployment(&db_client, deployment_id, cancellation_note.as_deref()).await?;
+                info!("Deployment {} cancelled", deployment_id);
+            } else if let Some(version) = version {
+                // Cancel by component + version + environment
+                info!(
+                    "Cancelling all deployments for component {} and version {} in environment {}",
+                    component, version, environment
+                );
+                cancel_deployments_by_component_version(
+                    &db_client,
+                    environment.as_ref(),
+                    &component,
+                    &version,
+                    cancellation_note.as_deref(),
+                )
+                .await?;
+            } else {
+                // Cancel by location (environment + cloud_provider + region + optional cell_index)
+                info!(
+                    "Cancelling all deployments for environment {} on cloud provider {} in region {} and cell index {}",
+                    environment, cloud_provider, region, cell_index
+                );
+                cancel_deployments_by_location(
+                    &db_client,
+                    environment.as_ref(),
+                    &cloud_provider,
+                    &region,
+                    Some(cell_index),
+                    cancellation_note.as_deref(),
+                )
+                .await?;
+            }
         }
         cli::Mode::Info { deployment_id } => {
             show_deployment_info(&db_client, deployment_id).await?;

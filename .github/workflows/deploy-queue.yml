@@ -536,3 +536,124 @@ jobs:
         with:
           mode: info
           deployment-id: ${{ steps.cancel-deployment.outputs.deployment-id }}
+
+      # ==============================================================================
+      # Test 5: Cancel Multiple Deployments by Component + Version + Environment
+      # ==============================================================================
+
+      - name: Start deployment 1 for bulk cancel test (aws us-east-1)
+        id: bulk-cancel-1
+        uses: ./deploy-queue
+        with:
+          mode: start
+          environment: dev
+          cloud-provider: aws
+          region: us-east-1
+          cell-index: 1
+          component: bulk-test-component
+          version: v4.0.0
+          url: https://github.com/test-bulk-1
+
+      - name: Start deployment 2 for bulk cancel test (aws us-west-2)
+        id: bulk-cancel-2
+        uses: ./deploy-queue
+        with:
+          mode: start
+          environment: dev
+          cloud-provider: aws
+          region: us-west-2
+          cell-index: 2
+          component: bulk-test-component
+          version: v4.0.0
+          url: https://github.com/test-bulk-2
+
+      - name: Start deployment 3 for bulk cancel test (azure east-us)
+        id: bulk-cancel-3
+        uses: ./deploy-queue
+        with:
+          mode: start
+          environment: dev
+          cloud-provider: azure
+          region: east-us
+          cell-index: 1
+          component: bulk-test-component
+          version: v4.0.0
+          url: https://github.com/test-bulk-3
+
+      - name: Start deployment 4 with different version (should NOT be cancelled)
+        id: bulk-cancel-different-version
+        uses: ./deploy-queue
+        with:
+          mode: start
+          environment: dev
+          cloud-provider: aws
+          region: us-east-1
+          cell-index: 1
+          component: bulk-test-component
+          version: v5.0.0
+          url: https://github.com/test-bulk-different
+
+      - name: Cancel all deployments for bulk-test-component v4.0.0 in dev
+        uses: ./deploy-queue
+        with:
+          mode: cancel
+          environment: dev
+          component: bulk-test-component
+          version: v4.0.0
+          cancellation-note: Bulk cancellation test - cancel all v4.0.0
+
+      - name: Verify deployment 1 was cancelled
+        run: |
+          INFO=$(./deploy-queue/deploy-queue-$(uname -m)-unknown-linux-musl/deploy-queue info ${{ steps.bulk-cancel-1.outputs.deployment-id }})
+          if echo "$INFO" | grep -q "Cancelled"; then
+            echo "✓ Deployment 1 was correctly cancelled"
+          else
+            echo "✗ Deployment 1 should have been cancelled"
+            exit 1
+          fi
+        env:
+          DEPLOY_QUEUE_DATABASE_URL: ${{ env.DEPLOY_QUEUE_DATABASE_URL }}
+
+      - name: Verify deployment 2 was cancelled
+        run: |
+          INFO=$(./deploy-queue/deploy-queue-$(uname -m)-unknown-linux-musl/deploy-queue info ${{ steps.bulk-cancel-2.outputs.deployment-id }})
+          if echo "$INFO" | grep -q "Cancelled"; then
+            echo "✓ Deployment 2 was correctly cancelled"
+          else
+            echo "✗ Deployment 2 should have been cancelled"
+            exit 1
+          fi
+        env:
+          DEPLOY_QUEUE_DATABASE_URL: ${{ env.DEPLOY_QUEUE_DATABASE_URL }}
+
+      - name: Verify deployment 3 was cancelled
+        run: |
+          INFO=$(./deploy-queue/deploy-queue-$(uname -m)-unknown-linux-musl/deploy-queue info ${{ steps.bulk-cancel-3.outputs.deployment-id }})
+          if echo "$INFO" | grep -q "Cancelled"; then
+            echo "✓ Deployment 3 was correctly cancelled"
+          else
+            echo "✗ Deployment 3 should have been cancelled"
+            exit 1
+          fi
+        env:
+          DEPLOY_QUEUE_DATABASE_URL: ${{ env.DEPLOY_QUEUE_DATABASE_URL }}
+
+      - name: Verify deployment 4 (different version) was NOT cancelled
+        run: |
+          INFO=$(./deploy-queue/deploy-queue-$(uname -m)-unknown-linux-musl/deploy-queue info ${{ steps.bulk-cancel-different-version.outputs.deployment-id }})
+          if echo "$INFO" | grep -q "Cancelled"; then
+            echo "✗ Deployment 4 should NOT have been cancelled (different version)"
+            exit 1
+          else
+            echo "✓ Deployment 4 was correctly NOT cancelled"
+          fi
+        env:
+          DEPLOY_QUEUE_DATABASE_URL: ${{ env.DEPLOY_QUEUE_DATABASE_URL }}
+
+      - name: Finish deployment 4 (cleanup)
+        uses: ./deploy-queue
+        with:
+          mode: finish
+          deployment-id: ${{ steps.bulk-cancel-different-version.outputs.deployment-id }}
+
+          
