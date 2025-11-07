@@ -80,22 +80,22 @@ pub enum Mode {
         cancellation_note: Option<String>,
         #[arg(long)]
         /// Component to cancel
-        component: String,
+        component: Option<String>,
         #[arg(long)]
         /// Version of the component to cancel
         version: Option<String>,
         #[arg(long)]
         /// Environment where to cancel
-        environment: Environment,
+        environment: Option<Environment>,
         #[arg(long = "provider")]
         /// Cloud provider to cancel
-        cloud_provider: String,
+        cloud_provider: Option<String>,
         #[arg(long)]
         /// Region to cancel
-        region: String,
+        region: Option<String>,
         #[arg(long)]
         /// Cell index to cancel
-        cell_index: i32,
+        cell_index: Option<i32>,
     },
     /// Get info about a deployment
     Info {
