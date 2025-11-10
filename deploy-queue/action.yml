@@ -202,7 +202,17 @@ runs:
                 "type": "section",
                 "text": {
                   "type": "mrkdwn",
-                  "text": "🚀 *Deployment Started* - ${{ steps.run-deploy-queue.outcome }} \n*Component*: ${{ inputs.component }} ${{ inputs.version }}\n*Region*: ${{ inputs.environment }}-${{ inputs.cloud-provider }}-${{ inputs.region }}-cell-${{ inputs.cell-index }}\n*Deployment ID*: ${{ steps.run-deploy-queue.outputs.deployment-id }}"
+                  "text": ${{ format(
+                    '🚀 *Deployment Started* - {0} \n*Component*: {1} {2}\n*Region*: {3}-{4}-{5}-cell-{6}\n*Deployment ID*: {7}',
+                    steps.run-deploy-queue.outcome,
+                    inputs.component,
+                    inputs.version,
+                    inputs.environment,
+                    inputs.cloud-provider,
+                    inputs.region,
+                    inputs.cell-index,
+                    steps.run-deploy-queue.outputs.deployment-id
+                  ) }}
                 }
               },
               {
@@ -237,7 +247,12 @@ runs:
                 "type": "section",
                 "text": {
                   "type": "mrkdwn",
-                  "text": "${{ inputs.mode == 'finish' && '✅ *Deployment Finished*' || '❌ *Deployment Cancelled*' }} - ${{ steps.run-deploy-queue.outcome }} \n*Deployment ID*: ${{ inputs.deployment-id }}"
+                  "text": ${{ format(
+                    '{0} - {1} \n*Deployment ID*: {2}',
+                    inputs.mode == 'finish' && '✅ *Deployment Finished*' || '❌ *Deployment Cancelled*',
+                    steps.run-deploy-queue.outcome,
+                    inputs.deployment-id
+                  ) }}
                 }
               },
               {
