@@ -76,6 +76,7 @@ pub enum Mode {
     Cancel {
         /// Deployment ID to cancel
         deployment_id: Option<i64>,
+        #[arg(long)]
         /// Cancellation note for this deployment
         cancellation_note: Option<String>,
         #[arg(long)]

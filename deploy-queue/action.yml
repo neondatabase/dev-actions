@@ -221,9 +221,11 @@ runs:
               fi
             fi
 
+            # Add cancellation note as a flag (to be used for both single and bulk cancellation)
             if [[ -n "${CANCELLATION_NOTE:-}" ]]; then
-              args+=("${CANCELLATION_NOTE}")
+              args+=("--cancellation-note" "${CANCELLATION_NOTE}")
             fi
+
             deploy-queue "${args[@]}"
             ;;
           "info")
