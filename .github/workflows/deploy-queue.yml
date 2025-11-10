@@ -580,8 +580,8 @@ jobs:
           version: v4.0.0
           url: https://github.com/test-bulk-3
 
-      - name: Start deployment 4 for a different component (should NOT be cancelled)
-        id: bulk-cancel-different-component
+      - name: Start deployment 4 for a different version (should NOT be cancelled)
+        id: bulk-cancel-different-version
         uses: ./deploy-queue
         with:
           mode: start
@@ -589,8 +589,8 @@ jobs:
           cloud-provider: aws
           region: us-west-1
           cell-index: 1
-          component: different-component
-          version: v4.0.0
+          component: bulk-test-component
+          version: v4.0.1
           url: https://github.com/test-bulk-different
 
       - name: Cancel all deployments for bulk-test-component v4.0.0 in dev
@@ -638,11 +638,11 @@ jobs:
         env:
           DEPLOY_QUEUE_DATABASE_URL: ${{ env.DEPLOY_QUEUE_DATABASE_URL }}
 
-      - name: Verify deployment 4 (different component) was NOT cancelled
+      - name: Verify deployment 4 (different version) was NOT cancelled
         run: |
           INFO=$(./deploy-queue/deploy-queue-$(uname -m)-unknown-linux-musl/deploy-queue info ${{ steps.bulk-cancel-different-version.outputs.deployment-id }})
           if echo "$INFO" | grep -q "cancelled"; then
-            echo "✗ Deployment 4 should NOT have been cancelled (different component)"
+            echo "✗ Deployment 4 should NOT have been cancelled (different version)"
             exit 1
           else
             echo "✓ Deployment 4 was correctly NOT cancelled"
