@@ -604,11 +604,8 @@ jobs:
 
       - name: Verify deployment 1 was cancelled
         run: |
-          INFO=$(./deploy-queue/deploy-queue-$(uname -m)-unknown-linux-musl/deploy-queue info ${{ steps.bulk-cancel-1.outputs.deployment-id }})
-          echo "DEBUG - Deployment 1 info:"
-          echo "$INFO"
-          
-          if echo "$INFO" | grep -q "Cancelled"; then
+          INFO=$(./deploy-queue/deploy-queue-$(uname -m)-unknown-linux-musl/deploy-queue info ${{ steps.bulk-cancel-1.outputs.deployment-id }})          
+          if echo "$INFO" | grep -q "cancelled"; then
             echo "✓ Deployment 1 was correctly cancelled"
           else
             echo "✗ Deployment 1 should have been cancelled"
@@ -620,7 +617,7 @@ jobs:
       - name: Verify deployment 2 was cancelled
         run: |
           INFO=$(./deploy-queue/deploy-queue-$(uname -m)-unknown-linux-musl/deploy-queue info ${{ steps.bulk-cancel-2.outputs.deployment-id }})
-          if echo "$INFO" | grep -q "Cancelled"; then
+          if echo "$INFO" | grep -q "cancelled"; then
             echo "✓ Deployment 2 was correctly cancelled"
           else
             echo "✗ Deployment 2 should have been cancelled"
@@ -632,7 +629,7 @@ jobs:
       - name: Verify deployment 3 was cancelled
         run: |
           INFO=$(./deploy-queue/deploy-queue-$(uname -m)-unknown-linux-musl/deploy-queue info ${{ steps.bulk-cancel-3.outputs.deployment-id }})
-          if echo "$INFO" | grep -q "Cancelled"; then
+          if echo "$INFO" | grep -q "cancelled"; then
             echo "✓ Deployment 3 was correctly cancelled"
           else
             echo "✗ Deployment 3 should have been cancelled"
@@ -644,7 +641,7 @@ jobs:
       - name: Verify deployment 4 (different component) was NOT cancelled
         run: |
           INFO=$(./deploy-queue/deploy-queue-$(uname -m)-unknown-linux-musl/deploy-queue info ${{ steps.bulk-cancel-different-version.outputs.deployment-id }})
-          if echo "$INFO" | grep -q "Cancelled"; then
+          if echo "$INFO" | grep -q "cancelled"; then
             echo "✗ Deployment 4 should NOT have been cancelled (different component)"
             exit 1
           else
