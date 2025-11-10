@@ -558,7 +558,7 @@ pub async fn cancel_deployments_by_location(
     cell_index: Option<i32>,
     cancellation_note: Option<&str>,
 ) -> Result<u64> {
-    let result = if let Some(cell_idx) = cell_index {
+    let result = if let Some(cell_index) = cell_index {
         sqlx::query!(
             "UPDATE deployments 
              SET cancellation_timestamp = NOW(), cancellation_note = $1 
@@ -570,7 +570,7 @@ pub async fn cancel_deployments_by_location(
             environment,
             cloud_provider,
             region,
-            cell_idx
+            cell_index
         )
         .execute(client)
         .await?
@@ -591,14 +591,14 @@ pub async fn cancel_deployments_by_location(
     };
 
     let rows_affected = result.rows_affected();
-    if let Some(cell_idx) = cell_index {
+    if let Some(cell_index) = cell_index {
         log::info!(
             "Cancelled {} deployment(s) in environment {} / {} / {} / cell {}",
             rows_affected,
             environment,
             cloud_provider,
             region,
-            cell_idx
+            cell_index
         );
     } else {
         log::info!(
