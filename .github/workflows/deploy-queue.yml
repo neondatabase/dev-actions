@@ -587,7 +587,7 @@ jobs:
           mode: start
           environment: dev
           cloud-provider: aws
-          region: us-east-1
+          region: us-west-1
           cell-index: 1
           component: different-component
           version: v4.0.0
