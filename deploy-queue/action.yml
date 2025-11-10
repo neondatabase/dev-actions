@@ -196,7 +196,7 @@ runs:
                 "type": "section",
                 "text": {
                   "type": "mrkdwn",
-                  "text": "🚀 *Deployment Started* - ${{ steps.run-deploy-queue.outcome }} \n*Component*: ${{ inputs.component }}\n*Version*: ${{ inputs.version }}\n*Environment*: ${{ inputs.environment }}\n*Cloud Provider*: ${{ inputs.cloud-provider }}\n*Region*: ${{ inputs.region }}\n*Cell Index*: ${{ inputs.cell-index }}\n*Deployment ID*: ${{ steps.run-deploy-queue.outputs.deployment-id }}"
+                  "text": "🚀 *Deployment Started* - ${{ steps.run-deploy-queue.outcome }} \n*Component*: ${{ inputs.component }} ${{ inputs.version }}\n*Region*: ${{ inputs.environment }}-${{ inputs.cloud-provider }}-${{ inputs.region }}-cell-${{ inputs.cell-index }}\n*Deployment ID*: ${{ steps.run-deploy-queue.outputs.deployment-id }}"
                 }
               },
               {
