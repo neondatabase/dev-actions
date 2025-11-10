@@ -605,6 +605,9 @@ jobs:
       - name: Verify deployment 1 was cancelled
         run: |
           INFO=$(./deploy-queue/deploy-queue-$(uname -m)-unknown-linux-musl/deploy-queue info ${{ steps.bulk-cancel-1.outputs.deployment-id }})
+          echo "DEBUG - Deployment 1 info:"
+          echo "$INFO"
+          
           if echo "$INFO" | grep -q "Cancelled"; then
             echo "✓ Deployment 1 was correctly cancelled"
           else
