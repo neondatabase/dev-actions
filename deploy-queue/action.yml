@@ -43,12 +43,18 @@ inputs:
   slack-bot-token:
     description: Slack bot token to use for sending notifications
     default: ''
+  slack-start-message-id:
+    description: Slack message ID (timestamp) from the start notification to thread finish/cancel messages (for finish/cancel modes)
+    default: ''
 
 
 outputs:
   deployment-id:
     description: ID of the created deployment (only set for start mode)
     value: ${{ steps.run-deploy-queue.outputs.deployment-id }}
+  slack-start-message-id:
+    description: Slack message ID (timestamp) of the start notification (only set for start mode with Slack notifications enabled)
+    value: ${{ steps.send-slack-start.outputs.ts }}
 
 runs:
   using: "composite"
@@ -224,6 +230,7 @@ runs:
         payload: |
           {
             "channel": ${{ inputs.slack-channel-id }},
+            ${{ inputs.slack-start-message-id != '' && format('"thread_ts": "{0}",', inputs.slack-start-message-id) || '' }}
             "text": "${{ inputs.mode == 'finish' && 'Deployment Finished' || 'Deployment Cancelled' }}",
             "blocks": [
               {
