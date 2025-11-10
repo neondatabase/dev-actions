@@ -43,12 +43,18 @@ inputs:
   slack-bot-token:
     description: Slack bot token to use for sending notifications
     default: ''
+  slack-start-message-id:
+    description: Slack message ID (timestamp) from the start notification to thread finish/cancel messages (for finish/cancel modes)
+    default: ''
 
 
 outputs:
   deployment-id:
     description: ID of the created deployment (only set for start mode)
     value: ${{ steps.run-deploy-queue.outputs.deployment-id }}
+  slack-start-message-id:
+    description: Slack message ID (timestamp) of the start notification (only set for start mode with Slack notifications enabled)
+    value: ${{ steps.send-slack-start.outputs.ts }}
 
 runs:
   using: "composite"
@@ -196,7 +202,17 @@ runs:
                 "type": "section",
                 "text": {
                   "type": "mrkdwn",
-                  "text": "🚀 *Deployment Started* - ${{ steps.run-deploy-queue.outcome }} \n*Component*: ${{ inputs.component }}\n*Version*: ${{ inputs.version }}\n*Environment*: ${{ inputs.environment }}\n*Cloud Provider*: ${{ inputs.cloud-provider }}\n*Region*: ${{ inputs.region }}\n*Cell Index*: ${{ inputs.cell-index }}\n*Deployment ID*: ${{ steps.run-deploy-queue.outputs.deployment-id }}"
+                  "text": ${{ format(
+                    '🚀 *Deployment Started* - {0} \n*Component*: {1} {2}\n*Region*: {3}-{4}-{5}-cell-{6}\n*Deployment ID*: {7}',
+                    steps.run-deploy-queue.outcome,
+                    inputs.component,
+                    inputs.version,
+                    inputs.environment,
+                    inputs.cloud-provider,
+                    inputs.region,
+                    inputs.cell-index,
+                    steps.run-deploy-queue.outputs.deployment-id
+                  ) }}
                 }
               },
               {
@@ -224,13 +240,19 @@ runs:
         payload: |
           {
             "channel": ${{ inputs.slack-channel-id }},
+            ${{ inputs.slack-start-message-id != '' && format('"thread_ts": "{0}",', inputs.slack-start-message-id) || '' }}
             "text": "${{ inputs.mode == 'finish' && 'Deployment Finished' || 'Deployment Cancelled' }}",
             "blocks": [
               {
                 "type": "section",
                 "text": {
                   "type": "mrkdwn",
-                  "text": "${{ inputs.mode == 'finish' && '✅ *Deployment Finished*' || '❌ *Deployment Cancelled*' }} - ${{ steps.run-deploy-queue.outcome }} \n*Deployment ID*: ${{ inputs.deployment-id }}"
+                  "text": ${{ format(
+                    '{0} - {1} \n*Deployment ID*: {2}',
+                    inputs.mode == 'finish' && '✅ *Deployment Finished*' || '❌ *Deployment Cancelled*',
+                    steps.run-deploy-queue.outcome,
+                    inputs.deployment-id
+                  ) }}
                 }
               },
               {
