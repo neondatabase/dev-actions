@@ -75,9 +75,28 @@ pub enum Mode {
     /// Cancel deployment for a component
     Cancel {
         /// Deployment ID to cancel
-        deployment_id: i64,
+        deployment_id: Option<i64>,
+        #[arg(long)]
         /// Cancellation note for this deployment
         cancellation_note: Option<String>,
+        #[arg(long)]
+        /// Component to cancel
+        component: Option<String>,
+        #[arg(long)]
+        /// Version of the component to cancel
+        version: Option<String>,
+        #[arg(long)]
+        /// Environment where to cancel
+        environment: Option<Environment>,
+        #[arg(long = "provider")]
+        /// Cloud provider to cancel
+        cloud_provider: Option<String>,
+        #[arg(long)]
+        /// Region to cancel
+        region: Option<String>,
+        #[arg(long)]
+        /// Cell index to cancel
+        cell_index: Option<i32>,
     },
     /// Get info about a deployment
     Info {

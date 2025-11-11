@@ -11,7 +11,8 @@ mod deployment_fixtures;
 // For binaries, we need to compile them as a library for testing
 extern crate deploy_queue;
 use deploy_queue::{
-    Deployment, cancel_deployment, finish_deployment, get_deployment_info,
+    Deployment, cancel_deployment, cancel_deployments_by_component_version,
+    cancel_deployments_by_location, finish_deployment, get_deployment_info,
     insert_deployment_record, start_deployment,
 };
 
@@ -609,6 +610,334 @@ async fn test_immutable_fields_cannot_be_modified() -> Result<()> {
     assert!(
         result.is_ok(),
         "Should be able to modify start_timestamp (mutable field)"
+    );
+
+    Ok(())
+}
+
+#[tokio::test]
+async fn test_cancel_deployments_by_component_version() -> Result<()> {
+    let pool = database_helpers::setup_test_db().await?;
+
+    // Create test deployments for the same component/version across different regions
+    let environment = "dev";
+    let component = "test-component-cancel-cv";
+    let version = "v1.0.0";
+
+    // Create 3 deployments: 2 for aws, 1 for azure
+    let deployment_1 = Deployment {
+        environment: environment.to_string(),
+        cloud_provider: "aws".to_string(),
+        region: "us-east-1".to_string(),
+        cell_index: 1,
+        component: component.to_string(),
+        version: Some(version.to_string()),
+        ..Default::default()
+    };
+
+    let deployment_2 = Deployment {
+        environment: environment.to_string(),
+        cloud_provider: "aws".to_string(),
+        region: "us-west-2".to_string(),
+        cell_index: 2,
+        component: component.to_string(),
+        version: Some(version.to_string()),
+        ..Default::default()
+    };
+
+    let deployment_3 = Deployment {
+        environment: environment.to_string(),
+        cloud_provider: "azure".to_string(),
+        region: "east-us".to_string(),
+        cell_index: 1,
+        component: component.to_string(),
+        version: Some(version.to_string()),
+        ..Default::default()
+    };
+
+    // Create a deployment with different version (should NOT be cancelled)
+    let deployment_4 = Deployment {
+        environment: environment.to_string(),
+        cloud_provider: "aws".to_string(),
+        region: "us-east-1".to_string(),
+        cell_index: 1,
+        component: component.to_string(),
+        version: Some("v2.0.0".to_string()),
+        ..Default::default()
+    };
+
+    let id1 = insert_deployment_record(&pool, deployment_1).await?;
+    let id2 = insert_deployment_record(&pool, deployment_2).await?;
+    let id3 = insert_deployment_record(&pool, deployment_3).await?;
+    let id4 = insert_deployment_record(&pool, deployment_4).await?;
+
+    // Start one of them to make it running
+    start_deployment(&pool, id2).await?;
+
+    // Cancel all deployments for this component/version/environment
+    let cancellation_note = "Cancelling test-component-cancel-cv v1.0.0";
+    let cancelled_count = cancel_deployments_by_component_version(
+        &pool,
+        environment,
+        component,
+        version,
+        Some(cancellation_note),
+    )
+    .await?;
+
+    // Should have cancelled 3 deployments (id1, id2, id3)
+    assert_eq!(cancelled_count, 3, "Should cancel 3 deployments");
+
+    // Verify deployments 1, 2, 3 are cancelled
+    for deployment_id in [id1, id2, id3] {
+        let row = sqlx::query!(
+            "SELECT cancellation_timestamp, cancellation_note FROM deployments WHERE id = $1",
+            deployment_id
+        )
+        .fetch_one(&pool)
+        .await?;
+        assert!(
+            row.cancellation_timestamp.is_some(),
+            "Deployment {} should be cancelled",
+            deployment_id
+        );
+        assert_eq!(
+            row.cancellation_note.as_deref(),
+            Some(cancellation_note),
+            "Deployment {} should have cancellation note",
+            deployment_id
+        );
+    }
+
+    // Verify deployment 4 (different version) is NOT cancelled
+    let row = sqlx::query!(
+        "SELECT cancellation_timestamp FROM deployments WHERE id = $1",
+        id4
+    )
+    .fetch_one(&pool)
+    .await?;
+    assert!(
+        row.cancellation_timestamp.is_none(),
+        "Deployment 4 (different version) should NOT be cancelled"
+    );
+
+    Ok(())
+}
+
+#[tokio::test]
+async fn test_cancel_deployments_by_location() -> Result<()> {
+    let pool = database_helpers::setup_test_db().await?;
+
+    // Create test deployments in the same location across different components
+    let environment = "dev";
+    let cloud_provider = "aws";
+    let region = "us-east-1";
+    let cell_index = 5;
+
+    // Create 3 deployments in the same location with different components
+    let deployment_1 = Deployment {
+        environment: environment.to_string(),
+        cloud_provider: cloud_provider.to_string(),
+        region: region.to_string(),
+        cell_index,
+        component: "compute-node".to_string(),
+        version: Some("v1.0.0".to_string()),
+        ..Default::default()
+    };
+
+    let deployment_2 = Deployment {
+        environment: environment.to_string(),
+        cloud_provider: cloud_provider.to_string(),
+        region: region.to_string(),
+        cell_index,
+        component: "storage-controller".to_string(),
+        version: Some("v2.0.0".to_string()),
+        ..Default::default()
+    };
+
+    let deployment_3 = Deployment {
+        environment: environment.to_string(),
+        cloud_provider: cloud_provider.to_string(),
+        region: region.to_string(),
+        cell_index,
+        component: "proxy".to_string(),
+        version: Some("v3.0.0".to_string()),
+        ..Default::default()
+    };
+
+    // Create a deployment in the same region but different cell_index (should NOT be cancelled)
+    let deployment_4 = Deployment {
+        environment: environment.to_string(),
+        cloud_provider: cloud_provider.to_string(),
+        region: region.to_string(),
+        cell_index: 99,
+        component: "compute-node".to_string(),
+        version: Some("v1.0.0".to_string()),
+        ..Default::default()
+    };
+
+    // Create a deployment in different region (should NOT be cancelled)
+    let deployment_5 = Deployment {
+        environment: environment.to_string(),
+        cloud_provider: cloud_provider.to_string(),
+        region: "us-west-2".to_string(),
+        cell_index,
+        component: "compute-node".to_string(),
+        version: Some("v1.0.0".to_string()),
+        ..Default::default()
+    };
+
+    let id1 = insert_deployment_record(&pool, deployment_1).await?;
+    let id2 = insert_deployment_record(&pool, deployment_2).await?;
+    let id3 = insert_deployment_record(&pool, deployment_3).await?;
+    let id4 = insert_deployment_record(&pool, deployment_4).await?;
+    let id5 = insert_deployment_record(&pool, deployment_5).await?;
+
+    // Start one to make it running
+    start_deployment(&pool, id1).await?;
+
+    // Cancel all deployments in this location (with cell_index specified)
+    let cancellation_note = "Cancelling all deployments in us-east-1 cell 5";
+    let cancelled_count = cancel_deployments_by_location(
+        &pool,
+        environment,
+        cloud_provider,
+        region,
+        Some(cell_index),
+        Some(cancellation_note),
+    )
+    .await?;
+
+    // Should have cancelled 3 deployments (id1, id2, id3)
+    assert_eq!(cancelled_count, 3, "Should cancel 3 deployments");
+
+    // Verify deployments 1, 2, 3 are cancelled
+    for deployment_id in [id1, id2, id3] {
+        let row = sqlx::query!(
+            "SELECT cancellation_timestamp, cancellation_note FROM deployments WHERE id = $1",
+            deployment_id
+        )
+        .fetch_one(&pool)
+        .await?;
+        assert!(
+            row.cancellation_timestamp.is_some(),
+            "Deployment {} should be cancelled",
+            deployment_id
+        );
+        assert_eq!(
+            row.cancellation_note.as_deref(),
+            Some(cancellation_note),
+            "Deployment {} should have cancellation note",
+            deployment_id
+        );
+    }
+
+    // Verify deployment 4 (different cell) and 5 (different region) are NOT cancelled
+    for deployment_id in [id4, id5] {
+        let row = sqlx::query!(
+            "SELECT cancellation_timestamp FROM deployments WHERE id = $1",
+            deployment_id
+        )
+        .fetch_one(&pool)
+        .await?;
+        assert!(
+            row.cancellation_timestamp.is_none(),
+            "Deployment {} should NOT be cancelled",
+            deployment_id
+        );
+    }
+
+    Ok(())
+}
+
+#[tokio::test]
+async fn test_cancel_deployments_by_location_without_cell_index() -> Result<()> {
+    let pool = database_helpers::setup_test_db().await?;
+
+    // Create test deployments in the same region across different cells
+    let environment = "dev";
+    let cloud_provider = "aws";
+    let region = "eu-west-1";
+
+    // Create deployments in the same region but different cells
+    let deployment_1 = Deployment {
+        environment: environment.to_string(),
+        cloud_provider: cloud_provider.to_string(),
+        region: region.to_string(),
+        cell_index: 1,
+        component: "compute-node".to_string(),
+        ..Default::default()
+    };
+
+    let deployment_2 = Deployment {
+        environment: environment.to_string(),
+        cloud_provider: cloud_provider.to_string(),
+        region: region.to_string(),
+        cell_index: 2,
+        component: "storage-controller".to_string(),
+        ..Default::default()
+    };
+
+    let deployment_3 = Deployment {
+        environment: environment.to_string(),
+        cloud_provider: cloud_provider.to_string(),
+        region: region.to_string(),
+        cell_index: 3,
+        component: "proxy".to_string(),
+        ..Default::default()
+    };
+
+    // Create a deployment in different region (should NOT be cancelled)
+    let deployment_4 = Deployment {
+        environment: environment.to_string(),
+        cloud_provider: cloud_provider.to_string(),
+        region: "ap-southeast-1".to_string(),
+        cell_index: 1,
+        component: "compute-node".to_string(),
+        ..Default::default()
+    };
+
+    let id1 = insert_deployment_record(&pool, deployment_1).await?;
+    let id2 = insert_deployment_record(&pool, deployment_2).await?;
+    let id3 = insert_deployment_record(&pool, deployment_3).await?;
+    let id4 = insert_deployment_record(&pool, deployment_4).await?;
+
+    // Cancel all deployments in this region (without cell_index filter)
+    let cancelled_count =
+        cancel_deployments_by_location(&pool, environment, cloud_provider, region, None, None)
+            .await?;
+
+    // Should have cancelled 3 deployments (id1, id2, id3) across all cells in the region
+    assert_eq!(
+        cancelled_count, 3,
+        "Should cancel 3 deployments in the region"
+    );
+
+    // Verify deployments 1, 2, 3 are cancelled
+    for deployment_id in [id1, id2, id3] {
+        let row = sqlx::query!(
+            "SELECT cancellation_timestamp FROM deployments WHERE id = $1",
+            deployment_id
+        )
+        .fetch_one(&pool)
+        .await?;
+        assert!(
+            row.cancellation_timestamp.is_some(),
+            "Deployment {} should be cancelled",
+            deployment_id
+        );
+    }
+
+    // Verify deployment 4 (different region) is NOT cancelled
+    let row = sqlx::query!(
+        "SELECT cancellation_timestamp FROM deployments WHERE id = $1",
+        id4
+    )
+    .fetch_one(&pool)
+    .await?;
+    assert!(
+        row.cancellation_timestamp.is_none(),
+        "Deployment 4 (different region) should NOT be cancelled"
     );
 
     Ok(())
