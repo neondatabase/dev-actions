@@ -254,8 +254,10 @@ runs:
                 "type": "section",
                 "text": {
                   "type": "mrkdwn",
-                  "text": ${{ toJSON(format(
-                    '🚀 *Deployment Started* - {0} \n*Component*: {1} {2}\n*Region*: {3}-{4}-{5}-cell-{6}\n*Deployment ID*: {7}',
+                  "text": ${{ toJSON(format('🚀 *Deployment Started* - {0}
+                    *Component*: {1} {2}
+                    *Region*: {3}-{4}-{5}-cell-{6}
+                    *Deployment ID*: {7}',
                     steps.run-deploy-queue.outcome,
                     inputs.component,
                     inputs.version,
@@ -299,8 +301,8 @@ runs:
                 "type": "section",
                 "text": {
                   "type": "mrkdwn",
-                  "text": ${{ toJSON(format(
-                    '{0} - {1} \n*Deployment ID*: {2}',
+                  "text": ${{ toJSON(format('{0} - {1}
+                    *Deployment ID*: {2}',
                     inputs.mode == 'finish' && '✅ *Deployment Finished*' || '❌ *Deployment Cancelled*',
                     steps.run-deploy-queue.outcome,
                     inputs.deployment-id
