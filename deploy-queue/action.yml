@@ -247,14 +247,14 @@ runs:
         token: ${{ inputs.slack-bot-token }}
         payload: |
           {
-            "channel": ${{ inputs.slack-channel-id }},
+            "channel": ${{ toJSON(inputs.slack-channel-id) }},
             "text": "🚀 Deployment Started",
             "blocks": [
               {
                 "type": "section",
                 "text": {
                   "type": "mrkdwn",
-                  "text": ${{ format(
+                  "text": ${{ toJSON(format(
                     '🚀 *Deployment Started* - {0} \n*Component*: {1} {2}\n*Region*: {3}-{4}-{5}-cell-{6}\n*Deployment ID*: {7}',
                     steps.run-deploy-queue.outcome,
                     inputs.component,
@@ -264,7 +264,7 @@ runs:
                     inputs.region,
                     inputs.cell-index,
                     steps.run-deploy-queue.outputs.deployment-id
-                  ) }}
+                  )) }}
                 }
               },
               {
@@ -291,20 +291,20 @@ runs:
         token: ${{ inputs.slack-bot-token }}
         payload: |
           {
-            "channel": ${{ inputs.slack-channel-id }},
-            ${{ inputs.slack-start-message-id != '' && format('"thread_ts": "{0}",', inputs.slack-start-message-id) || '' }}
+            "channel": ${{ toJSON(inputs.slack-channel-id) }},
+            ${{ inputs.slack-start-message-id != '' && format('"thread_ts": {0},', toJSON(inputs.slack-start-message-id)) || '' }}
             "text": "${{ inputs.mode == 'finish' && 'Deployment Finished' || 'Deployment Cancelled' }}",
             "blocks": [
               {
                 "type": "section",
                 "text": {
                   "type": "mrkdwn",
-                  "text": ${{ format(
+                  "text": ${{ toJSON(format(
                     '{0} - {1} \n*Deployment ID*: {2}',
                     inputs.mode == 'finish' && '✅ *Deployment Finished*' || '❌ *Deployment Cancelled*',
                     steps.run-deploy-queue.outcome,
                     inputs.deployment-id
-                  ) }}
+                  )) }}
                 }
               },
               {
