@@ -1,4 +1,6 @@
 use anyhow::Result;
+use deploy_queue::handler;
+use deploy_queue::model::Deployment;
 use sqlx::postgres::types::PgInterval;
 use sqlx::{Pool, Postgres};
 use time::Duration;
@@ -7,7 +9,6 @@ use time::Duration;
 mod database_helpers;
 
 extern crate deploy_queue;
-use deploy_queue::{Deployment, get_outlier_deployments, insert_deployment_record};
 
 /// Convert time::Duration to PgInterval
 fn duration_to_interval(duration: Duration) -> PgInterval {
@@ -33,7 +34,7 @@ async fn create_finished_deployment(
         ..Default::default()
     };
 
-    let deployment_id = insert_deployment_record(pool, deployment).await?;
+    let deployment_id = handler::enqueue_deployment(pool, deployment).await?;
 
     // Start and finish the deployment with specific duration
     sqlx::query!(
@@ -69,7 +70,7 @@ async fn create_running_deployment(
         ..Default::default()
     };
 
-    let deployment_id = insert_deployment_record(pool, deployment).await?;
+    let deployment_id = handler::enqueue_deployment(pool, deployment).await?;
 
     // Start the deployment in the past - use negative duration to add
     let negative_offset = duration_to_interval(-started_ago);
@@ -129,7 +130,7 @@ async fn test_outlier_detection_basic() -> Result<()> {
     .await?;
 
     // Get outliers
-    let outliers = get_outlier_deployments(&pool).await?;
+    let outliers = handler::fetch::outlier_deployments(&pool).await?;
 
     // Should only have one outlier
     assert_eq!(outliers.len(), 1);
@@ -171,7 +172,7 @@ async fn test_no_outliers_when_all_within_range() -> Result<()> {
     )
     .await?;
 
-    let outliers = get_outlier_deployments(&pool).await?;
+    let outliers = handler::fetch::outlier_deployments(&pool).await?;
     assert_eq!(outliers.len(), 0);
 
     Ok(())
@@ -197,7 +198,7 @@ async fn test_no_outliers_when_no_running_deployments() -> Result<()> {
         .await?;
     }
 
-    let outliers = get_outlier_deployments(&pool).await?;
+    let outliers = handler::fetch::outlier_deployments(&pool).await?;
     assert_eq!(outliers.len(), 0);
 
     Ok(())
@@ -222,7 +223,7 @@ async fn test_no_outliers_when_no_analytics_data() -> Result<()> {
     .await?;
 
     // Without analytics data, can't determine outliers
-    let outliers = get_outlier_deployments(&pool).await?;
+    let outliers = handler::fetch::outlier_deployments(&pool).await?;
     assert_eq!(outliers.len(), 0);
 
     Ok(())
@@ -263,7 +264,7 @@ async fn test_outliers_per_component_region_env() -> Result<()> {
     // Running deployment in region2 that's normal for region2
     create_running_deployment(&pool, "comp1", "region2", "dev", Duration::seconds(130)).await?;
 
-    let outliers = get_outlier_deployments(&pool).await?;
+    let outliers = handler::fetch::outlier_deployments(&pool).await?;
 
     // Only region1 deployment should be an outlier
     assert_eq!(outliers.len(), 1);
@@ -304,7 +305,7 @@ async fn test_outliers_excludes_finished_deployments() -> Result<()> {
     .await?;
 
     // Should have no outliers (finished deployment shouldn't count)
-    let outliers = get_outlier_deployments(&pool).await?;
+    let outliers = handler::fetch::outlier_deployments(&pool).await?;
     assert_eq!(outliers.len(), 0);
 
     Ok(())
@@ -338,7 +339,7 @@ async fn test_outliers_excludes_cancelled_deployments() -> Result<()> {
         ..Default::default()
     };
 
-    let deployment_id = insert_deployment_record(&pool, deployment).await?;
+    let deployment_id = handler::enqueue_deployment(&pool, deployment).await?;
 
     sqlx::query!(
         "UPDATE deployments SET start_timestamp = NOW() - INTERVAL '200 seconds' WHERE id = $1",
@@ -355,7 +356,7 @@ async fn test_outliers_excludes_cancelled_deployments() -> Result<()> {
     .await?;
 
     // Should have no outliers (cancelled deployment shouldn't count)
-    let outliers = get_outlier_deployments(&pool).await?;
+    let outliers = handler::fetch::outlier_deployments(&pool).await?;
     assert_eq!(outliers.len(), 0);
 
     Ok(())
@@ -391,7 +392,7 @@ async fn test_outliers_optional_fields_omitted() -> Result<()> {
     )
     .await?;
 
-    let outliers = get_outlier_deployments(&pool).await?;
+    let outliers = handler::fetch::outlier_deployments(&pool).await?;
 
     assert_eq!(outliers.len(), 1);
     assert_eq!(outliers[0].id, outlier_id);
@@ -438,7 +439,7 @@ async fn test_multiple_outliers() -> Result<()> {
     )
     .await?;
 
-    let outliers = get_outlier_deployments(&pool).await?;
+    let outliers = handler::fetch::outlier_deployments(&pool).await?;
 
     assert_eq!(outliers.len(), 2);
 
