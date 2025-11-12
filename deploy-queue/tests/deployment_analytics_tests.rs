@@ -47,10 +47,12 @@ async fn create_finished_deployment_with_details(
     created_at_offset: Duration,
 ) -> Result<i64> {
     let deployment = Deployment {
-        environment: environment.to_string(),
-        cloud_provider: "aws".into(),
-        region: region.to_string(),
-        cell_index: 1,
+        cell: deploy_queue::model::Cell {
+            environment: environment.to_string(),
+            cloud_provider: "aws".to_string(),
+            region: region.to_string(),
+            index: 1,
+        },
         component: component.to_string(),
         ..Default::default()
     };
@@ -60,10 +62,10 @@ async fn create_finished_deployment_with_details(
         sqlx::query!(
             "INSERT INTO deployments (environment, cloud_provider, region, cell_index, component, concurrency_key, created_at)
              VALUES ($1, $2, $3, $4, $5, $6, NOW() + $7) RETURNING id",
-            deployment.environment,
-            deployment.cloud_provider,
-            deployment.region,
-            deployment.cell_index,
+            deployment.cell.environment,
+            deployment.cell.cloud_provider,
+            deployment.cell.region,
+            deployment.cell.index,
             deployment.component,
             deployment.concurrency_key,
             created_at_offset.to_pg_interval()?
@@ -104,9 +106,13 @@ async fn create_cancelled_deployment_with_details(
     environment: &str,
 ) -> Result<i64> {
     let deployment = Deployment {
-        region: region.to_string(),
+        cell: deploy_queue::model::Cell {
+            environment: environment.to_string(),
+            cloud_provider: "aws".to_string(),
+            region: region.to_string(),
+            index: 1,
+        },
         component: component.to_string(),
-        environment: environment.to_string(),
         ..Default::default()
     };
 
@@ -432,9 +438,13 @@ async fn test_trigger_refreshes_on_deployment_finish() -> Result<()> {
 
     // Create a deployment and start it
     let deployment = Deployment {
-        region: region.to_string(),
+        cell: deploy_queue::model::Cell {
+            environment: environment.to_string(),
+            cloud_provider: "aws".to_string(),
+            region: region.to_string(),
+            index: 1,
+        },
         component: component.to_string(),
-        environment: environment.to_string(),
         ..Default::default()
     };
 
@@ -483,9 +493,13 @@ async fn test_incomplete_deployments_excluded() -> Result<()> {
 
     // Create various incomplete deployments
     let deployment = Deployment {
-        region: region.to_string(),
+        cell: deploy_queue::model::Cell {
+            environment: environment.to_string(),
+            cloud_provider: "aws".to_string(),
+            region: region.to_string(),
+            index: 1,
+        },
         component: component.to_string(),
-        environment: environment.to_string(),
         ..Default::default()
     };
 

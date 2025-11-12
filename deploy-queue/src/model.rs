@@ -4,15 +4,20 @@ use time::{Duration, OffsetDateTime};
 
 use crate::{cli::StartDeployment, util::duration::DurationExt};
 
+#[derive(Default, Debug, Clone, Serialize)]
+pub struct Cell {
+    pub environment: String,
+    pub cloud_provider: String,
+    pub region: String,
+    pub index: i32,
+}
+
 // We don't read all of the fields
 #[allow(dead_code)]
 #[derive(Default, Debug, Clone)]
 pub struct Deployment {
     pub id: i64,
-    pub environment: String,
-    pub cloud_provider: String,
-    pub region: String,
-    pub cell_index: i32,
+    pub cell: Cell,
     pub component: String,
     pub version: Option<String>,
     pub url: Option<String>,
@@ -70,10 +75,12 @@ impl From<StartDeployment> for Deployment {
         }: StartDeployment,
     ) -> Self {
         Deployment {
-            environment: environment.to_string(),
-            cloud_provider,
-            region,
-            cell_index,
+            cell: Cell {
+                environment: environment.to_string(),
+                cloud_provider,
+                region,
+                index: cell_index,
+            },
             component,
             version,
             url,

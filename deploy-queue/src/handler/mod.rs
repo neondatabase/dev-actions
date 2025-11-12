@@ -15,17 +15,17 @@ use crate::{
 
 pub async fn enqueue_deployment(client: &Pool<Postgres>, deployment: Deployment) -> Result<i64> {
     let record = sqlx::query!("INSERT INTO deployments (environment, cloud_provider, region, cell_index, component, version, url, note, concurrency_key) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9) RETURNING id",
-        deployment.environment, deployment.cloud_provider, deployment.region, deployment.cell_index, deployment.component, deployment.version, deployment.url, deployment.note, deployment.concurrency_key)
+        deployment.cell.environment, deployment.cell.cloud_provider, deployment.cell.region, deployment.cell.index, deployment.component, deployment.version, deployment.url, deployment.note, deployment.concurrency_key)
         .fetch_one(client)
         .await?;
     let deployment_id = record.id;
     log::info!(
         "Successfully inserted deployment record: id={}, environment={}, cloud_provider={}, region={}, cell_index={}, component={}",
         deployment_id,
-        deployment.environment,
-        deployment.cloud_provider,
-        deployment.region,
-        deployment.cell_index,
+        deployment.cell.environment,
+        deployment.cell.cloud_provider,
+        deployment.cell.region,
+        deployment.cell.index,
         deployment.component
     );
 

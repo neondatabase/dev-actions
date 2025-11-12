@@ -27,10 +27,12 @@ async fn test_insert_deployment_record() -> Result<()> {
     let concurrency_key = None;
 
     let deployment = Deployment {
-        environment: environment.to_string(),
-        cloud_provider: cloud_provider.to_string(),
-        region: region.clone(),
-        cell_index,
+        cell: deploy_queue::model::Cell {
+            environment: environment.to_string(),
+            cloud_provider: cloud_provider.to_string(),
+            region: region.clone(),
+            index: cell_index,
+        },
         component: component.clone(),
         version: version.clone(),
         url: url.clone(),
@@ -88,10 +90,12 @@ async fn test_insert_deployment_record_minimal_data() -> Result<()> {
     let component = "minimal-test-component".to_string();
 
     let deployment = Deployment {
-        environment: environment.to_string(),
-        cloud_provider: cloud_provider.to_string(),
-        region,
-        cell_index,
+        cell: deploy_queue::model::Cell {
+            environment: environment.to_string(),
+            cloud_provider: cloud_provider.to_string(),
+            region,
+            index: cell_index,
+        },
         component,
         ..Default::default()
     };
@@ -153,10 +157,10 @@ async fn test_get_deployment_info() -> Result<()> {
 
     let retrieved = retrieved.unwrap();
     assert_eq!(retrieved.id, deployment_id);
-    assert_eq!(retrieved.environment, environment);
-    assert_eq!(retrieved.cloud_provider, cloud_provider);
-    assert_eq!(retrieved.cell_index, cell_index);
-    assert_eq!(retrieved.region, region);
+    assert_eq!(retrieved.cell.environment, environment);
+    assert_eq!(retrieved.cell.cloud_provider, cloud_provider);
+    assert_eq!(retrieved.cell.index, cell_index);
+    assert_eq!(retrieved.cell.region, region);
     assert_eq!(retrieved.component, component);
     assert_eq!(retrieved.version, Some(version.to_string()));
     assert_eq!(retrieved.url, Some(url.to_string()));
@@ -622,30 +626,36 @@ async fn test_cancel_deployments_by_component_version() -> Result<()> {
 
     // Create 3 deployments: 2 for aws, 1 for azure
     let deployment_1 = Deployment {
-        environment: environment.to_string(),
-        cloud_provider: "aws".to_string(),
-        region: "us-east-1".to_string(),
-        cell_index: 1,
+        cell: deploy_queue::model::Cell {
+            environment: environment.to_string(),
+            cloud_provider: "aws".to_string(),
+            region: "us-east-1".to_string(),
+            index: 1,
+        },
         component: component.to_string(),
         version: Some(version.to_string()),
         ..Default::default()
     };
 
     let deployment_2 = Deployment {
-        environment: environment.to_string(),
-        cloud_provider: "aws".to_string(),
-        region: "us-west-2".to_string(),
-        cell_index: 2,
+        cell: deploy_queue::model::Cell {
+            environment: environment.to_string(),
+            cloud_provider: "aws".to_string(),
+            region: "us-west-2".to_string(),
+            index: 2,
+        },
         component: component.to_string(),
         version: Some(version.to_string()),
         ..Default::default()
     };
 
     let deployment_3 = Deployment {
-        environment: environment.to_string(),
-        cloud_provider: "azure".to_string(),
-        region: "east-us".to_string(),
-        cell_index: 1,
+        cell: deploy_queue::model::Cell {
+            environment: environment.to_string(),
+            cloud_provider: "azure".to_string(),
+            region: "east-us".to_string(),
+            index: 1,
+        },
         component: component.to_string(),
         version: Some(version.to_string()),
         ..Default::default()
@@ -653,10 +663,12 @@ async fn test_cancel_deployments_by_component_version() -> Result<()> {
 
     // Create a deployment with different version (should NOT be cancelled)
     let deployment_4 = Deployment {
-        environment: environment.to_string(),
-        cloud_provider: "aws".to_string(),
-        region: "us-east-1".to_string(),
-        cell_index: 1,
+        cell: deploy_queue::model::Cell {
+            environment: environment.to_string(),
+            cloud_provider: "aws".to_string(),
+            region: "us-east-1".to_string(),
+            index: 1,
+        },
         component: component.to_string(),
         version: Some("v2.0.0".to_string()),
         ..Default::default()
@@ -727,30 +739,36 @@ async fn test_cancel_deployments_by_location() -> Result<()> {
 
     // Create 3 deployments in the same location with different components
     let deployment_1 = Deployment {
-        environment: environment.to_string(),
-        cloud_provider: cloud_provider.to_string(),
-        region: region.to_string(),
-        cell_index,
+        cell: deploy_queue::model::Cell {
+            environment: environment.to_string(),
+            cloud_provider: cloud_provider.to_string(),
+            region: region.to_string(),
+            index: cell_index,
+        },
         component: "compute-node".to_string(),
         version: Some("v1.0.0".to_string()),
         ..Default::default()
     };
 
     let deployment_2 = Deployment {
-        environment: environment.to_string(),
-        cloud_provider: cloud_provider.to_string(),
-        region: region.to_string(),
-        cell_index,
+        cell: deploy_queue::model::Cell {
+            environment: environment.to_string(),
+            cloud_provider: cloud_provider.to_string(),
+            region: region.to_string(),
+            index: cell_index,
+        },
         component: "storage-controller".to_string(),
         version: Some("v2.0.0".to_string()),
         ..Default::default()
     };
 
     let deployment_3 = Deployment {
-        environment: environment.to_string(),
-        cloud_provider: cloud_provider.to_string(),
-        region: region.to_string(),
-        cell_index,
+        cell: deploy_queue::model::Cell {
+            environment: environment.to_string(),
+            cloud_provider: cloud_provider.to_string(),
+            region: region.to_string(),
+            index: cell_index,
+        },
         component: "proxy".to_string(),
         version: Some("v3.0.0".to_string()),
         ..Default::default()
@@ -758,10 +776,12 @@ async fn test_cancel_deployments_by_location() -> Result<()> {
 
     // Create a deployment in the same region but different cell_index (should NOT be cancelled)
     let deployment_4 = Deployment {
-        environment: environment.to_string(),
-        cloud_provider: cloud_provider.to_string(),
-        region: region.to_string(),
-        cell_index: 99,
+        cell: deploy_queue::model::Cell {
+            environment: environment.to_string(),
+            cloud_provider: cloud_provider.to_string(),
+            region: region.to_string(),
+            index: 99,
+        },
         component: "compute-node".to_string(),
         version: Some("v1.0.0".to_string()),
         ..Default::default()
@@ -769,10 +789,12 @@ async fn test_cancel_deployments_by_location() -> Result<()> {
 
     // Create a deployment in different region (should NOT be cancelled)
     let deployment_5 = Deployment {
-        environment: environment.to_string(),
-        cloud_provider: cloud_provider.to_string(),
-        region: "us-west-2".to_string(),
-        cell_index,
+        cell: deploy_queue::model::Cell {
+            environment: environment.to_string(),
+            cloud_provider: cloud_provider.to_string(),
+            region: "us-west-2".to_string(),
+            index: cell_index,
+        },
         component: "compute-node".to_string(),
         version: Some("v1.0.0".to_string()),
         ..Default::default()
@@ -852,38 +874,46 @@ async fn test_cancel_deployments_by_location_without_cell_index() -> Result<()> 
 
     // Create deployments in the same region but different cells
     let deployment_1 = Deployment {
-        environment: environment.to_string(),
-        cloud_provider: cloud_provider.to_string(),
-        region: region.to_string(),
-        cell_index: 1,
+        cell: deploy_queue::model::Cell {
+            environment: environment.to_string(),
+            cloud_provider: cloud_provider.to_string(),
+            region: region.to_string(),
+            index: 1,
+        },
         component: "compute-node".to_string(),
         ..Default::default()
     };
 
     let deployment_2 = Deployment {
-        environment: environment.to_string(),
-        cloud_provider: cloud_provider.to_string(),
-        region: region.to_string(),
-        cell_index: 2,
+        cell: deploy_queue::model::Cell {
+            environment: environment.to_string(),
+            cloud_provider: cloud_provider.to_string(),
+            region: region.to_string(),
+            index: 2,
+        },
         component: "storage-controller".to_string(),
         ..Default::default()
     };
 
     let deployment_3 = Deployment {
-        environment: environment.to_string(),
-        cloud_provider: cloud_provider.to_string(),
-        region: region.to_string(),
-        cell_index: 3,
+        cell: deploy_queue::model::Cell {
+            environment: environment.to_string(),
+            cloud_provider: cloud_provider.to_string(),
+            region: region.to_string(),
+            index: 3,
+        },
         component: "proxy".to_string(),
         ..Default::default()
     };
 
     // Create a deployment in different region (should NOT be cancelled)
     let deployment_4 = Deployment {
-        environment: environment.to_string(),
-        cloud_provider: cloud_provider.to_string(),
-        region: "ap-southeast-1".to_string(),
-        cell_index: 1,
+        cell: deploy_queue::model::Cell {
+            environment: environment.to_string(),
+            cloud_provider: cloud_provider.to_string(),
+            region: "ap-southeast-1".to_string(),
+            index: 1,
+        },
         component: "compute-node".to_string(),
         ..Default::default()
     };
