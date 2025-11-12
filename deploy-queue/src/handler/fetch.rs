@@ -1,8 +1,9 @@
-use anyhow::{Context, Result};
+use anyhow::{Context, Result, bail};
 use sqlx::{Pool, Postgres};
 use time::Duration;
 
 use crate::{
+    cli::Environment,
     model::{BlockingDeployment, Cell, Deployment, OutlierDeployment},
     util::duration::DurationExt,
 };
@@ -161,4 +162,45 @@ pub async fn outlier_deployments(client: &Pool<Postgres>) -> Result<Vec<OutlierD
         .collect::<Result<Vec<_>>>()?;
 
     Ok(outliers)
+}
+
+pub(crate) async fn cells(client: &Pool<Postgres>, environment: Environment) -> Result<Vec<Cell>> {
+    let rows = sqlx::query!(
+        r#"
+        SELECT
+            environment,
+            cloud_provider,
+            region,
+            cell_index
+        FROM cells
+        WHERE environment = $1
+        ORDER BY cloud_provider, region, cell_index
+        "#,
+        environment.to_string()
+    )
+    .fetch_all(client)
+    .await?;
+
+    let cells = rows
+        .into_iter()
+        .map(|row| -> Result<Cell> {
+            if let (Some(environment), Some(cloud_provider), Some(region), Some(index)) = (
+                row.environment,
+                row.cloud_provider,
+                row.region,
+                row.cell_index,
+            ) {
+                Ok(Cell {
+                    environment,
+                    cloud_provider,
+                    region,
+                    index,
+                })
+            } else {
+                bail!("'cells' materialized view contained 'NULL' value, aborting!")
+            }
+        })
+        .collect::<Result<Vec<Cell>>>()?;
+
+    Ok(cells)
 }
