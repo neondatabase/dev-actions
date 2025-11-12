@@ -4,6 +4,7 @@ from shutil import which
 from subprocess import run, PIPE, CalledProcessError
 import re
 import typer
+import yaml
 
 
 def ready():
@@ -210,3 +211,24 @@ def parse_rc_branch_to_context(branch: str):
     ctx.reference_time = datetime.strptime(
         match.group("timestamp"), "%Y-%m-%dT%H-%MZ"
     ).replace(tzinfo=timezone.utc)
+
+def update_compute_tag_in_manifest():
+    """
+    We need to update the compute tag in hadron/compute/manifest.yaml
+    to the new release tag during a compute release.
+    """
+    compute_tag = f"release-compute-{run_git(['rev-list', '--count', 'HEAD'], capture_output=True, dry_run=False)}"
+    # TODO: Check this path
+    manifest_path = "hadron/compute/manifest.yaml"
+
+    with open(manifest_path) as f:
+        manifest = yaml.safe_load(f)
+
+    manifest["release_tag"] = compute_tag
+
+    with open(manifest_path, "w") as f:
+        yaml.dump(manifest, f, default_flow_style=False, sort_keys=False)
+
+    run_git(["add", manifest_path])
+    run_git(["commit", "-m", f"Update compute tag to {compute_tag}"])
+    push_current_branch_to_origin(current_branch())
