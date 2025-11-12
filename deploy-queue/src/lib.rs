@@ -855,7 +855,9 @@ pub async fn run_deploy_queue(mode: cli::Mode, skip_migrations: bool) -> Result<
         cli::Mode::Info { deployment_id } => {
             show_deployment_info(&db_client, deployment_id).await?;
         }
-        cli::Mode::Outliers => {
+        cli::Mode::List {
+            entity: cli::ListEntity::Outliers,
+        } => {
             handle_outliers(&db_client).await?;
         }
     }

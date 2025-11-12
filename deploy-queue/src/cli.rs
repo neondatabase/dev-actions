@@ -85,8 +85,11 @@ pub enum Mode {
         /// Deployment ID to get info for
         deployment_id: i64,
     },
-    /// List deployments that are taking substantially longer than expected
-    Outliers,
+    /// List different types of entities
+    List {
+        #[command(subcommand)]
+        entity: ListEntity,
+    },
 }
 
 #[derive(Subcommand, Clone)]
@@ -117,4 +120,10 @@ pub enum CancelTarget {
         /// Cell index to cancel
         cell_index: Option<i32>,
     },
+}
+
+#[derive(Subcommand, Clone)]
+pub enum ListEntity {
+    /// List deployments that are taking substantially longer than expected
+    Outliers,
 }
