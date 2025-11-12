@@ -1,4 +1,5 @@
 use anyhow::Result;
+use deploy_queue::{handler, model::Deployment};
 use time::OffsetDateTime;
 
 #[path = "common/test_db_setup.rs"]
@@ -10,11 +11,6 @@ mod deployment_fixtures;
 // Import the functions we need from the main module
 // For binaries, we need to compile them as a library for testing
 extern crate deploy_queue;
-use deploy_queue::{
-    Deployment, cancel_deployment, cancel_deployments_by_component_version,
-    cancel_deployments_by_location, finish_deployment, get_deployment_info,
-    insert_deployment_record, start_deployment,
-};
 
 #[tokio::test]
 async fn test_insert_deployment_record() -> Result<()> {
@@ -44,7 +40,7 @@ async fn test_insert_deployment_record() -> Result<()> {
     };
 
     // Test the insert function
-    let deployment_id = insert_deployment_record(&pool, deployment).await?;
+    let deployment_id = handler::enqueue_deployment(&pool, deployment).await?;
 
     // Verify it was inserted
     assert!(deployment_id > 0, "Deployment ID should be positive");
@@ -100,7 +96,7 @@ async fn test_insert_deployment_record_minimal_data() -> Result<()> {
         ..Default::default()
     };
 
-    let deployment_id = insert_deployment_record(&pool, deployment).await?;
+    let deployment_id = handler::enqueue_deployment(&pool, deployment).await?;
     assert!(deployment_id > 0);
 
     // Verify optional fields are None
@@ -152,7 +148,7 @@ async fn test_get_deployment_info() -> Result<()> {
     let deployment_id = record.id;
 
     // Test successful retrieval
-    let retrieved = get_deployment_info(&pool, deployment_id).await?;
+    let retrieved = handler::fetch::deployment(&pool, deployment_id).await?;
     assert!(retrieved.is_some(), "Should retrieve existing deployment");
 
     let retrieved = retrieved.unwrap();
@@ -192,7 +188,7 @@ async fn test_start_deployment_success() -> Result<()> {
     assert!(row.start_timestamp.is_none());
 
     // Start the deployment
-    start_deployment(&pool, deployment_id).await?;
+    handler::start_deployment(&pool, deployment_id).await?;
 
     // Verify start_timestamp is now set
     let row = sqlx::query!(
@@ -233,7 +229,7 @@ async fn test_finish_deployment_success() -> Result<()> {
     assert!(row.finish_timestamp.is_none());
 
     // Finish the deployment
-    finish_deployment(&pool, deployment_id).await?;
+    handler::finish_deployment(&pool, deployment_id).await?;
 
     // Verify finish_timestamp is now set
     let row = sqlx::query!(
@@ -266,7 +262,7 @@ async fn test_cancel_queued_deployment_with_note() -> Result<()> {
 
     // Cancel the deployment with a note
     let cancel_note = "Test cancellation";
-    cancel_deployment(&pool, deployment_id, Some(cancel_note)).await?;
+    handler::cancel::deployment(&pool, deployment_id, Some(cancel_note)).await?;
 
     // Verify cancellation fields are set
     let row = sqlx::query!(
@@ -300,7 +296,7 @@ async fn test_cancel_running_deployment_without_note() -> Result<()> {
     let deployment_id = deployment_fixtures::create_running_deployment(&pool).await?;
 
     // Cancel the deployment without a note
-    cancel_deployment(&pool, deployment_id, None).await?;
+    handler::cancel::deployment(&pool, deployment_id, Option::<String>::None).await?;
 
     // Verify cancellation timestamp is set but note is None
     let row = sqlx::query!(
@@ -333,7 +329,7 @@ async fn test_deployment_state_transitions() -> Result<()> {
     assert!(row.cancellation_timestamp.is_none());
 
     // Transition to running
-    start_deployment(&pool, deployment_id).await?;
+    handler::start_deployment(&pool, deployment_id).await?;
     let row = sqlx::query!(
         "SELECT start_timestamp, finish_timestamp, cancellation_timestamp FROM deployments WHERE id = $1",
         deployment_id
@@ -345,7 +341,7 @@ async fn test_deployment_state_transitions() -> Result<()> {
     assert!(row.cancellation_timestamp.is_none());
 
     // Transition to finished
-    finish_deployment(&pool, deployment_id).await?;
+    handler::finish_deployment(&pool, deployment_id).await?;
     let row = sqlx::query!(
         "SELECT start_timestamp, finish_timestamp, cancellation_timestamp FROM deployments WHERE id = $1",
         deployment_id
@@ -366,7 +362,7 @@ async fn test_invalid_state_transitions() -> Result<()> {
 
     // Test finishing a deployment that was never started (queued → finished is invalid)
     let queued_deployment_id = deployment_fixtures::create_test_deployment(&pool).await?;
-    let result = finish_deployment(&pool, queued_deployment_id).await;
+    let result = handler::finish_deployment(&pool, queued_deployment_id).await;
     assert!(
         result.is_err(),
         "Should not be able to finish a queued deployment"
@@ -383,19 +379,19 @@ async fn test_operations_on_finished_deployment() -> Result<()> {
     let deployment_id = deployment_fixtures::create_finished_deployment(&pool).await?;
 
     // All further operations on finished deployment should fail
-    let result = start_deployment(&pool, deployment_id).await;
+    let result = handler::start_deployment(&pool, deployment_id).await;
     assert!(
         result.is_err(),
         "Should not be able to start a finished deployment"
     );
 
-    let result = finish_deployment(&pool, deployment_id).await;
+    let result = handler::finish_deployment(&pool, deployment_id).await;
     assert!(
         result.is_err(),
         "Should not be able to finish a finished deployment again"
     );
 
-    let result = cancel_deployment(&pool, deployment_id, Some("test")).await;
+    let result = handler::cancel::deployment(&pool, deployment_id, Some("test")).await;
     assert!(
         result.is_err(),
         "Should not be able to cancel a finished deployment"
@@ -412,19 +408,19 @@ async fn test_operations_on_cancelled_deployment() -> Result<()> {
     let deployment_id = deployment_fixtures::create_cancelled_deployment(&pool).await?;
 
     // All further operations on cancelled deployment should fail
-    let result = start_deployment(&pool, deployment_id).await;
+    let result = handler::start_deployment(&pool, deployment_id).await;
     assert!(
         result.is_err(),
         "Should not be able to start a cancelled deployment"
     );
 
-    let result = finish_deployment(&pool, deployment_id).await;
+    let result = handler::finish_deployment(&pool, deployment_id).await;
     assert!(
         result.is_err(),
         "Should not be able to finish a cancelled deployment"
     );
 
-    let result = cancel_deployment(&pool, deployment_id, Some("test again")).await;
+    let result = handler::cancel::deployment(&pool, deployment_id, Some("test again")).await;
     assert!(
         result.is_err(),
         "Should not be able to cancel a cancelled deployment again"
@@ -666,18 +662,18 @@ async fn test_cancel_deployments_by_component_version() -> Result<()> {
         ..Default::default()
     };
 
-    let id1 = insert_deployment_record(&pool, deployment_1).await?;
-    let id2 = insert_deployment_record(&pool, deployment_2).await?;
-    let id3 = insert_deployment_record(&pool, deployment_3).await?;
-    let id4 = insert_deployment_record(&pool, deployment_4).await?;
+    let id1 = handler::enqueue_deployment(&pool, deployment_1).await?;
+    let id2 = handler::enqueue_deployment(&pool, deployment_2).await?;
+    let id3 = handler::enqueue_deployment(&pool, deployment_3).await?;
+    let id4 = handler::enqueue_deployment(&pool, deployment_4).await?;
 
     // Start one of them to make it running
-    start_deployment(&pool, id2).await?;
+    handler::start_deployment(&pool, id2).await?;
 
     // Cancel all deployments for this component/version/environment
     let cancellation_note = "Cancelling test-component-cancel-cv v1.0.0";
     let cancelled_count =
-        cancel_deployments_by_component_version(&pool, component, version, Some(cancellation_note))
+        handler::cancel::by_component_version(&pool, component, version, Some(cancellation_note))
             .await?;
 
     // Should have cancelled 3 deployments (id1, id2, id3)
@@ -782,18 +778,18 @@ async fn test_cancel_deployments_by_location() -> Result<()> {
         ..Default::default()
     };
 
-    let id1 = insert_deployment_record(&pool, deployment_1).await?;
-    let id2 = insert_deployment_record(&pool, deployment_2).await?;
-    let id3 = insert_deployment_record(&pool, deployment_3).await?;
-    let id4 = insert_deployment_record(&pool, deployment_4).await?;
-    let id5 = insert_deployment_record(&pool, deployment_5).await?;
+    let id1 = handler::enqueue_deployment(&pool, deployment_1).await?;
+    let id2 = handler::enqueue_deployment(&pool, deployment_2).await?;
+    let id3 = handler::enqueue_deployment(&pool, deployment_3).await?;
+    let id4 = handler::enqueue_deployment(&pool, deployment_4).await?;
+    let id5 = handler::enqueue_deployment(&pool, deployment_5).await?;
 
     // Start one to make it running
-    start_deployment(&pool, id1).await?;
+    handler::start_deployment(&pool, id1).await?;
 
     // Cancel all deployments in this location (with cell_index specified)
     let cancellation_note = "Cancelling all deployments in us-east-1 cell 5";
-    let cancelled_count = cancel_deployments_by_location(
+    let cancelled_count = handler::cancel::by_location(
         &pool,
         environment,
         cloud_provider,
@@ -892,15 +888,21 @@ async fn test_cancel_deployments_by_location_without_cell_index() -> Result<()> 
         ..Default::default()
     };
 
-    let id1 = insert_deployment_record(&pool, deployment_1).await?;
-    let id2 = insert_deployment_record(&pool, deployment_2).await?;
-    let id3 = insert_deployment_record(&pool, deployment_3).await?;
-    let id4 = insert_deployment_record(&pool, deployment_4).await?;
+    let id1 = handler::enqueue_deployment(&pool, deployment_1).await?;
+    let id2 = handler::enqueue_deployment(&pool, deployment_2).await?;
+    let id3 = handler::enqueue_deployment(&pool, deployment_3).await?;
+    let id4 = handler::enqueue_deployment(&pool, deployment_4).await?;
 
     // Cancel all deployments in this region (without cell_index filter)
-    let cancelled_count =
-        cancel_deployments_by_location(&pool, environment, cloud_provider, region, None, None)
-            .await?;
+    let cancelled_count = handler::cancel::by_location(
+        &pool,
+        environment,
+        cloud_provider,
+        region,
+        None,
+        Option::<String>::None,
+    )
+    .await?;
 
     // Should have cancelled 3 deployments (id1, id2, id3) across all cells in the region
     assert_eq!(

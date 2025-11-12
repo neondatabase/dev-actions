@@ -1,4 +1,5 @@
 use anyhow::Result;
+use deploy_queue::{handler, model::Deployment, util::duration::DurationExt};
 use sqlx::{Pool, Postgres};
 use time::Duration;
 
@@ -6,8 +7,6 @@ use time::Duration;
 mod database_helpers;
 
 extern crate deploy_queue;
-use deploy_queue::duration_ext::DurationExt;
-use deploy_queue::{Deployment, finish_deployment, insert_deployment_record, start_deployment};
 
 /// Check if two durations are approximately equal (within 1ms tolerance)
 /// Needed due to floating-point precision differences between Rust and PostgreSQL
@@ -73,7 +72,7 @@ async fn create_finished_deployment_with_details(
         .await?
         .id
     } else {
-        insert_deployment_record(pool, deployment).await?
+        handler::enqueue_deployment(pool, deployment).await?
     };
 
     // Start the deployment with specific timing
@@ -111,7 +110,7 @@ async fn create_cancelled_deployment_with_details(
         ..Default::default()
     };
 
-    let deployment_id = insert_deployment_record(pool, deployment).await?;
+    let deployment_id = handler::enqueue_deployment(pool, deployment).await?;
 
     // Cancel the deployment
     sqlx::query!(
@@ -439,8 +438,8 @@ async fn test_trigger_refreshes_on_deployment_finish() -> Result<()> {
         ..Default::default()
     };
 
-    let deployment_id = insert_deployment_record(&pool, deployment).await?;
-    start_deployment(&pool, deployment_id).await?;
+    let deployment_id = handler::enqueue_deployment(&pool, deployment).await?;
+    handler::start_deployment(&pool, deployment_id).await?;
 
     // Verify baseline (should be empty - no deployments finished yet)
     let initial_count = sqlx::query!(
@@ -456,7 +455,7 @@ async fn test_trigger_refreshes_on_deployment_finish() -> Result<()> {
     assert_eq!(initial_count.total, Some(0));
 
     // Finish the deployment - this should trigger the view refresh via the trigger
-    finish_deployment(&pool, deployment_id).await?;
+    handler::finish_deployment(&pool, deployment_id).await?;
 
     // Check that the view now contains the finished deployment (trigger should have refreshed it)
     let final_count = sqlx::query!(
@@ -491,16 +490,16 @@ async fn test_incomplete_deployments_excluded() -> Result<()> {
     };
 
     // Queued deployment (no start_timestamp)
-    insert_deployment_record(&pool, deployment.clone()).await?;
+    handler::enqueue_deployment(&pool, deployment.clone()).await?;
 
     // Running deployment (has start_timestamp but no finish_timestamp)
-    let running_id = insert_deployment_record(&pool, deployment.clone()).await?;
-    start_deployment(&pool, running_id).await?;
+    let running_id = handler::enqueue_deployment(&pool, deployment.clone()).await?;
+    handler::start_deployment(&pool, running_id).await?;
 
     // Complete deployment (should be included)
-    let complete_id = insert_deployment_record(&pool, deployment).await?;
-    start_deployment(&pool, complete_id).await?;
-    finish_deployment(&pool, complete_id).await?;
+    let complete_id = handler::enqueue_deployment(&pool, deployment).await?;
+    handler::start_deployment(&pool, complete_id).await?;
+    handler::finish_deployment(&pool, complete_id).await?;
 
     // Should only see 1 deployment (the complete one) - trigger should have refreshed the view
     let row = sqlx::query!(

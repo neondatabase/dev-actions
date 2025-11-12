@@ -38,35 +38,7 @@ pub struct Cli {
 #[derive(Subcommand, Clone)]
 pub enum Mode {
     /// Start deployment for a component
-    Start {
-        #[arg(long)]
-        /// Environment where to deploy
-        environment: Environment,
-        #[arg(long = "provider")]
-        /// Cloud provider to deploy
-        cloud_provider: String,
-        #[arg(long)]
-        /// Region to deploy
-        region: String,
-        #[arg(long)]
-        /// Cell index to deploy
-        cell_index: i32,
-        #[arg(long)]
-        /// Component to deploy
-        component: String,
-        #[arg(long)]
-        /// Version of the component to deploy
-        version: Option<String>,
-        #[arg(long)]
-        /// URL to the specific GitHub Actions job
-        url: Option<String>,
-        #[arg(long)]
-        /// Note for this deployment (for manual deployments)
-        note: Option<String>,
-        #[arg(long)]
-        /// Concurrency key for this deployment
-        concurrency_key: Option<String>,
-    },
+    Start(StartDeployment),
     /// Finish deployment for a component
     Finish {
         /// Deployment ID to finish
@@ -90,6 +62,38 @@ pub enum Mode {
         #[command(subcommand)]
         entity: ListEntity,
     },
+}
+
+#[derive(Parser, Clone)]
+/// Start deployment for a component
+pub struct StartDeployment {
+    #[arg(long)]
+    /// Environment where to deploy
+    pub environment: Environment,
+    #[arg(long = "provider")]
+    /// Cloud provider to deploy
+    pub cloud_provider: String,
+    #[arg(long)]
+    /// Region to deploy
+    pub region: String,
+    #[arg(long)]
+    /// Cell index to deploy
+    pub cell_index: i32,
+    #[arg(long)]
+    /// Component to deploy
+    pub component: String,
+    #[arg(long)]
+    /// Version of the component to deploy
+    pub version: Option<String>,
+    #[arg(long)]
+    /// URL to the specific GitHub Actions job
+    pub url: Option<String>,
+    #[arg(long)]
+    /// Note for this deployment (for manual deployments)
+    pub note: Option<String>,
+    #[arg(long)]
+    /// Concurrency key for this deployment
+    pub concurrency_key: Option<String>,
 }
 
 #[derive(Subcommand, Clone)]
