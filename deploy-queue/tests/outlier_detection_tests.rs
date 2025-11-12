@@ -28,9 +28,13 @@ async fn create_finished_deployment(
     duration: Duration,
 ) -> Result<i64> {
     let deployment = Deployment {
-        region: region.to_string(),
+        cell: deploy_queue::model::Cell {
+            environment: environment.to_string(),
+            cloud_provider: "aws".to_string(),
+            region: region.to_string(),
+            index: 1,
+        },
         component: component.to_string(),
-        environment: environment.to_string(),
         ..Default::default()
     };
 
@@ -64,9 +68,13 @@ async fn create_running_deployment(
     started_ago: Duration,
 ) -> Result<i64> {
     let deployment = Deployment {
-        region: region.to_string(),
+        cell: deploy_queue::model::Cell {
+            environment: environment.to_string(),
+            cloud_provider: "aws".to_string(),
+            region: region.to_string(),
+            index: 1,
+        },
         component: component.to_string(),
-        environment: environment.to_string(),
         ..Default::default()
     };
 
@@ -333,9 +341,13 @@ async fn test_outliers_excludes_cancelled_deployments() -> Result<()> {
 
     // Create a running deployment and then cancel it
     let deployment = Deployment {
-        region: region.to_string(),
+        cell: deploy_queue::model::Cell {
+            environment: environment.to_string(),
+            cloud_provider: "aws".to_string(),
+            region: region.to_string(),
+            index: 1,
+        },
         component: component.to_string(),
-        environment: environment.to_string(),
         ..Default::default()
     };
 

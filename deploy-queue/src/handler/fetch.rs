@@ -3,7 +3,7 @@ use sqlx::{Pool, Postgres};
 use time::Duration;
 
 use crate::{
-    model::{BlockingDeployment, Deployment, OutlierDeployment},
+    model::{BlockingDeployment, Cell, Deployment, OutlierDeployment},
     util::duration::DurationExt,
 };
 
@@ -26,10 +26,12 @@ pub async fn deployment(client: &Pool<Postgres>, deployment_id: i64) -> Result<O
     if let Some(row) = row {
         Ok(Some(Deployment {
             id: row.id,
-            environment: row.environment,
-            cloud_provider: row.cloud_provider,
-            region: row.region,
-            cell_index: row.cell_index,
+            cell: Cell {
+                environment: row.environment,
+                cloud_provider: row.cloud_provider,
+                region: row.region,
+                index: row.cell_index,
+            },
             component: row.component,
             version: row.version,
             url: row.url,
@@ -82,10 +84,12 @@ pub async fn blocking_deployments(
             Ok(BlockingDeployment {
                 deployment: Deployment {
                     id: row.id,
-                    environment: row.environment,
-                    cloud_provider: row.cloud_provider,
-                    region: row.region,
-                    cell_index: row.cell_index,
+                    cell: Cell {
+                        environment: row.environment,
+                        cloud_provider: row.cloud_provider,
+                        region: row.region,
+                        index: row.cell_index,
+                    },
                     component: row.component,
                     version: row.version,
                     url: row.url,
