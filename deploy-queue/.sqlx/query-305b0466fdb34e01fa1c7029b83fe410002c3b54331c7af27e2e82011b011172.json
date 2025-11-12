@@ -1,0 +1,40 @@
+{
+  "db_name": "PostgreSQL",
+  "query": "\n        SELECT\n            environment,\n            cloud_provider,\n            region,\n            cell_index\n        FROM cells\n        WHERE environment = $1\n        ORDER BY cloud_provider, region, cell_index\n        ",
+  "describe": {
+    "columns": [
+      {
+        "ordinal": 0,
+        "name": "environment",
+        "type_info": "Varchar"
+      },
+      {
+        "ordinal": 1,
+        "name": "cloud_provider",
+        "type_info": "Varchar"
+      },
+      {
+        "ordinal": 2,
+        "name": "region",
+        "type_info": "Varchar"
+      },
+      {
+        "ordinal": 3,
+        "name": "cell_index",
+        "type_info": "Int4"
+      }
+    ],
+    "parameters": {
+      "Left": [
+        "Text"
+      ]
+    },
+    "nullable": [
+      true,
+      true,
+      true,
+      true
+    ]
+  },
+  "hash": "305b0466fdb34e01fa1c7029b83fe410002c3b54331c7af27e2e82011b011172"
+}

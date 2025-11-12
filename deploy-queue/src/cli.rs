@@ -130,4 +130,9 @@ pub enum CancelTarget {
 pub enum ListEntity {
     /// List deployments that are taking substantially longer than expected
     Outliers,
+    /// List all cells for a given environment
+    Cell {
+        #[arg(long)]
+        environment: Environment,
+    },
 }
