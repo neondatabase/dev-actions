@@ -520,19 +520,16 @@ pub async fn cancel_deployment(
 
 pub async fn cancel_deployments_by_component_version(
     client: &Pool<Postgres>,
-    environment: &str,
     component: &str,
     version: &str,
     cancellation_note: Option<&str>,
 ) -> Result<u64> {
     let result = sqlx::query!(
-        "UPDATE deployments 
-         SET cancellation_timestamp = NOW(), cancellation_note = $1 
-         WHERE environment = $2 
-           AND component = $3 
-           AND version = $4",
+        "UPDATE deployments
+         SET cancellation_timestamp = NOW(), cancellation_note = $1
+         WHERE component = $2
+           AND version = $3",
         cancellation_note,
-        environment,
         component,
         version
     )
@@ -541,11 +538,10 @@ pub async fn cancel_deployments_by_component_version(
 
     let rows_affected = result.rows_affected();
     log::info!(
-        "Cancelled {} deployment(s) for component {} version {} in environment {}",
+        "Cancelled {} deployment(s) for component {} version {}",
         rows_affected,
         component,
         version,
-        environment
     );
     Ok(rows_affected)
 }
@@ -560,10 +556,10 @@ pub async fn cancel_deployments_by_location(
 ) -> Result<u64> {
     let result = if let Some(cell_index) = cell_index {
         sqlx::query!(
-            "UPDATE deployments 
-             SET cancellation_timestamp = NOW(), cancellation_note = $1 
-             WHERE environment = $2 
-               AND cloud_provider = $3 
+            "UPDATE deployments
+             SET cancellation_timestamp = NOW(), cancellation_note = $1
+             WHERE environment = $2
+               AND cloud_provider = $3
                AND region = $4
                AND cell_index = $5",
             cancellation_note,
@@ -576,10 +572,10 @@ pub async fn cancel_deployments_by_location(
         .await?
     } else {
         sqlx::query!(
-            "UPDATE deployments 
-             SET cancellation_timestamp = NOW(), cancellation_note = $1 
-             WHERE environment = $2 
-               AND cloud_provider = $3 
+            "UPDATE deployments
+             SET cancellation_timestamp = NOW(), cancellation_note = $1
+             WHERE environment = $2
+               AND cloud_provider = $3
                AND region = $4",
             cancellation_note,
             environment,
@@ -817,17 +813,14 @@ pub async fn run_deploy_queue(mode: cli::Mode, skip_migrations: bool) -> Result<
             if let Some(deployment_id) = deployment_id {
                 cancel_deployment(&db_client, deployment_id, cancellation_note.as_deref()).await?;
                 info!("Deployment {} cancelled", deployment_id);
-            } else if let (Some(environment), Some(component), Some(version)) =
-                (&environment, &component, &version)
-            {
-                // Cancel by environment + component + version
+            } else if let (Some(component), Some(version)) = (&component, &version) {
+                // Cancel by component + version
                 info!(
-                    "Cancelling all deployments in environment {} for component {} and version {}",
-                    environment, component, version
+                    "Cancelling all deployments for component {} and version {}",
+                    component, version
                 );
                 cancel_deployments_by_component_version(
                     &db_client,
-                    environment.as_ref(),
                     component,
                     version,
                     cancellation_note.as_deref(),

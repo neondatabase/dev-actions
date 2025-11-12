@@ -676,14 +676,9 @@ async fn test_cancel_deployments_by_component_version() -> Result<()> {
 
     // Cancel all deployments for this component/version/environment
     let cancellation_note = "Cancelling test-component-cancel-cv v1.0.0";
-    let cancelled_count = cancel_deployments_by_component_version(
-        &pool,
-        environment,
-        component,
-        version,
-        Some(cancellation_note),
-    )
-    .await?;
+    let cancelled_count =
+        cancel_deployments_by_component_version(&pool, component, version, Some(cancellation_note))
+            .await?;
 
     // Should have cancelled 3 deployments (id1, id2, id3)
     assert_eq!(cancelled_count, 3, "Should cancel 3 deployments");

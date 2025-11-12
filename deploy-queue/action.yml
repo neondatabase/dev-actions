@@ -181,17 +181,17 @@ runs:
               # Option 1: environment + component + version
               # Option 2: environment + provider + region (+ optional cell-index)
 
-              has_component_version="${COMPONENT:+1}${VERSION:+1}${ENVIRONMENT:+1}"
+              has_component_version="${COMPONENT:+1}${VERSION:+1}"
               has_location="${ENVIRONMENT:+1}${CLOUD_PROVIDER:+1}${REGION:+1}"
 
-              if [[ "${has_component_version}" == "111" ]]; then
-                # Valid: component + version + environment are all set
+              if [[ "${has_component_version}" == "11" ]]; then
+                # Valid: component + version are all set
                 :
               elif [[ "${has_location}" == "111" ]]; then
                 # Valid: environment + provider + region are all set
                 :
               else
-                echo "Error: Either deployment-id OR (component + version + environment) OR (environment + provider + region) must be set for cancel mode"
+                echo "Error: Either deployment-id OR (component + version) OR (environment + provider + region (+optionally cell_index)) must be set for cancel mode"
                 exit 1
               fi
 
