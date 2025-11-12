@@ -232,6 +232,10 @@ runs:
             args+=("info" "${DEPLOYMENT_ID}")
             deploy-queue "${args[@]}"
             ;;
+          "outliers")
+            args+=("outliers")
+            deploy-queue "${args[@]}"
+            ;;
           *)
             echo "Unknown mode: ${MODE}"
             exit 1
