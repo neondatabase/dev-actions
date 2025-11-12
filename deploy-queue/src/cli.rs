@@ -74,29 +74,11 @@ pub enum Mode {
     },
     /// Cancel deployment for a component
     Cancel {
-        /// Deployment ID to cancel
-        deployment_id: Option<i64>,
         #[arg(long)]
         /// Cancellation note for this deployment
         cancellation_note: Option<String>,
-        #[arg(long)]
-        /// Component to cancel
-        component: Option<String>,
-        #[arg(long)]
-        /// Version of the component to cancel
-        version: Option<String>,
-        #[arg(long)]
-        /// Environment where to cancel
-        environment: Option<Environment>,
-        #[arg(long = "provider")]
-        /// Cloud provider to cancel
-        cloud_provider: Option<String>,
-        #[arg(long)]
-        /// Region to cancel
-        region: Option<String>,
-        #[arg(long)]
-        /// Cell index to cancel
-        cell_index: Option<i32>,
+        #[command(subcommand)]
+        target: CancelTarget,
     },
     /// Get info about a deployment
     Info {
@@ -105,4 +87,34 @@ pub enum Mode {
     },
     /// List deployments that are taking substantially longer than expected
     Outliers,
+}
+
+#[derive(Subcommand, Clone)]
+pub enum CancelTarget {
+    Deployment {
+        /// Deployment ID to cancel
+        deployment_id: i64,
+    },
+    Version {
+        #[arg(long)]
+        /// Component to cancel
+        component: String,
+        #[arg(long)]
+        /// Version of the component to cancel
+        version: String,
+    },
+    Location {
+        #[arg(long)]
+        /// Environment where to cancel
+        environment: Environment,
+        #[arg(long = "provider")]
+        /// Cloud provider to cancel
+        cloud_provider: String,
+        #[arg(long)]
+        /// Region to cancel
+        region: String,
+        #[arg(long)]
+        /// Cell index to cancel
+        cell_index: Option<i32>,
+    },
 }

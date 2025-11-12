@@ -175,50 +175,17 @@ runs:
             # Validate input parameters
             if [[ -n "${DEPLOYMENT_ID:-}" ]]; then
               # If deployment-id is set, use it (other params ignored except cancellation-note)
-              args+=("${DEPLOYMENT_ID}")
-            else
-              # If deployment-id is NOT set, validate that we have enough info to identify deployments
-              # Option 1: environment + component + version
-              # Option 2: environment + provider + region (+ optional cell-index)
-
-              has_component_version="${COMPONENT:+1}${VERSION:+1}"
-              has_location="${ENVIRONMENT:+1}${CLOUD_PROVIDER:+1}${REGION:+1}"
-
-              if [[ "${has_component_version}" == "11" ]]; then
-                # Valid: component + version are all set
-                :
-              elif [[ "${has_location}" == "111" ]]; then
-                # Valid: environment + provider + region are all set
-                :
-              else
-                echo "Error: Either deployment-id OR (component + version) OR (environment + provider + region (+optionally cell_index)) must be set for cancel mode"
-                exit 1
-              fi
-
-              # Add optional arguments as flags for cancel all deployments
-              if [[ -n "${ENVIRONMENT:-}" ]]; then
-                args+=("--environment" "${ENVIRONMENT}")
-              fi
-
-              if [[ -n "${CLOUD_PROVIDER:-}" ]]; then
-                args+=("--provider" "${CLOUD_PROVIDER}")
-              fi
-
-              if [[ -n "${REGION:-}" ]]; then
-                args+=("--region" "${REGION}")
-              fi
-
+              args+=("deployment" "${DEPLOYMENT_ID}")
+            elif [[ -n "${COMPONENT}" && -n "${VERSION}" ]]; then
+              args+=("version" "--component" "${COMPONENT}" "--version" "${VERSION}")
+            elif [[ -n "${ENVIRONMENT}" && -n "${CLOUD_PROVIDER}" && -n "${REGION}" ]]; then
+              args+=("location" "--environment" "${ENVIRONMENT}" "--provider" "${CLOUD_PROVIDER}" "--region" "${REGION}")
               if [[ -n "${CELL_INDEX:-}" ]]; then
                 args+=("--cell-index" "${CELL_INDEX}")
               fi
-
-              if [[ -n "${COMPONENT:-}" ]]; then
-                args+=("--component" "${COMPONENT}")
-              fi
-
-              if [[ -n "${VERSION:-}" ]]; then
-                args+=("--version" "${VERSION}")
-              fi
+            else
+              echo "Error: Either deployment-id OR (component + version) OR (environment + provider + region (+ optionally cell)) must be set for cancel mode"
+              exit 1
             fi
 
             # Add cancellation note as a flag (to be used for both single and bulk cancellation)
