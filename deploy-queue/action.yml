@@ -180,10 +180,10 @@ runs:
               # If deployment-id is NOT set, validate that we have enough info to identify deployments
               # Option 1: environment + component + version
               # Option 2: environment + provider + region (+ optional cell-index)
-              
+
               has_component_version="${COMPONENT:+1}${VERSION:+1}${ENVIRONMENT:+1}"
               has_location="${ENVIRONMENT:+1}${CLOUD_PROVIDER:+1}${REGION:+1}"
-              
+
               if [[ "${has_component_version}" == "111" ]]; then
                 # Valid: component + version + environment are all set
                 :
@@ -313,4 +313,4 @@ runs:
                 "type": "divider"
               }
             ]
-          }      
+          }
