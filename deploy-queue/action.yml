@@ -199,8 +199,8 @@ runs:
             args+=("info" "${DEPLOYMENT_ID}")
             deploy-queue "${args[@]}"
             ;;
-          "outliers")
-            args+=("outliers")
+          "list-outliers")
+            args+=("list" "outliers")
             deploy-queue "${args[@]}"
             ;;
           *)
