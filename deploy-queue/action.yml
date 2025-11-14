@@ -204,6 +204,13 @@ runs:
             args+=("list" "outliers")
             deploy-queue "${args[@]}"
             ;;
+          "list-cells")
+            args+=("list" "cells")
+            if [[ -n "${ENVIRONMENT:-}" ]]; then
+              args+=("--environment" "${ENVIRONMENT}")
+            fi
+            deploy-queue "${args[@]}"
+            ;;
           *)
             echo "Unknown mode: ${MODE}"
             exit 1
