@@ -16,6 +16,7 @@ serde = { version = "1", features = ["derive"] }
 serde_json = "1"
 humantime-serde = "1"
 humantime = "2"
+uuid = { version = "1.18.1", features = ["v4"] }
 
 [build-dependencies]
 anyhow = "1"
