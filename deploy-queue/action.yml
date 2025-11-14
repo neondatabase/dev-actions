@@ -123,6 +123,7 @@ runs:
         NOTE: ${{ inputs.note }}
         DEPLOYMENT_ID: ${{ inputs.deployment-id }}
         CANCELLATION_NOTE: ${{ inputs.cancellation-note }}
+        GITHUB_JOB_RUN_ID: ${{ job.check_run_id }}
       run: |
         set -euo pipefail
 
@@ -152,7 +153,7 @@ runs:
             if [[ -n "${URL:-}" ]]; then
               args+=("--url" "${URL}")
             else
-              args+=("--url" "Started by ${GITHUB_SERVER_URL}/${GITHUB_REPOSITORY}/actions/runs/${GITHUB_RUN_ID}")
+              args+=("--url" "${GITHUB_SERVER_URL}/${GITHUB_REPOSITORY}/actions/runs/${GITHUB_RUN_ID}/job/${GITHUB_JOB_RUN_ID}")
             fi
 
             if [[ -n "${NOTE:-}" ]]; then
