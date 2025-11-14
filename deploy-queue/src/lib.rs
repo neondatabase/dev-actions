@@ -92,7 +92,7 @@ pub async fn run_deploy_queue(mode: cli::Mode, skip_migrations: bool) -> Result<
                 .context("Failed to list outliers")?;
         }
         cli::Mode::List {
-            entity: cli::ListEntity::Cell { environment },
+            entity: cli::ListEntity::Cells { environment },
         } => {
             handler::list::cells(&db_client, environment)
                 .await

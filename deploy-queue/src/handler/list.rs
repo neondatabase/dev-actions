@@ -26,7 +26,7 @@ pub(crate) async fn cells(client: &Pool<Postgres>, environment: Environment) -> 
     println!("Known cells for environment {}:", environment);
     for cell in cells {
         println!(
-            "  - {}-{}-{}-{}",
+            "  - {}-{}-{}-cell-{}",
             cell.environment, cell.cloud_provider, cell.region, cell.index
         );
     }
