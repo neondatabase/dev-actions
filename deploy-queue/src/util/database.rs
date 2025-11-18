@@ -46,6 +46,7 @@ async fn create_db_connection() -> Result<Pool<Postgres>> {
 
 async fn run_migrations(pool: &Pool<Postgres>) -> Result<()> {
     sqlx::migrate!("./migrations")
+        .set_ignore_missing(true)
         .run(pool)
         .await
         .context("Failed to run database migrations")?;
