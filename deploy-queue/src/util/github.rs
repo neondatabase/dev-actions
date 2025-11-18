@@ -1,6 +1,7 @@
 use std::{fs::OpenOptions, io::Write};
 
 use anyhow::Result;
+use fd_lock::RwLock;
 use uuid::Uuid;
 
 /// Write a key-value pair to GitHub Actions output file
@@ -12,10 +13,15 @@ where
     if let Ok(github_output) = std::env::var("GITHUB_OUTPUT") {
         let delimiter = Uuid::new_v4();
         let value = value_fn()?;
-        let mut file = OpenOptions::new()
-            .create(true)
-            .append(true)
-            .open(github_output)?;
+        let mut locked_file = RwLock::new(
+            OpenOptions::new()
+                .create(true)
+                .append(true)
+                .open(github_output)?,
+        );
+
+        let mut file = locked_file.write()?;
+
         writeln!(file, "{key}<<{delimiter}")?;
         writeln!(file, "{value}")?;
         writeln!(file, "{delimiter}")?;
