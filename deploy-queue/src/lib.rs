@@ -526,10 +526,10 @@ pub async fn cancel_deployments_by_component_version(
     cancellation_note: Option<&str>,
 ) -> Result<u64> {
     let result = sqlx::query!(
-        "UPDATE deployments 
-         SET cancellation_timestamp = NOW(), cancellation_note = $1 
-         WHERE environment = $2 
-           AND component = $3 
+        "UPDATE deployments
+         SET cancellation_timestamp = NOW(), cancellation_note = $1
+         WHERE environment = $2
+           AND component = $3
            AND version = $4",
         cancellation_note,
         environment,
@@ -560,10 +560,10 @@ pub async fn cancel_deployments_by_location(
 ) -> Result<u64> {
     let result = if let Some(cell_index) = cell_index {
         sqlx::query!(
-            "UPDATE deployments 
-             SET cancellation_timestamp = NOW(), cancellation_note = $1 
-             WHERE environment = $2 
-               AND cloud_provider = $3 
+            "UPDATE deployments
+             SET cancellation_timestamp = NOW(), cancellation_note = $1
+             WHERE environment = $2
+               AND cloud_provider = $3
                AND region = $4
                AND cell_index = $5",
             cancellation_note,
@@ -576,10 +576,10 @@ pub async fn cancel_deployments_by_location(
         .await?
     } else {
         sqlx::query!(
-            "UPDATE deployments 
-             SET cancellation_timestamp = NOW(), cancellation_note = $1 
-             WHERE environment = $2 
-               AND cloud_provider = $3 
+            "UPDATE deployments
+             SET cancellation_timestamp = NOW(), cancellation_note = $1
+             WHERE environment = $2
+               AND cloud_provider = $3
                AND region = $4",
             cancellation_note,
             environment,

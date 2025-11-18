@@ -1,0 +1,17 @@
+{
+  "db_name": "PostgreSQL",
+  "query": "UPDATE deployments\n             SET cancellation_timestamp = NOW(), cancellation_note = $1\n             WHERE environment = $2\n               AND cloud_provider = $3\n               AND region = $4",
+  "describe": {
+    "columns": [],
+    "parameters": {
+      "Left": [
+        "Text",
+        "Text",
+        "Text",
+        "Text"
+      ]
+    },
+    "nullable": []
+  },
+  "hash": "8e59cf17dcf58d773c0de3b1c023944c34484829592744e8bad2fd5fbbd621cd"
+}
