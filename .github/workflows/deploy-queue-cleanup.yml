@@ -10,7 +10,9 @@ permissions: {}
 
 jobs:
   delete-prerelease:
-    runs-on: ubuntu-24.04
+    runs-on:
+      group: neondatabase-protected-runner-group
+      labels: linux-ubuntu-latest
     permissions:
       contents: write
     steps:
