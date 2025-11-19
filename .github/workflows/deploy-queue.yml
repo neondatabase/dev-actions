@@ -18,7 +18,9 @@ env:
 
 jobs:
   lint:
-    runs-on: ubuntu-24.04
+    runs-on:
+      group: neondatabase-protected-runner-group
+      labels: linux-ubuntu-latest
     services:
       postgres:
         image: postgres:15
@@ -84,7 +86,9 @@ jobs:
           echo "Linting and lockfile verification completed"
 
   test-integration:
-    runs-on: ubuntu-24.04
+    runs-on:
+      group: neondatabase-protected-runner-group
+      labels: linux-ubuntu-latest
     strategy:
       fail-fast: false
       matrix:
@@ -143,16 +147,17 @@ jobs:
           echo "All tests completed successfully"
 
   build-image:
-    runs-on: ${{ matrix.runner }}
+    runs-on:
+      group: ${{ matrix.runner.group }}
+      labels: ${{ matrix.runner.labels }}
     outputs:
       digest_x86_64: ${{ steps.export_digest.outputs.digest_x86_64 }}
-      digest_aarch64: ${{ steps.export_digest.outputs.digest_aarch64 }}
     strategy:
       fail-fast: false
       matrix:
         runner:
-          - ubuntu-24.04
-          - ubuntu-24.04-arm
+          - group: neondatabase-protected-runner-group
+            labels: linux-ubuntu-latest
     permissions:
       contents: read
       packages: write
@@ -201,7 +206,9 @@ jobs:
           echo "digest_$(uname -m)=${digest#sha256:}" | tee -a "$GITHUB_OUTPUT"
 
   merge-image:
-    runs-on: ubuntu-24.04
+    runs-on:
+      group: neondatabase-protected-runner-group
+      labels: linux-ubuntu-latest
     needs: [build-image]
     permissions:
       contents: read
@@ -241,19 +248,20 @@ jobs:
         run: |
           docker buildx imagetools create \
             $(jq -cr '.tags | map("-t " + .) | join(" ")' <<< "$DOCKER_METADATA_OUTPUT_JSON") \
-            ${{ env.GHCR_REPO }}@sha256:${{ needs.build-image.outputs.digest_aarch64 }} \
             ${{ env.GHCR_REPO }}@sha256:${{ needs.build-image.outputs.digest_x86_64 }}
 
       - name: Inspect image
         run: docker buildx imagetools inspect ${{ env.GHCR_REPO }}:${{ steps.meta.outputs.version }}
 
   build-binary:
-    runs-on: ${{ matrix.runner }}
+    runs-on:
+      group: ${{ matrix.runner.group }}
+      labels: ${{ matrix.runner.labels }}
     strategy:
       matrix:
         runner:
-          - ubuntu-24.04
-          - ubuntu-24.04-arm
+          - group: neondatabase-protected-runner-group
+            labels: linux-ubuntu-latest
     steps:
       - name: Harden the runner (Audit all outbound calls)
         uses: step-security/harden-runner@4d991eb9b905ef189e4c376166672c3f2f230481 # v2.11.0
@@ -286,7 +294,9 @@ jobs:
 
   create-release:
     needs: [build-binary]
-    runs-on: ubuntu-24.04
+    runs-on:
+      group: neondatabase-protected-runner-group
+      labels: linux-ubuntu-latest
     permissions:
       contents: write
     steps:
@@ -347,7 +357,9 @@ jobs:
   test-e2e:
     if: github.event_name == 'pull_request' || github.ref_type == 'tag'
     needs: [create-release]
-    runs-on: ubuntu-latest
+    runs-on:
+      group: neondatabase-protected-runner-group
+      labels: linux-ubuntu-latest
     services:
       postgres:
         image: postgres:15
@@ -678,7 +690,9 @@ jobs:
   compat-tests:
     if: github.event_name == 'pull_request' || github.ref_type == 'tag'
     needs: [create-release]
-    runs-on: ubuntu-latest
+    runs-on:
+      group: neondatabase-protected-runner-group
+      labels: linux-ubuntu-latest
     services:
       postgres:
         image: postgres:15
