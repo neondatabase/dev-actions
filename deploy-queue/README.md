@@ -81,7 +81,7 @@ This tool is designed to be used as a GitHub Action. See [action.yml](action.yml
 
 ## CLI Usage
 
-The deploy-queue CLI has four main commands:
+The deploy-queue CLI has six main commands:
 
 ### 1. Start a Deployment
 
@@ -131,17 +131,49 @@ deploy-queue finish <DEPLOYMENT_ID>
 deploy-queue finish 42
 ```
 
-### 3. Cancel a Deployment
+### 3. Cancel Deployment(s)
 
-Cancel a deployment with an optional note.
+#### Cancel by Deployment ID
+
+Cancel a specific deployment by its ID with an optional note.
 
 ```bash
-deploy-queue cancel <DEPLOYMENT_ID> [CANCELLATION_NOTE]
+deploy-queue cancel deployment <DEPLOYMENT_ID> [--cancellation-note <NOTE>]
 ```
 
 **Example:**
 ```bash
-deploy-queue cancel 42 "Cancelled due to failing health checks"
+deploy-queue cancel deployment 42 --cancellation-note "Cancelled due to failing health checks"
+```
+
+#### Bulk Cancel per Component
+
+Cancel all deployments for a specific component and version. Use this method only in case of emergencies.
+
+```bash
+deploy-queue cancel version --component <COMPONENT> --version <VERSION> [--cancellation-note <NOTE>]
+```
+
+**Example:**
+```bash
+deploy-queue cancel version --component api --version v1.2.3 --cancellation-note "Rolling back bad release"
+```
+
+#### Bulk Cancel per Region
+
+Cancel all deployments in a specific location (environment, cloud provider, region, and optionally cell). Use this method only in case of emergencies and coordinate with owners of affected deployment jobs beforehand.
+
+```bash
+deploy-queue cancel location --environment <ENVIRONMENT> --provider <PROVIDER> --region <REGION> [--cell-index <CELL_INDEX>] [--cancellation-note <NOTE>]
+```
+
+**Examples:**
+```bash
+# Cancel all deployments in a specific cell
+deploy-queue cancel location --environment prod --provider aws --region us-west-2 --cell-index 1 --cancellation-note "Emergency maintenance"
+
+# Cancel all deployments in a region (all cells)
+deploy-queue cancel location --environment prod --provider aws --region us-west-2 --cancellation-note "Regional outage"
 ```
 
 ### 4. Get Deployment Info
@@ -161,6 +193,43 @@ deploy-queue info 42
 ```
 42 deployed api@v1.2.3: (Hotfix for critical bug) (https://github.com/org/repo/actions/runs/123)
 ```
+
+### 5. List Outliers
+
+List deployments that are taking substantially longer than expected. This is useful for identifying stuck or problematic deployments.
+
+**Example:**
+```bash
+deploy-queue list outliers
+```
+
+**Output:**
+- Prints outlier deployments in JSON format
+- Writes `active-outliers=<JSON>` to `$GITHUB_OUTPUT` if running in GitHub Actions
+
+### 6. List Cells
+
+List all known cells for a given environment. This shows which cloud provider/region/cell combinations have had deployments.
+
+```bash
+deploy-queue list cells --environment <ENVIRONMENT>
+```
+
+**Example:**
+```bash
+deploy-queue list cells --environment prod
+```
+
+**Output:**
+```
+Known cells for environment prod:
+  - prod-aws-us-west-2-cell-0
+  - prod-aws-us-west-2-cell-1
+  - prod-aws-us-east-1-cell-0
+  - prod-gcp-us-central1-cell-0
+```
+
+Writes `cells=<JSON>` to `$GITHUB_OUTPUT` if running in GitHub Actions.
 
 ## Configuration
 
@@ -338,6 +407,92 @@ jobs:
 
 This "breaking glass" mechanism allows you to maintain deployment velocity during critical incidents while keeping the safety of the queue for normal operations.
 
+### Slack Notifications
+
+The deploy queue action supports sending deployment notifications to Slack channels, allowing teams to monitor deployments in real-time.
+
+### Setup
+
+To enable Slack notifications, you need:
+
+1. **Slack Bot Token** - A bot token with `chat:write` permission
+2. **Slack Channel ID** - The ID of the channel where notifications should be sent
+
+Store these as variables/secrets in your GitHub repository:
+- `SLACK_BOT_TOKEN` - Your Slack bot OAuth token secret
+- `SLACK_CHANNEL_ID` - The target Slack channel ID (e.g., `C01234567`) variable
+
+### How It Works
+
+The action can send three types of notifications:
+
+1. **Start Notification** - Sent when a deployment begins, includes:
+   - Component name and version
+   - Environment, cloud provider, region, and cell
+   - Deployment ID
+   - Link to GitHub Actions job
+
+2. **Finish Notification** - Sent when a deployment completes successfully
+   - Can be displayed in the thread of the start notification (when providing `slack-start-message-id`)
+
+3. **Cancel Notification** - Sent when a deployment is cancelled
+   - Can be displayed in the thread of the start notification (when providing `slack-start-message-id`)
+
+### Basic Example with Slack Notifications
+
+```yaml
+name: Deploy API with Slack Notifications
+on:
+  push:
+    branches: [main]
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Start deployment
+        id: deploy-queue-start
+        uses: neondatabase/dev-actions/deploy-queue@v1
+        with:
+          mode: start
+          environment: prod
+          cloud-provider: aws
+          region: us-west-2
+          cell-index: 1
+          component: api
+          version: ${{ github.sha }}
+          slack-channel-id: ${{ variables.SLACK_CHANNEL_ID }}
+          slack-bot-token: ${{ secrets.SLACK_BOT_TOKEN }}
+
+      - name: Run actual deployment
+        run: |
+          # Your deployment commands here
+          echo "Deploying..."
+
+      - name: Finish deployment
+        if: success()
+        uses: neondatabase/dev-actions/deploy-queue@v1
+        with:
+          mode: finish
+          deployment-id: ${{ steps.deploy-queue-start.outputs.deployment-id }}
+          slack-channel-id: ${{ variables.SLACK_CHANNEL_ID }}
+          slack-bot-token: ${{ secrets.SLACK_BOT_TOKEN }}
+          slack-start-message-id: ${{ steps.deploy-queue-start.outputs.slack-start-message-id }}
+
+      - name: Cancel deployment
+        if: failure()
+        uses: neondatabase/dev-actions/deploy-queue@v1
+        with:
+          mode: cancel
+          deployment-id: ${{ steps.deploy-queue-start.outputs.deployment-id }}
+          cancellation-note: "Deployment failed"
+          slack-channel-id: ${{ variables.SLACK_CHANNEL_ID }}
+          slack-bot-token: ${{ secrets.SLACK_BOT_TOKEN }}
+          slack-start-message-id: ${{ steps.deploy-queue-start.outputs.slack-start-message-id }}
+```
+
+By passing the `slack-start-message-id` output from the start step to the finish/cancel steps, the notifications will be threaded together in Slack, making it easy to track the full lifecycle of a deployment in one conversation thread.
+
 ## Development
 
 ### Running Tests
@@ -435,10 +590,29 @@ If compilation fails in CI without a database, ensure the `.sqlx/` directory is 
 ### Components
 
 - **CLI (`src/cli.rs`)** - Command-line argument parsing using `clap`
-- **Library (`src/lib.rs`)** - Core logic for deployment management
-- **Queries (`queries/`)** - SQL queries for blocking detection
-- **Migrations (`migrations/`)** - Database schema versioning
-- **Tests (`tests/`)** - Integration and unit tests
+- **Library (`src/lib.rs`)** - Main entry point and orchestration logic
+- **Models (`src/model.rs`)** - Data structures for deployments, cells, and deployment states
+- **Handlers (`src/handler/`)** - Business logic for deployment operations
+  - `cancel.rs` - Cancel deployment operations (by ID, version, or location)
+  - `fetch.rs` - Database queries for fetching deployments, outliers, cells, etc.
+  - `list.rs` - List operations for outliers and cells
+  - `mod.rs` - Core handlers for enqueue, start, finish, and wait operations
+- **Utilities (`src/util/`)** - Helper modules
+  - `database.rs` - Database connection and migration management
+  - `duration.rs` - Duration formatting and calculations
+  - `github.rs` - GitHub Actions output integration
+- **Constants (`src/constants.rs`)** - Application constants (e.g., retry intervals)
+- **Queries (`queries/`)** - SQL queries for complex operations
+  - `blocking_deployments.sql` - Find deployments blocking a given deployment
+  - `active_outliers.sql` - Find deployments taking longer than expected
+  - `grafana_queries.sql` - Example queries for monitoring dashboards
+- **Migrations (`migrations/`)** - Database schema versioning (migrations)
+- **Tests (`tests/`)** - Comprehensive test suite
+  - `integration_tests.rs` - End-to-end deployment workflow tests
+  - `blocking_deployments_tests.rs` - Blocking logic tests
+  - `deployment_analytics_tests.rs` - Duration analytics tests
+  - `outlier_detection_tests.rs` - Outlier detection tests
+  - `views_tests.rs` - Database view tests
 
 ## Queries
 
