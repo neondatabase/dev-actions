@@ -125,6 +125,7 @@ runs:
         COMPONENT: ${{ inputs.component }}
         VERSION: ${{ inputs.version }}
         CONCURRENCY_KEY: ${{ inputs.concurrency-key }}
+        INPUT_URL: ${{ inputs.url }}
         URL: ${{ steps.deployment-url.outputs.url }}
         NOTE: ${{ inputs.note }}
         DEPLOYMENT_ID: ${{ inputs.deployment-id }}
