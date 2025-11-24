@@ -106,9 +106,11 @@ runs:
       id: deployment-url
       if: inputs.mode == 'start'
       shell: bash
+      env:
+        INPUT_URL: ${{ inputs.url }}
       run: |
-        if [[ -n "${{ inputs.url }}" ]]; then
-          echo "url=${{ inputs.url }}" >> "$GITHUB_OUTPUT"
+        if [[ -n "${INPUT_URL}" ]]; then
+          echo "url=${INPUT_URL}" >> "$GITHUB_OUTPUT"
         else
           echo "url=${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}/job/${{ job.check_run_id }}" >> "$GITHUB_OUTPUT"
         fi
@@ -125,7 +127,6 @@ runs:
         COMPONENT: ${{ inputs.component }}
         VERSION: ${{ inputs.version }}
         CONCURRENCY_KEY: ${{ inputs.concurrency-key }}
-        INPUT_URL: ${{ inputs.url }}
         URL: ${{ steps.deployment-url.outputs.url }}
         NOTE: ${{ inputs.note }}
         DEPLOYMENT_ID: ${{ inputs.deployment-id }}
