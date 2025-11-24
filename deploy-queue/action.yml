@@ -102,6 +102,19 @@ runs:
         ARCHIVE: "deploy-queue-${{ steps.triple.outputs.triple }}"
         ACTION_REPO: ${{ github.action_repository || github.repository }}
 
+    - name: Determine deployment URL
+      id: deployment-url
+      if: inputs.mode == 'start'
+      shell: bash
+      env:
+        INPUT_URL: ${{ inputs.url }}
+      run: |
+        if [[ -n "${INPUT_URL}" ]]; then
+          echo "url=${INPUT_URL}" >> "$GITHUB_OUTPUT"
+        else
+          echo "url=${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}/job/${{ job.check_run_id }}" >> "$GITHUB_OUTPUT"
+        fi
+
     - name: Run deploy-queue
       id: run-deploy-queue
       shell: bash
@@ -114,11 +127,10 @@ runs:
         COMPONENT: ${{ inputs.component }}
         VERSION: ${{ inputs.version }}
         CONCURRENCY_KEY: ${{ inputs.concurrency-key }}
-        URL: ${{ inputs.url }}
+        URL: ${{ steps.deployment-url.outputs.url }}
         NOTE: ${{ inputs.note }}
         DEPLOYMENT_ID: ${{ inputs.deployment-id }}
         CANCELLATION_NOTE: ${{ inputs.cancellation-note }}
-        GITHUB_JOB_RUN_ID: ${{ job.check_run_id }}
       run: |
         set -euo pipefail
 
@@ -144,11 +156,8 @@ runs:
               args+=("--version" "${VERSION}")
             fi
 
-            # Use provided URL or generate GitHub Actions URL as fallback
             if [[ -n "${URL:-}" ]]; then
               args+=("--url" "${URL}")
-            else
-              args+=("--url" "${GITHUB_SERVER_URL}/${GITHUB_REPOSITORY}/actions/runs/${GITHUB_RUN_ID}/job/${GITHUB_JOB_RUN_ID}")
             fi
 
             if [[ -n "${NOTE:-}" ]]; then
@@ -248,7 +257,7 @@ runs:
                 "elements": [
                   {
                     "type": "mrkdwn",
-                    "text": ":github: <${{ inputs.url }}|View GitHub Actions Job>"
+                    "text": ":github: <${{ steps.deployment-url.outputs.url }}|View GitHub Actions Job>"
                   }
                 ]
               },
