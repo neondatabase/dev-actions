@@ -44,6 +44,7 @@ jobs:
 
       - run: uv run ruff check --output-format=github .
       - run: uv run ruff format --check .
+      - run: uv run ty check
       - run: uv run pyright
       - run: uv run pytest
       - run: uv build
