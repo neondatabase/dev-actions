@@ -3,7 +3,6 @@ from neon_release_pr.context import ctx
 from shutil import which
 from subprocess import run, PIPE, CalledProcessError
 import re
-import typer
 
 
 def ready():
@@ -162,33 +161,6 @@ def rc_branch_name() -> str:
 
 def release_branch_name() -> str:
     return f"release-{ctx.component}"
-
-
-def base_branch_name() -> str:
-    return (
-        "neon-main" if github_repo(origin_url()) == "databricks-eng/hadron" else "main"
-    )
-
-
-def github_repo(origin_url: str | None) -> str | None:
-    typer.echo(origin_url)
-    if origin_url is None:
-        return None
-
-    match = re.search(
-        r"github[^:/\s]*\.com[^:/\s]*(?::\d+)?[:\/](?P<repo>[^/]+?/[^/]+?)(\.git)?$",
-        origin_url,
-    )
-
-    assert match, (
-        "There should be exactly one repo owner/name match in the url for remote origin"
-    )
-
-    return match.group("repo")
-
-
-def origin_url() -> str | None:
-    return run_git(["remote", "get-url", "origin"], capture_output=True, dry_run=False)
 
 
 def merge_message() -> str:
