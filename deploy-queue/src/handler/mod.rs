@@ -41,7 +41,7 @@ async fn cancel_stale_heartbeat_deployments(client: &Pool<Postgres>) -> Result<(
 
     let stale_deployments = sqlx::query!(
         r#"
-        SELECT id, component, heartbeat_timestamp
+        SELECT id, component, version, heartbeat_timestamp
         FROM deployments
         WHERE heartbeat_timestamp IS NOT NULL
           AND finish_timestamp IS NULL
@@ -55,9 +55,10 @@ async fn cancel_stale_heartbeat_deployments(client: &Pool<Postgres>) -> Result<(
 
     for deployment in stale_deployments {
         log::warn!(
-            "Cancelling deployment {} ({}) due to stale heartbeat (last seen: {:?})",
+            "Cancelling deployment {} ({}, version={}) due to stale heartbeat (last seen: {:?})",
             deployment.id,
             deployment.component,
+            deployment.version.as_deref().unwrap_or("unknown"),
             deployment.heartbeat_timestamp
         );
 
