@@ -52,6 +52,27 @@ pub async fn deployment(client: &Pool<Postgres>, deployment_id: i64) -> Result<O
     }
 }
 
+pub async fn deployment_id_by_url(client: &Pool<Postgres>, url: &str) -> Result<Option<i64>> {
+    let row = sqlx::query!(
+        r#"
+        SELECT id
+        FROM deployments
+        WHERE url = $1
+        ORDER BY id DESC
+        LIMIT 1
+        "#,
+        url
+    )
+    .fetch_optional(client)
+    .await?;
+
+    if let Some(row) = row {
+        Ok(Some(row.id))
+    } else {
+        Ok(None)
+    }
+}
+
 pub async fn blocking_deployments(
     client: &Pool<Postgres>,
     deployment_id: i64,

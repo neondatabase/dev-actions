@@ -8,7 +8,7 @@ use sqlx::{Pool, Postgres};
 use time::Duration;
 
 use crate::{
-    constants::BUSY_RETRY,
+    constants::{BUSY_RETRY, HEARTBEAT_INTERVAL},
     model::Deployment,
     util::{duration::DurationExt, github},
 };
@@ -141,4 +141,31 @@ pub async fn finish_deployment(client: &Pool<Postgres>, deployment_id: i64) -> R
     .await?;
     log::info!("Deployment {} has been finished", deployment_id);
     Ok(())
+}
+
+/// Update the heartbeat timestamp for a deployment
+/// This is the core function that can be called from anywhere (e.g., as a background task)
+pub async fn update_heartbeat(client: &Pool<Postgres>, deployment_id: i64) -> Result<()> {
+    sqlx::query!(
+        "UPDATE deployments SET heartbeat_timestamp = NOW() WHERE id = $1",
+        deployment_id
+    )
+    .execute(client)
+    .await?;
+    log::debug!("Heartbeat sent for deployment {}", deployment_id);
+    Ok(())
+}
+
+/// Run heartbeat in a loop with periodic intervals until terminated
+pub async fn run_heartbeat_loop(client: &Pool<Postgres>, deployment_id: i64) -> Result<()> {
+    info!(
+        "Starting heartbeat loop for deployment {} (interval: {}s)",
+        deployment_id,
+        HEARTBEAT_INTERVAL.as_secs()
+    );
+
+    loop {
+        update_heartbeat(client, deployment_id).await?;
+        tokio::time::sleep(HEARTBEAT_INTERVAL).await;
+    }
 }

@@ -4,3 +4,4 @@ pub const CONNECTION_TIMEOUT: Duration = Duration::from_secs(10);
 pub const ACQUIRE_TIMEOUT: Duration = Duration::from_secs(10);
 pub const IDLE_TIMEOUT: Duration = Duration::from_secs(10);
 pub const BUSY_RETRY: Duration = Duration::from_secs(5);
+pub const HEARTBEAT_INTERVAL: Duration = Duration::from_secs(30);
