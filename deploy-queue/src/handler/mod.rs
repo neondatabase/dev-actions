@@ -8,7 +8,7 @@ use sqlx::{Pool, Postgres};
 use time::Duration;
 
 use crate::{
-    constants::BUSY_RETRY,
+    constants::{BUSY_RETRY, HEARTBEAT_INTERVAL, HEARTBEAT_TIMEOUT},
     model::Deployment,
     util::{duration::DurationExt, github},
 };
@@ -35,11 +35,52 @@ pub async fn enqueue_deployment(client: &Pool<Postgres>, deployment: Deployment)
     Ok(deployment_id)
 }
 
+/// Cancel deployments with stale heartbeats
+async fn cancel_stale_heartbeat_deployments(client: &Pool<Postgres>) -> Result<()> {
+    let heartbeat_timeout_interval = HEARTBEAT_TIMEOUT.to_pg_interval()?;
+
+    let stale_deployments = sqlx::query!(
+        r#"
+        SELECT id, component, version, heartbeat_timestamp
+        FROM deployments
+        WHERE heartbeat_timestamp IS NOT NULL
+          AND finish_timestamp IS NULL
+          AND cancellation_timestamp IS NULL
+          AND heartbeat_timestamp < NOW() - $1::interval
+        "#,
+        heartbeat_timeout_interval
+    )
+    .fetch_all(client)
+    .await?;
+
+    for deployment in stale_deployments {
+        log::warn!(
+            "Cancelling deployment {} ({}, version={}) due to stale heartbeat (last seen: {:?})",
+            deployment.id,
+            deployment.component,
+            deployment.version.as_deref().unwrap_or("unknown"),
+            deployment.heartbeat_timestamp
+        );
+
+        cancel::deployment(
+            client,
+            deployment.id,
+            Some("Cancelled due to stale heartbeat"),
+        )
+        .await?;
+    }
+
+    Ok(())
+}
+
 pub async fn wait_for_blocking_deployments(
     pg_pool: &Pool<Postgres>,
     deployment_id: i64,
 ) -> Result<()> {
     loop {
+        // Check for and cancel any deployments with stale heartbeats
+        cancel_stale_heartbeat_deployments(pg_pool).await?;
+
         let blocking_deployments = fetch::blocking_deployments(pg_pool, deployment_id).await?;
 
         if blocking_deployments.is_empty() {
@@ -141,4 +182,31 @@ pub async fn finish_deployment(client: &Pool<Postgres>, deployment_id: i64) -> R
     .await?;
     log::info!("Deployment {} has been finished", deployment_id);
     Ok(())
+}
+
+/// Update the heartbeat timestamp for a deployment
+/// This is the core function that can be called from anywhere (e.g., as a background task)
+pub async fn update_heartbeat(client: &Pool<Postgres>, deployment_id: i64) -> Result<()> {
+    sqlx::query!(
+        "UPDATE deployments SET heartbeat_timestamp = NOW() WHERE id = $1",
+        deployment_id
+    )
+    .execute(client)
+    .await?;
+    log::debug!("Heartbeat sent for deployment {}", deployment_id);
+    Ok(())
+}
+
+/// Run heartbeat in a loop with periodic intervals until terminated
+pub async fn run_heartbeat_loop(client: &Pool<Postgres>, deployment_id: i64) -> Result<()> {
+    info!(
+        "Starting heartbeat loop for deployment {} (interval: {}s)",
+        deployment_id,
+        HEARTBEAT_INTERVAL.as_secs()
+    );
+
+    loop {
+        update_heartbeat(client, deployment_id).await?;
+        tokio::time::sleep(HEARTBEAT_INTERVAL).await;
+    }
 }

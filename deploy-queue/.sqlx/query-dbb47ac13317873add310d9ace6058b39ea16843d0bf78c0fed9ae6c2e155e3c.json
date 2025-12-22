@@ -1,0 +1,14 @@
+{
+  "db_name": "PostgreSQL",
+  "query": "UPDATE deployments SET heartbeat_timestamp = NOW() WHERE id = $1",
+  "describe": {
+    "columns": [],
+    "parameters": {
+      "Left": [
+        "Int8"
+      ]
+    },
+    "nullable": []
+  },
+  "hash": "dbb47ac13317873add310d9ace6058b39ea16843d0bf78c0fed9ae6c2e155e3c"
+}
