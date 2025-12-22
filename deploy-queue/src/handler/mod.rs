@@ -35,11 +35,48 @@ pub async fn enqueue_deployment(client: &Pool<Postgres>, deployment: Deployment)
     Ok(deployment_id)
 }
 
+/// Cancel deployments with stale heartbeats
+async fn cancel_stale_heartbeat_deployments(client: &Pool<Postgres>) -> Result<()> {
+    let stale_deployments = sqlx::query!(
+        r#"
+        SELECT id, component, heartbeat_timestamp
+        FROM deployments
+        WHERE heartbeat_timestamp IS NOT NULL
+          AND finish_timestamp IS NULL
+          AND cancellation_timestamp IS NULL
+          AND heartbeat_timestamp < NOW() - INTERVAL '5 minutes'
+        "#
+    )
+    .fetch_all(client)
+    .await?;
+
+    for deployment in stale_deployments {
+        log::warn!(
+            "Cancelling deployment {} ({}) due to stale heartbeat (last seen: {:?})",
+            deployment.id,
+            deployment.component,
+            deployment.heartbeat_timestamp
+        );
+
+        cancel::deployment(
+            client,
+            deployment.id,
+            Some("Cancelled due to stale heartbeat - deployment appears to be dead"),
+        )
+        .await?;
+    }
+
+    Ok(())
+}
+
 pub async fn wait_for_blocking_deployments(
     pg_pool: &Pool<Postgres>,
     deployment_id: i64,
 ) -> Result<()> {
     loop {
+        // Check for and cancel any deployments with stale heartbeats
+        cancel_stale_heartbeat_deployments(pg_pool).await?;
+
         let blocking_deployments = fetch::blocking_deployments(pg_pool, deployment_id).await?;
 
         if blocking_deployments.is_empty() {
