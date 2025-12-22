@@ -8,7 +8,7 @@ use sqlx::{Pool, Postgres};
 use time::Duration;
 
 use crate::{
-    constants::{BUSY_RETRY, HEARTBEAT_INTERVAL},
+    constants::{BUSY_RETRY, HEARTBEAT_INTERVAL, HEARTBEAT_TIMEOUT},
     model::Deployment,
     util::{duration::DurationExt, github},
 };
@@ -37,6 +37,8 @@ pub async fn enqueue_deployment(client: &Pool<Postgres>, deployment: Deployment)
 
 /// Cancel deployments with stale heartbeats
 async fn cancel_stale_heartbeat_deployments(client: &Pool<Postgres>) -> Result<()> {
+    let heartbeat_timeout_interval = HEARTBEAT_TIMEOUT.to_pg_interval()?;
+
     let stale_deployments = sqlx::query!(
         r#"
         SELECT id, component, heartbeat_timestamp
@@ -44,8 +46,9 @@ async fn cancel_stale_heartbeat_deployments(client: &Pool<Postgres>) -> Result<(
         WHERE heartbeat_timestamp IS NOT NULL
           AND finish_timestamp IS NULL
           AND cancellation_timestamp IS NULL
-          AND heartbeat_timestamp < NOW() - INTERVAL '5 minutes'
-        "#
+          AND heartbeat_timestamp < NOW() - $1::interval
+        "#,
+        heartbeat_timeout_interval
     )
     .fetch_all(client)
     .await?;
@@ -61,7 +64,7 @@ async fn cancel_stale_heartbeat_deployments(client: &Pool<Postgres>) -> Result<(
         cancel::deployment(
             client,
             deployment.id,
-            Some("Cancelled due to stale heartbeat - deployment appears to be dead"),
+            Some("Cancelled due to stale heartbeat"),
         )
         .await?;
     }

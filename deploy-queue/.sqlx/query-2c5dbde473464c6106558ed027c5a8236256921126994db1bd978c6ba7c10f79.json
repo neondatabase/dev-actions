@@ -1,6 +1,6 @@
 {
   "db_name": "PostgreSQL",
-  "query": "\n        SELECT id, component, heartbeat_timestamp\n        FROM deployments\n        WHERE heartbeat_timestamp IS NOT NULL\n          AND finish_timestamp IS NULL\n          AND cancellation_timestamp IS NULL\n          AND heartbeat_timestamp < NOW() - INTERVAL '5 minutes'\n        ",
+  "query": "\n        SELECT id, component, heartbeat_timestamp\n        FROM deployments\n        WHERE heartbeat_timestamp IS NOT NULL\n          AND finish_timestamp IS NULL\n          AND cancellation_timestamp IS NULL\n          AND heartbeat_timestamp < NOW() - $1::interval\n        ",
   "describe": {
     "columns": [
       {
@@ -20,7 +20,9 @@
       }
     ],
     "parameters": {
-      "Left": []
+      "Left": [
+        "Interval"
+      ]
     },
     "nullable": [
       false,
@@ -28,5 +30,5 @@
       true
     ]
   },
-  "hash": "c2e88a48298f910725f2351066571b960b0983671dfc584ba3706e3df3ba87a7"
+  "hash": "2c5dbde473464c6106558ed027c5a8236256921126994db1bd978c6ba7c10f79"
 }
