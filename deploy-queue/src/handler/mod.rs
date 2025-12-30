@@ -3,12 +3,13 @@ pub mod fetch;
 pub mod list;
 
 use anyhow::Result;
-use log::info;
+use log::{info, warn};
 use sqlx::{Pool, Postgres};
 use time::Duration;
+use tokio::task::JoinHandle;
 
 use crate::{
-    constants::BUSY_RETRY,
+    constants::{BUSY_RETRY, HEARTBEAT_INTERVAL, HEARTBEAT_TIMEOUT},
     model::Deployment,
     util::{duration::DurationExt, github},
 };
@@ -35,11 +36,42 @@ pub async fn enqueue_deployment(client: &Pool<Postgres>, deployment: Deployment)
     Ok(deployment_id)
 }
 
+/// Cancel deployments with stale heartbeats
+async fn cancel_stale_heartbeat_deployments(client: &Pool<Postgres>) -> Result<()> {
+    let stale_deployments = fetch::stale_heartbeat_deployments(client, HEARTBEAT_TIMEOUT).await?;
+
+    for deployment in stale_deployments {
+        log::warn!(
+            "Cancelling deployment {} ({}, version={}) due to stale heartbeat: last seen {} ago at {}",
+            deployment.id,
+            deployment.component,
+            deployment.version.as_deref().unwrap_or("unknown"),
+            deployment.time_since_heartbeat.format_human(),
+            deployment
+                .heartbeat_timestamp
+                .map(|ts| ts.to_string())
+                .unwrap_or_else(|| "unknown".to_string())
+        );
+
+        cancel::deployment(
+            client,
+            deployment.id,
+            Some("Cancelled due to stale heartbeat"),
+        )
+        .await?;
+    }
+
+    Ok(())
+}
+
 pub async fn wait_for_blocking_deployments(
     pg_pool: &Pool<Postgres>,
     deployment_id: i64,
 ) -> Result<()> {
     loop {
+        // Check for and cancel any deployments with stale heartbeats
+        cancel_stale_heartbeat_deployments(pg_pool).await?;
+
         let blocking_deployments = fetch::blocking_deployments(pg_pool, deployment_id).await?;
 
         if blocking_deployments.is_empty() {
@@ -141,4 +173,44 @@ pub async fn finish_deployment(client: &Pool<Postgres>, deployment_id: i64) -> R
     .await?;
     log::info!("Deployment {} has been finished", deployment_id);
     Ok(())
+}
+
+/// Update the heartbeat timestamp for a deployment
+/// This is the core function that can be called from anywhere (e.g., as a background task)
+pub async fn update_heartbeat(client: &Pool<Postgres>, deployment_id: i64) -> Result<()> {
+    sqlx::query!(
+        "UPDATE deployments SET heartbeat_timestamp = NOW() WHERE id = $1",
+        deployment_id
+    )
+    .execute(client)
+    .await?;
+    log::debug!("Heartbeat sent for deployment {}", deployment_id);
+    Ok(())
+}
+
+/// Run heartbeat in a loop with periodic intervals until terminated
+pub async fn run_heartbeat_loop(client: &Pool<Postgres>, deployment_id: i64) -> Result<()> {
+    info!(
+        "Starting heartbeat loop for deployment {} (interval: {}s)",
+        deployment_id,
+        HEARTBEAT_INTERVAL.as_secs()
+    );
+
+    loop {
+        update_heartbeat(client, deployment_id).await?;
+        tokio::time::sleep(HEARTBEAT_INTERVAL).await;
+    }
+}
+
+/// Start a background heartbeat loop; returns a JoinHandle so caller can abort it
+pub fn start_heartbeat_background(client: &Pool<Postgres>, deployment_id: i64) -> JoinHandle<()> {
+    let heartbeat_client = client.clone();
+    tokio::spawn(async move {
+        if let Err(err) = run_heartbeat_loop(&heartbeat_client, deployment_id).await {
+            warn!(
+                "Heartbeat loop exited for deployment {}: {}",
+                deployment_id, err
+            );
+        }
+    })
 }

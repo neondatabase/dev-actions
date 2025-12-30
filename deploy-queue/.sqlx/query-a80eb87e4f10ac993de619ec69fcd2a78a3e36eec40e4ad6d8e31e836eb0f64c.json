@@ -1,0 +1,46 @@
+{
+  "db_name": "PostgreSQL",
+  "query": "\n        SELECT\n          id,\n          component,\n          version,\n          heartbeat_timestamp,\n          NOW() - heartbeat_timestamp AS time_since_heartbeat\n        FROM deployments\n        WHERE heartbeat_timestamp IS NOT NULL\n          AND finish_timestamp IS NULL\n          AND cancellation_timestamp IS NULL\n          AND heartbeat_timestamp < NOW() - $1::interval\n        ",
+  "describe": {
+    "columns": [
+      {
+        "ordinal": 0,
+        "name": "id",
+        "type_info": "Int8"
+      },
+      {
+        "ordinal": 1,
+        "name": "component",
+        "type_info": "Varchar"
+      },
+      {
+        "ordinal": 2,
+        "name": "version",
+        "type_info": "Varchar"
+      },
+      {
+        "ordinal": 3,
+        "name": "heartbeat_timestamp",
+        "type_info": "Timestamptz"
+      },
+      {
+        "ordinal": 4,
+        "name": "time_since_heartbeat",
+        "type_info": "Interval"
+      }
+    ],
+    "parameters": {
+      "Left": [
+        "Interval"
+      ]
+    },
+    "nullable": [
+      false,
+      false,
+      true,
+      true,
+      null
+    ]
+  },
+  "hash": "a80eb87e4f10ac993de619ec69fcd2a78a3e36eec40e4ad6d8e31e836eb0f64c"
+}

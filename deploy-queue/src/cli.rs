@@ -62,6 +62,11 @@ pub enum Mode {
         #[command(subcommand)]
         entity: ListEntity,
     },
+    /// Send periodic heartbeats for a deployment (runs until terminated)
+    Heartbeat {
+        #[command(subcommand)]
+        target: HeartbeatTarget,
+    },
 }
 
 #[derive(Parser, Clone)]
@@ -134,5 +139,19 @@ pub enum ListEntity {
     Cells {
         #[arg(long)]
         environment: Environment,
+    },
+}
+
+#[derive(Subcommand, Clone)]
+pub enum HeartbeatTarget {
+    /// Send heartbeat for a deployment by ID
+    Deployment {
+        /// Deployment ID to send heartbeat for
+        deployment_id: i64,
+    },
+    /// Send heartbeat for a deployment by URL
+    Url {
+        /// GitHub Actions URL to find deployment
+        url: String,
     },
 }
