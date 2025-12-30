@@ -4,7 +4,7 @@ use time::Duration;
 
 use crate::{
     cli::Environment,
-    model::{BlockingDeployment, Cell, Deployment, OutlierDeployment},
+    model::{BlockingDeployment, Cell, Deployment, OutlierDeployment, StaleHeartbeatDeployment},
     util::duration::DurationExt,
 };
 
@@ -130,6 +130,52 @@ pub async fn blocking_deployments(
         .collect::<Result<Vec<_>>>()?;
 
     Ok(blocking_deployments)
+}
+
+pub async fn stale_heartbeat_deployments(
+    client: &Pool<Postgres>,
+    timeout: std::time::Duration,
+) -> Result<Vec<StaleHeartbeatDeployment>> {
+    let interval = timeout.to_pg_interval()?;
+    let rows = sqlx::query!(
+        r#"
+        SELECT
+          id,
+          component,
+          version,
+          heartbeat_timestamp,
+          NOW() - heartbeat_timestamp AS time_since_heartbeat
+        FROM deployments
+        WHERE heartbeat_timestamp IS NOT NULL
+          AND finish_timestamp IS NULL
+          AND cancellation_timestamp IS NULL
+          AND heartbeat_timestamp < NOW() - $1::interval
+        "#,
+        interval
+    )
+    .fetch_all(client)
+    .await?;
+
+    let deployments = rows
+        .into_iter()
+        .map(|row| -> Result<StaleHeartbeatDeployment> {
+            let time_since_heartbeat = row
+                .time_since_heartbeat
+                .context("time_since_heartbeat should not be NULL")?
+                .to_duration()
+                .context("Failed to convert time_since_heartbeat")?;
+
+            Ok(StaleHeartbeatDeployment {
+                id: row.id,
+                component: row.component,
+                version: row.version,
+                heartbeat_timestamp: row.heartbeat_timestamp,
+                time_since_heartbeat,
+            })
+        })
+        .collect::<Result<Vec<_>>>()?;
+
+    Ok(deployments)
 }
 
 pub async fn outlier_deployments(client: &Pool<Postgres>) -> Result<Vec<OutlierDeployment>> {
