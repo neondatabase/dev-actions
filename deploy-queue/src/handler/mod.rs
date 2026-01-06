@@ -9,7 +9,7 @@ use time::Duration;
 use tokio::task::JoinHandle;
 
 use crate::{
-    constants::{BUSY_RETRY, HEARTBEAT_INTERVAL, HEARTBEAT_TIMEOUT},
+    constants::{BUSY_RETRY, HEARTBEAT_INTERVAL, HEARTBEAT_TIMEOUT, HEARTBEAT_UPDATE_TIMEOUT},
     model::Deployment,
     util::{duration::DurationExt, github},
 };
@@ -196,9 +196,43 @@ pub async fn run_heartbeat_loop(client: &Pool<Postgres>, deployment_id: i64) -> 
         HEARTBEAT_INTERVAL.as_secs()
     );
 
+    const HEARTBEAT_MAX_CONSECUTIVE_FAILURES: u32 = 3;
+
+    let mut consecutive_failures: u32 = 0;
+    let mut interval = tokio::time::interval(HEARTBEAT_INTERVAL);
+    interval.set_missed_tick_behavior(tokio::time::MissedTickBehavior::Skip);
+
     loop {
-        update_heartbeat(client, deployment_id).await?;
-        tokio::time::sleep(HEARTBEAT_INTERVAL).await;
+        interval.tick().await;
+
+        let result = tokio::time::timeout(
+            HEARTBEAT_UPDATE_TIMEOUT,
+            update_heartbeat(client, deployment_id),
+        )
+        .await;
+
+        if let Ok(Ok(())) = result {
+            consecutive_failures = 0;
+        } else {
+            consecutive_failures += 1;
+            let reason = match result {
+                Ok(Err(err)) => err.to_string(),
+                Err(_) => format!("timed out after {:?}", HEARTBEAT_UPDATE_TIMEOUT),
+                _ => "unknown error".to_string(),
+            };
+            warn!(
+                "Failed to send heartbeat for deployment {} (attempt {}/{}): {}",
+                deployment_id, consecutive_failures, HEARTBEAT_MAX_CONSECUTIVE_FAILURES, reason
+            );
+        }
+
+        if consecutive_failures >= HEARTBEAT_MAX_CONSECUTIVE_FAILURES {
+            anyhow::bail!(
+                "Heartbeat loop failed {} times consecutively for deployment {}",
+                consecutive_failures,
+                deployment_id
+            );
+        }
     }
 }
 
