@@ -67,22 +67,42 @@ runs:
 
     - name: Resolve action ref to tag
       id: tag
-      shell: bash
-      run: |
-        if [ -z "$REF" ]; then
-          echo "Empty github.action_ref, falling back to github.sha assuming local execution"
-          REF="${SHA}"
-        fi
+      uses: actions/github-script@ed597411d8f924073f98dfc5c65a23a2325f34cd # v8
+      with:
+        retries: 3
+        script: |
+          const refInput = process.env.REF || '';
+          const sha = process.env.SHA;
+          let ref = refInput;
 
-        if [[ "$REF" =~ ^[0-9a-f]{40}$ ]]; then
-          echo "Ref is a commit SHA, resolving to release tag..."
+          if (!ref) {
+            core.info('Empty github.action_ref, falling back to github.sha assuming local execution');
+            ref = sha;
+          }
 
-          tag=$(curl https://api.github.com/repos/neondatabase/dev-actions/git/matching-refs/tags | jq -r --arg sha "$REF" 'map(select(.object.sha == $sha)) | first | .ref | ltrimstr("refs/tags/") // error("No release tag found for commit " + $sha)')
+          // If ref is already a tag (non-SHA), return it directly
+          if (!/^[0-9a-f]{40}$/i.test(ref)) {
+            core.setOutput('tag', ref);
+            return;
+          }
 
-          echo "tag=$tag" | tee -a "$GITHUB_OUTPUT"
-        else
-          echo "tag=$REF" | tee -a "$GITHUB_OUTPUT"
-        fi
+          core.info(`Ref is a commit SHA (${ref}), resolving to release tag via API...`);
+
+          // List matching refs under tags/ and find one whose object.sha matches
+          const {owner, repo} = context.repo;
+          const resp = await github.rest.git.listMatchingRefs({
+            owner,
+            repo,
+            ref: 'tags/'
+          });
+
+          const match = resp.data.find(r => r.object?.sha === ref);
+          if (!match) {
+            throw new Error(`No release tag found for commit ${ref}`);
+          }
+
+          const tag = match.ref.replace('refs/tags/', '');
+          core.setOutput('tag', tag);
       env:
         REF: ${{ github.action_ref }}
         SHA: ${{ github.event.pull_request.head.sha || github.sha }}
@@ -91,7 +111,15 @@ runs:
       shell: bash
       run: |
         if [ ! -f "${ARCHIVE}.tar.zst" ]; then
-          curl -vLO "https://github.com/${ACTION_REPO}/releases/download/${TAG}/${ARCHIVE}.tar.zst"
+          n=0
+          until [ "$n" -ge 5 ]; do
+            if curl --fail --location "https://github.com/${ACTION_REPO}/releases/download/${TAG}/${ARCHIVE}.tar.zst" -o "${ARCHIVE}.tar.zst"; then
+              break
+            fi
+            n=$((n+1))
+            echo "Download failed, retry $n/5 ..."
+            sleep 2
+          done
           tar xvf "${ARCHIVE}.tar.zst"
         fi
 
