@@ -71,23 +71,6 @@ runs:
       run: |
         set -euo pipefail
 
-        retry() {
-          local attempts=${1:-5}
-          shift
-          local n=1
-          until "$@"; do
-            exit_code=$?
-            if [ $n -ge $attempts ]; then
-              echo "Command failed after ${n} attempts: $*"
-              return $exit_code
-            fi
-            sleep_time=$((2 ** (n - 1)))
-            echo "Attempt ${n} failed with exit code ${exit_code}. Retrying in ${sleep_time}s..."
-            sleep "${sleep_time}"
-            n=$((n + 1))
-          done
-        }
-
         if [ -z "$REF" ]; then
           echo "Empty github.action_ref, falling back to github.sha assuming local execution"
           REF="${SHA}"
@@ -96,7 +79,23 @@ runs:
         if [[ "$REF" =~ ^[0-9a-f]{40}$ ]]; then
           echo "Ref is a commit SHA, resolving to release tag..."
 
-          tag=$(retry 5 curl https://api.github.com/repos/neondatabase/dev-actions/git/matching-refs/tags | jq -r --arg sha "$REF" 'map(select(.object.sha == $sha)) | first | .ref | ltrimstr("refs/tags/") // error("No release tag found for commit " + $sha)')
+          n=0
+          tags_json=""
+          until [ "$n" -ge 5 ]; do
+            if tags_json=$(curl --fail --silent --show-error --location "https://api.github.com/repos/neondatabase/dev-actions/git/matching-refs/tags"); then
+              break
+            fi
+            n=$((n + 1))
+            echo "Fetching tags failed, retry $n/5 ..."
+            sleep 2
+          done
+
+          if [ -z "$tags_json" ]; then
+            echo "Failed to fetch tags after 5 attempts"
+            exit 1
+          fi
+
+          tag=$(jq -r --arg sha "$REF" 'map(select(.object.sha == $sha)) | first | .ref | ltrimstr("refs/tags/") // error("No release tag found for commit " + $sha)' <<<"${tags_json}")
 
           echo "tag=$tag" | tee -a "$GITHUB_OUTPUT"
         else
