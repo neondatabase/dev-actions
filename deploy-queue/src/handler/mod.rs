@@ -203,7 +203,11 @@ pub async fn run_heartbeat_loop(client: &Pool<Postgres>, deployment_id: i64) -> 
     interval.set_missed_tick_behavior(tokio::time::MissedTickBehavior::Delay);
 
     loop {
-        interval.tick().await;
+        if consecutive_failures == 0 {
+            interval.tick().await;
+        } else {
+            tokio::time::sleep(std::time::Duration::from_secs(2 ** consecutive_failures)).await;
+        }
 
         let result = tokio::time::timeout(
             HEARTBEAT_UPDATE_TIMEOUT,
