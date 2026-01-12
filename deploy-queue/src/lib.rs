@@ -116,7 +116,7 @@ pub async fn run_deploy_queue(mode: cli::Mode, skip_migrations: bool) -> Result<
             cli::HeartbeatTarget::Url { url } => {
                 let deployment_id = handler::fetch::deployment_id_by_url(&db_client, &url)
                     .await?
-                    .ok_or_else(|| anyhow::anyhow!("No deployment found with URL: {}", url))?;
+                    .with_context(|| format!("No deployment found with URL: {}", url))?;
 
                 handler::run_heartbeat_loop(&db_client, deployment_id)
                     .await
