@@ -159,6 +159,9 @@ pub async fn stale_heartbeat_deployments(
     let deployments = rows
         .into_iter()
         .map(|row| -> Result<StaleHeartbeatDeployment> {
+            let heartbeat_timestamp = row
+                .heartbeat_timestamp
+                .context("heartbeat_timestamp should not be NULL")?;
             let time_since_heartbeat = row
                 .time_since_heartbeat
                 .context("time_since_heartbeat should not be NULL")?
@@ -169,7 +172,7 @@ pub async fn stale_heartbeat_deployments(
                 id: row.id,
                 component: row.component,
                 version: row.version,
-                heartbeat_timestamp: row.heartbeat_timestamp,
+                heartbeat_timestamp,
                 time_since_heartbeat,
             })
         })

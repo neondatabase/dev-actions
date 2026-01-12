@@ -47,10 +47,7 @@ async fn cancel_stale_heartbeat_deployments(client: &Pool<Postgres>) -> Result<(
             deployment.component,
             deployment.version.as_deref().unwrap_or("unknown"),
             deployment.time_since_heartbeat.format_human(),
-            deployment
-                .heartbeat_timestamp
-                .map(|ts| ts.to_string())
-                .unwrap_or_else(|| "unknown".to_string())
+            deployment.heartbeat_timestamp.to_string(),
         );
 
         cancel::deployment(

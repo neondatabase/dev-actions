@@ -35,7 +35,7 @@ pub struct StaleHeartbeatDeployment {
     pub id: i64,
     pub component: String,
     pub version: Option<String>,
-    pub heartbeat_timestamp: Option<OffsetDateTime>,
+    pub heartbeat_timestamp: OffsetDateTime,
     pub time_since_heartbeat: Duration,
 }
 
