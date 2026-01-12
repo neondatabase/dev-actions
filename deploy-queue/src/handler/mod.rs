@@ -37,8 +37,16 @@ pub async fn enqueue_deployment(client: &Pool<Postgres>, deployment: Deployment)
 }
 
 /// Cancel deployments with stale heartbeats
-async fn cancel_stale_heartbeat_deployments(client: &Pool<Postgres>) -> Result<()> {
+async fn cancel_stale_heartbeat_deployments(
+    client: &Pool<Postgres>,
+    canceller_deployment_id: i64,
+) -> Result<()> {
     let stale_deployments = fetch::stale_heartbeat_deployments(client, HEARTBEAT_TIMEOUT).await?;
+
+    let cancellation_note = format!(
+        "Cancelled by deployment {} due to stale heartbeat",
+        canceller_deployment_id
+    );
 
     for deployment in stale_deployments {
         log::warn!(
@@ -50,12 +58,7 @@ async fn cancel_stale_heartbeat_deployments(client: &Pool<Postgres>) -> Result<(
             deployment.heartbeat_timestamp.to_string(),
         );
 
-        cancel::deployment(
-            client,
-            deployment.id,
-            Some("Cancelled due to stale heartbeat"),
-        )
-        .await?;
+        cancel::deployment(client, deployment.id, Some(cancellation_note.as_str())).await?;
     }
 
     Ok(())
@@ -67,7 +70,7 @@ pub async fn wait_for_blocking_deployments(
 ) -> Result<()> {
     loop {
         // Check for and cancel any deployments with stale heartbeats
-        cancel_stale_heartbeat_deployments(pg_pool).await?;
+        cancel_stale_heartbeat_deployments(pg_pool, deployment_id).await?;
 
         let blocking_deployments = fetch::blocking_deployments(pg_pool, deployment_id).await?;
 
