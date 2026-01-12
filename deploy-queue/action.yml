@@ -67,42 +67,41 @@ runs:
 
     - name: Resolve action ref to tag
       id: tag
-      uses: actions/github-script@ed597411d8f924073f98dfc5c65a23a2325f34cd # v8
-      with:
-        retries: 3
-        script: |
-          const refInput = process.env.REF || '';
-          const sha = process.env.SHA;
-          let ref = refInput;
+      shell: bash
+      run: |
+        set -euo pipefail
 
-          if (!ref) {
-            core.info('Empty github.action_ref, falling back to github.sha assuming local execution');
-            ref = sha;
-          }
+        retry() {
+          local attempts=${1:-5}
+          shift
+          local n=1
+          until "$@"; do
+            exit_code=$?
+            if [ $n -ge $attempts ]; then
+              echo "Command failed after ${n} attempts: $*"
+              return $exit_code
+            fi
+            sleep_time=$((2 ** (n - 1)))
+            echo "Attempt ${n} failed with exit code ${exit_code}. Retrying in ${sleep_time}s..."
+            sleep "${sleep_time}"
+            n=$((n + 1))
+          done
+        }
 
-          // If ref is already a tag (non-SHA), return it directly
-          if (!/^[0-9a-f]{40}$/i.test(ref)) {
-            core.setOutput('tag', ref);
-            return;
-          }
+        if [ -z "$REF" ]; then
+          echo "Empty github.action_ref, falling back to github.sha assuming local execution"
+          REF="${SHA}"
+        fi
 
-          core.info(`Ref is a commit SHA (${ref}), resolving to release tag via API...`);
+        if [[ "$REF" =~ ^[0-9a-f]{40}$ ]]; then
+          echo "Ref is a commit SHA, resolving to release tag..."
 
-          // List matching refs under tags/ and find one whose object.sha matches
-          const {owner, repo} = context.repo;
-          const resp = await github.rest.git.listMatchingRefs({
-            owner,
-            repo,
-            ref: 'tags/'
-          });
+          tag=$(retry 5 curl https://api.github.com/repos/neondatabase/dev-actions/git/matching-refs/tags | jq -r --arg sha "$REF" 'map(select(.object.sha == $sha)) | first | .ref | ltrimstr("refs/tags/") // error("No release tag found for commit " + $sha)')
 
-          const match = resp.data.find(r => r.object?.sha === ref);
-          if (!match) {
-            throw new Error(`No release tag found for commit ${ref}`);
-          }
-
-          const tag = match.ref.replace('refs/tags/', '');
-          core.setOutput('tag', tag);
+          echo "tag=$tag" | tee -a "$GITHUB_OUTPUT"
+        else
+          echo "tag=$REF" | tee -a "$GITHUB_OUTPUT"
+        fi
       env:
         REF: ${{ github.action_ref }}
         SHA: ${{ github.event.pull_request.head.sha || github.sha }}
