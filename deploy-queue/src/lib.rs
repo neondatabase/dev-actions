@@ -39,10 +39,6 @@ pub async fn run_deploy_queue(mode: cli::Mode, skip_migrations: bool) -> Result<
             handler::start_deployment(&db_client, deployment_id)
                 .await
                 .with_context(|| format!("Failed to start deployment {deployment_id}"))?;
-
-            // Stop the heartbeat loop now that the deployment has started
-            heartbeat_handle.abort();
-            let _ = heartbeat_handle.await;
         }
         cli::Mode::Finish { deployment_id } => {
             handler::finish_deployment(&db_client, deployment_id)

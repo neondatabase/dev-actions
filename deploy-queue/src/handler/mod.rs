@@ -206,7 +206,10 @@ pub async fn run_heartbeat_loop(client: &Pool<Postgres>, deployment_id: i64) -> 
         if consecutive_failures == 0 {
             interval.tick().await;
         } else {
-            tokio::time::sleep(std::time::Duration::from_secs(2 ** consecutive_failures)).await;
+            tokio::time::sleep(std::time::Duration::from_secs(
+                2 * consecutive_failures as u64,
+            ))
+            .await;
         }
 
         let result = tokio::time::timeout(
