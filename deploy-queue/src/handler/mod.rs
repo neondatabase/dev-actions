@@ -196,7 +196,7 @@ pub async fn run_heartbeat_loop(client: &Pool<Postgres>, deployment_id: i64) -> 
         HEARTBEAT_INTERVAL.as_secs()
     );
 
-    const HEARTBEAT_MAX_CONSECUTIVE_FAILURES: u32 = 3;
+    const HEARTBEAT_MAX_CONSECUTIVE_FAILURES: u32 = 5;
 
     let mut consecutive_failures: u32 = 0;
     let mut interval = tokio::time::interval(HEARTBEAT_INTERVAL);
