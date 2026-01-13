@@ -252,6 +252,23 @@ pub fn start_heartbeat_background(client: &Pool<Postgres>, deployment_id: i64) -
                 "Heartbeat loop exited for deployment {}: {}",
                 deployment_id, err
             );
+
+            // If the heartbeat loop stops due to repeated failures, cancel the deployment
+            if let Err(cancel_err) = cancel::deployment(
+                &heartbeat_client,
+                deployment_id,
+                Some(format!(
+                    "Deployment {} cancelled by heartbeat loop after repeated heartbeat failures",
+                    deployment_id,
+                )),
+            )
+            .await
+            {
+                warn!(
+                    "Failed to cancel deployment {} after heartbeat loop exit: {}",
+                    deployment_id, cancel_err
+                );
+            }
         }
     })
 }
