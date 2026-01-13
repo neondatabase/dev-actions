@@ -55,7 +55,7 @@ async fn cancel_stale_heartbeat_deployments(
             deployment.component,
             deployment.version.as_deref().unwrap_or("unknown"),
             deployment.time_since_heartbeat.format_human(),
-            deployment.heartbeat_timestamp.to_string(),
+            deployment.heartbeat_timestamp,
         );
 
         cancel::deployment(client, deployment.id, Some(cancellation_note.as_str())).await?;

@@ -27,8 +27,7 @@ pub async fn run_deploy_queue(mode: cli::Mode, skip_migrations: bool) -> Result<
                 .await
                 .context("Faild to enqueue deployment")?;
 
-            // Start heartbeat loop in the background so we can abort it after starting
-            let heartbeat_handle = handler::start_heartbeat_background(&db_client, deployment_id);
+            handler::start_heartbeat_background(&db_client, deployment_id);
 
             // Wait for all blocking deployments to finish
             handler::wait_for_blocking_deployments(&db_client, deployment_id)
