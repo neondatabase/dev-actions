@@ -385,16 +385,17 @@ For emergency situations where you need to bypass the deploy queue entirely, use
 jobs:
   deploy:
     runs-on: ubuntu-latest
+    services:
+      heartbeat:
+        # Only start the heartbeat when DEPLOY_QUEUE_ENABLED == 'true'
+        image: ${{ vars.DEPLOY_QUEUE_ENABLED == 'true' && 'ghcr.io/neondatabase/deploy-queue:latest' || '' }}
+        env:
+            DEPLOY_QUEUE_DATABASE_URL: ${{ secrets.DEPLOY_QUEUE_DATABASE_URL }}
+        entrypoint: ["/bin/sh", "-c"]
+        command:
+          - >
+            deploy-queue heartbeat url --url ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }} || true
     steps:
-      - name: Start heartbeat (only when queue enabled)
-        if: ${{ vars.DEPLOY_QUEUE_ENABLED == 'true' }}
-        run: |
-          docker run -d --rm \
-            --name deploy-queue-heartbeat \
-            -e DEPLOY_QUEUE_DATABASE_URL=${{ secrets.DEPLOY_QUEUE_DATABASE_URL }} \
-            ghcr.io/neondatabase/deploy-queue:latest \
-            deploy-queue heartbeat url --url ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}
-
       - name: Start deployment (with queue)
         id: deploy-queue-start
         if: ${{ vars.DEPLOY_QUEUE_ENABLED == 'true' }}
