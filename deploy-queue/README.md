@@ -323,10 +323,10 @@ jobs:
         env:
           DEPLOY_QUEUE_DATABASE_URL: ${{ secrets.DEPLOY_QUEUE_DATABASE_URL }}
         # Run manual heartbeat loop using the GitHub URL to look up the deployment
-        options: >-
-          --entrypoint /bin/sh
-        command: >-
-          -c "deploy-queue heartbeat url --url ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }} || true"
+        entrypoint: ["/bin/sh", "-c"]
+        command:
+          - >
+            deploy-queue heartbeat url --url ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }} || true
     steps:
       - name: Start deployment
         id: deploy-queue-start
