@@ -760,22 +760,22 @@ jobs:
           mode: finish
           deployment-id: ${{ steps.start-v0-5-2.outputs.deployment-id }}
 
-      # Test v0.6.0 with the updated schema
-      - name: Start deployment (v0.6.0)
+      # Test v0.6.1 with the updated schema
+      - name: Start deployment (v0.6.1)
         id: start-v0-6-0
-        uses: neondatabase/dev-actions/deploy-queue@deploy-queue-v0.6.0
+        uses: neondatabase/dev-actions/deploy-queue@deploy-queue-v0.6.1
         with:
           mode: start
           environment: dev
           cloud-provider: aws
-          region: compat-v0-6-0
+          region: compat-v0-6-1
           cell-index: 1
           component: compat-test
-          version: v0.6.0
-          note: Compatibility test - v0.6.0
+          version: v0.6.1
+          note: Compatibility test - v0.6.1
 
-      - name: Finish deployment (v0.6.0)
-        uses: neondatabase/dev-actions/deploy-queue@deploy-queue-v0.6.0
+      - name: Finish deployment (v0.6.1)
+        uses: neondatabase/dev-actions/deploy-queue@deploy-queue-v0.6.1
         with:
           mode: finish
           deployment-id: ${{ steps.start-v0-6-0.outputs.deployment-id }}
