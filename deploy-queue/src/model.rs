@@ -30,6 +30,15 @@ pub struct Deployment {
     pub buffer_time: Duration,
 }
 
+/// Minimal view of a deployment for stale-heartbeat checks
+pub struct StaleHeartbeatDeployment {
+    pub id: i64,
+    pub component: String,
+    pub version: Option<String>,
+    pub heartbeat_timestamp: OffsetDateTime,
+    pub time_since_heartbeat: Duration,
+}
+
 impl Deployment {
     /// Generate a compact summary of this deployment's information
     pub fn summary(&self) -> String {

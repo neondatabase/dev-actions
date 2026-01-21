@@ -117,6 +117,9 @@ deploy-queue start --environment prod --provider aws --region us-west-2 --cell-i
 - Writes `deployment-id=<ID>` to `$GITHUB_OUTPUT` if running in GitHub Actions
 - Blocks until all conflicting deployments complete
 - Starts the deployment automatically when ready
+- Runs a background heartbeat loop that:
+  - Sends periodic heartbeats during the wait
+  - Cancels deployments with stale heartbeats (if they block current deployment)
 
 ### 2. Finish a Deployment
 
@@ -255,6 +258,14 @@ Buffer times are configured in the database:
 | `prod`      | 10 minutes  | Safety buffer between deployments |
 
 These values are set in the initial migration and can be adjusted in the `environments` table.
+
+### Heartbeats
+
+The system supports heartbeats to detect stuck deployments:
+
+- **Background heartbeats during `start`**: While waiting for blocking deployments, a background task updates the deployment's `heartbeat_timestamp`. If it fails to send heartbeats repeatedly, it cancels the deployment with a note. It also cancels other deployments with stale heartbeats that are blocking your deployment.
+- **Manual heartbeats**: `deploy-queue heartbeat deployment --deployment-id <ID>` (or `heartbeat url --url <URL>`) runs a foreground loop that sends heartbeats until stopped.
+- **Stale heartbeat detection**: deployments with a heartbeat older than the configured timeout (currently set to 15 minutes) are cancelled automatically when the heartbeat loop runs.
 
 ## Database Schema
 

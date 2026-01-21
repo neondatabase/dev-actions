@@ -3,12 +3,13 @@ pub mod fetch;
 pub mod list;
 
 use anyhow::Result;
-use log::info;
+use log::{info, warn};
 use sqlx::{Pool, Postgres};
 use time::Duration;
+use tokio::task::JoinHandle;
 
 use crate::{
-    constants::BUSY_RETRY,
+    constants::{BUSY_RETRY, HEARTBEAT_INTERVAL, HEARTBEAT_TIMEOUT, HEARTBEAT_UPDATE_TIMEOUT},
     model::Deployment,
     util::{duration::DurationExt, github},
 };
@@ -35,11 +36,42 @@ pub async fn enqueue_deployment(client: &Pool<Postgres>, deployment: Deployment)
     Ok(deployment_id)
 }
 
+/// Cancel deployments with stale heartbeats
+async fn cancel_stale_heartbeat_deployments(
+    client: &Pool<Postgres>,
+    canceller_deployment_id: i64,
+) -> Result<()> {
+    let stale_deployments = fetch::stale_heartbeat_deployments(client, HEARTBEAT_TIMEOUT).await?;
+
+    let cancellation_note = format!(
+        "Cancelled by deployment {} due to stale heartbeat",
+        canceller_deployment_id
+    );
+
+    for deployment in stale_deployments {
+        log::warn!(
+            "Cancelling deployment {} ({}, version={}) due to stale heartbeat: last seen {} ago at {}",
+            deployment.id,
+            deployment.component,
+            deployment.version.as_deref().unwrap_or("unknown"),
+            deployment.time_since_heartbeat.format_human(),
+            deployment.heartbeat_timestamp,
+        );
+
+        cancel::deployment(client, deployment.id, Some(cancellation_note.as_str())).await?;
+    }
+
+    Ok(())
+}
+
 pub async fn wait_for_blocking_deployments(
     pg_pool: &Pool<Postgres>,
     deployment_id: i64,
 ) -> Result<()> {
     loop {
+        // Check for and cancel any deployments with stale heartbeats
+        cancel_stale_heartbeat_deployments(pg_pool, deployment_id).await?;
+
         let blocking_deployments = fetch::blocking_deployments(pg_pool, deployment_id).await?;
 
         if blocking_deployments.is_empty() {
@@ -141,4 +173,102 @@ pub async fn finish_deployment(client: &Pool<Postgres>, deployment_id: i64) -> R
     .await?;
     log::info!("Deployment {} has been finished", deployment_id);
     Ok(())
+}
+
+/// Update the heartbeat timestamp for a deployment
+/// This is the core function that can be called from anywhere (e.g., as a background task)
+pub async fn update_heartbeat(client: &Pool<Postgres>, deployment_id: i64) -> Result<()> {
+    sqlx::query!(
+        "UPDATE deployments SET heartbeat_timestamp = NOW() WHERE id = $1",
+        deployment_id
+    )
+    .execute(client)
+    .await?;
+    log::debug!("Heartbeat sent for deployment {}", deployment_id);
+    Ok(())
+}
+
+/// Run heartbeat in a loop with periodic intervals until terminated
+pub async fn run_heartbeat_loop(client: &Pool<Postgres>, deployment_id: i64) -> Result<()> {
+    info!(
+        "Starting heartbeat loop for deployment {} (interval: {}s)",
+        deployment_id,
+        HEARTBEAT_INTERVAL.as_secs()
+    );
+
+    const HEARTBEAT_MAX_CONSECUTIVE_FAILURES: u32 = 5;
+
+    let mut consecutive_failures: u32 = 0;
+    let mut interval = tokio::time::interval(HEARTBEAT_INTERVAL);
+    interval.set_missed_tick_behavior(tokio::time::MissedTickBehavior::Delay);
+
+    loop {
+        if consecutive_failures == 0 {
+            interval.tick().await;
+        } else {
+            tokio::time::sleep(std::time::Duration::from_secs(
+                2 * consecutive_failures as u64,
+            ))
+            .await;
+        }
+
+        let result = tokio::time::timeout(
+            HEARTBEAT_UPDATE_TIMEOUT,
+            update_heartbeat(client, deployment_id),
+        )
+        .await;
+
+        if let Ok(Ok(())) = result {
+            consecutive_failures = 0;
+        } else {
+            consecutive_failures += 1;
+            let reason = match result {
+                Ok(Err(err)) => err.to_string(),
+                Err(_) => format!("timed out after {:?}", HEARTBEAT_UPDATE_TIMEOUT),
+                _ => "unknown error".to_string(),
+            };
+            warn!(
+                "Failed to send heartbeat for deployment {} (attempt {}/{}): {}",
+                deployment_id, consecutive_failures, HEARTBEAT_MAX_CONSECUTIVE_FAILURES, reason
+            );
+        }
+
+        if consecutive_failures >= HEARTBEAT_MAX_CONSECUTIVE_FAILURES {
+            anyhow::bail!(
+                "Heartbeat loop failed {} times consecutively for deployment {}",
+                consecutive_failures,
+                deployment_id
+            );
+        }
+    }
+}
+
+/// Start a background heartbeat loop; returns a JoinHandle so caller can abort it
+pub fn start_heartbeat_background(client: &Pool<Postgres>, deployment_id: i64) -> JoinHandle<()> {
+    let heartbeat_client = client.clone();
+    tokio::spawn(async move {
+        if let Err(err) = run_heartbeat_loop(&heartbeat_client, deployment_id).await {
+            warn!(
+                "Heartbeat loop exited for deployment {}: {}",
+                deployment_id, err
+            );
+
+            // If the heartbeat loop stops due to repeated failures, cancel the deployment
+            if let Err(cancel_err) = cancel::deployment(
+                &heartbeat_client,
+                deployment_id,
+                Some(format!(
+                    "Deployment {} cancelled by heartbeat loop after repeated heartbeat failures",
+                    deployment_id,
+                )),
+            )
+            .await
+            {
+                warn!(
+                    "Failed to cancel deployment {} after heartbeat loop exit: {}",
+                    deployment_id, cancel_err
+                );
+            }
+        }
+    })
 }

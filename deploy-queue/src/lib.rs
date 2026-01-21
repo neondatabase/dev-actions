@@ -27,6 +27,8 @@ pub async fn run_deploy_queue(mode: cli::Mode, skip_migrations: bool) -> Result<
                 .await
                 .context("Faild to enqueue deployment")?;
 
+            handler::start_heartbeat_background(&db_client, deployment_id);
+
             // Wait for all blocking deployments to finish
             handler::wait_for_blocking_deployments(&db_client, deployment_id)
                 .await
@@ -98,6 +100,26 @@ pub async fn run_deploy_queue(mode: cli::Mode, skip_migrations: bool) -> Result<
                 .await
                 .context("Failed to list cells")?;
         }
+        cli::Mode::Heartbeat { target } => match target {
+            cli::HeartbeatTarget::Deployment { deployment_id } => {
+                handler::run_heartbeat_loop(&db_client, deployment_id)
+                    .await
+                    .with_context(|| {
+                        format!("Failed to run heartbeat loop for deployment {deployment_id}")
+                    })?;
+            }
+            cli::HeartbeatTarget::Url { url } => {
+                let deployment_id = handler::fetch::deployment_id_by_url(&db_client, &url)
+                    .await?
+                    .with_context(|| format!("No deployment found with URL: {}", url))?;
+
+                handler::run_heartbeat_loop(&db_client, deployment_id)
+                    .await
+                    .with_context(|| {
+                        format!("Failed to run heartbeat loop for deployment {deployment_id}")
+                    })?;
+            }
+        },
     }
 
     Ok(())
