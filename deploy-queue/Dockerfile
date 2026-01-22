@@ -15,3 +15,5 @@ RUN apt-get update && apt-get install -y \
       ca-certificates
 
 COPY --from=builder /app/target/release/deploy-queue /usr/local/bin/deploy-queue
+
+COPY bin/deploy-queue-heartbeat /usr/local/bin/deploy-queue-heartbeat
