@@ -1,4 +1,4 @@
-#!/usr/bin/env sh
+#!/usr/bin/env bash
 set -euo pipefail
 
 if [ -z "${DEPLOY_QUEUE_HEARTBEAT_URL:-}" ]; then
