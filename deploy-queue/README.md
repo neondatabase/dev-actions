@@ -264,7 +264,7 @@ These values are set in the initial migration and can be adjusted in the `enviro
 The system supports heartbeats to detect stuck deployments:
 
 - **Background heartbeats during `start`**: While waiting for blocking deployments, a background task updates the deployment's `heartbeat_timestamp`. If it fails to send heartbeats repeatedly, it cancels the deployment with a note. It also cancels other deployments with stale heartbeats that are blocking your deployment.
-- **Manual heartbeats**: `deploy-queue heartbeat deployment --deployment-id <ID>` (or `heartbeat url --url <URL>`) runs a foreground loop that sends heartbeats until stopped.
+- **Manual heartbeats**: `deploy-queue heartbeat deployment <ID>` (or `heartbeat url <URL>`) runs a foreground loop that sends heartbeats until stopped.
 - **Stale heartbeat detection**: deployments with a heartbeat older than the configured timeout (currently set to 15 minutes) are cancelled automatically when the heartbeat loop runs.
 
 ## Database Schema
