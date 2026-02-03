@@ -1,4 +1,4 @@
-use anyhow::{Context, Result};
+use anyhow::{Context, Result, bail};
 use clap::Parser;
 
 pub mod cli;
@@ -109,9 +109,24 @@ pub async fn run_deploy_queue(mode: cli::Mode, skip_migrations: bool) -> Result<
                     })?;
             }
             cli::HeartbeatTarget::Url { url } => {
-                let deployment_id = handler::fetch::deployment_id_by_url(&db_client, &url)
-                    .await?
-                    .with_context(|| format!("No deployment found with URL: {}", url))?;
+                let start = std::time::Instant::now();
+                let deployment_id = loop {
+                    if let Some(deployment_id) =
+                        handler::fetch::deployment_id_by_url(&db_client, &url).await?
+                    {
+                        break deployment_id;
+                    }
+
+                    if start.elapsed() >= constants::DEPLOYMENT_ID_LOOKUP_TIMEOUT {
+                        bail!(
+                            "No deployment found with URL after {}s: {}",
+                            constants::DEPLOYMENT_ID_LOOKUP_TIMEOUT.as_secs(),
+                            url
+                        );
+                    }
+
+                    tokio::time::sleep(constants::DEPLOYMENT_ID_LOOKUP_RETRY).await;
+                };
 
                 handler::run_heartbeat_loop(&db_client, deployment_id)
                     .await
