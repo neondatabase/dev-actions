@@ -91,6 +91,8 @@ def new(
                     )
             typer.echo(f"[info] Applying {len(verified_commits)} cherry-pick(s)...")
             git.apply_commits(verified_commits)
+        if component == "compute":
+            git.update_compute_tag_in_manifest(git.current_branch())
         git.create_release_merge_commit()
         git.push_current_branch_to_origin(branch_name)
         typer.echo("[success] RC branch pushed successfully")
