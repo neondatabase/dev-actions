@@ -13,7 +13,7 @@ def test_round_trip_parse_then_generate():
         ),
         ("git@github.com-emu:databricks-eng/hadron.git", "databricks-eng/hadron"),
         (
-            "git@github-neon.com:neondatabase/dev-actions.git",
+            "ssh://git@github-neon.com:22/neondatabase/dev-actions.git",
             "neondatabase/dev-actions",
         ),
         ("git@github.com-emu:databricks-eng/hadron.git", "databricks-eng/hadron"),
