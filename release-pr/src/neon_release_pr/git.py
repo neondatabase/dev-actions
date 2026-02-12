@@ -175,7 +175,10 @@ def github_repo(origin_url: str | None) -> str | None:
     if origin_url is None:
         return None
 
-    match = re.search(r"github.com[:\d/]+?(?P<repo>[^/]+?/[^/]+?)(\.git)?$", origin_url)
+    match = re.search(
+        r"github[^:/\s]*\.com[^:/\s]*(?::\d+)?[:\/](?P<repo>[^/]+?/[^/]+?)(\.git)?$",
+        origin_url,
+    )
 
     assert match, (
         "There should be exactly one repo owner/name match in the url for remote origin"
