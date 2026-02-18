@@ -29,6 +29,10 @@ runs:
       shell: bash
       run: uv sync --project ${GITHUB_ACTION_PATH}
 
+    - name: Configure git credentials
+      shell: bash
+      run: gh auth setup-git
+
     - name: Run neon-release-pr
       shell: bash
       run: |
