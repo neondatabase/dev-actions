@@ -21,18 +21,17 @@ runs:
   using: "composite"
   steps:
     - name: Install uv
-      uses: astral-sh/setup-uv@d4b2f3b6ecc6e67c4457f6d3e41ec42d3d0fcb86 # v5.4.2
+      uses: astral-sh/setup-uv@eac588ad8def6316056a12d4907a9d4d84ff7a3b # v7.3.0
       with:
-        version: "0.6.16"
+        version: "0.10.4"
 
-    - name: Install neon-release-pr
+    - name: Sync neon-release-pr
       shell: bash
-      run: |
-        cd ${{ github.action_path }}
-        uv sync
-        uv build
-        pip install dist/neon_release_pr-*-py3-none-any.whl
+      run: uv sync --project ${GITHUB_ACTION_PATH}
 
+    - name: Configure git credentials
+      shell: bash
+      run: gh auth setup-git
 
     - name: Run neon-release-pr
       shell: bash
@@ -55,4 +54,4 @@ runs:
 
         read -ra commits <<< "${{ inputs.cherry-pick }}"
 
-        neon-release-pr new "${neon_release_pr_args[@]}" "${{ inputs.component }}" "${commits[@]}"
+        uv run --project ${GITHUB_ACTION_PATH} neon-release-pr new "${neon_release_pr_args[@]}" "${{ inputs.component }}" "${commits[@]}"
