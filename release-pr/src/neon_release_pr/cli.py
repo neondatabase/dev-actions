@@ -1,7 +1,7 @@
 from datetime import datetime, timezone
 from neon_release_pr import git, gh
 from neon_release_pr.context import ctx
-from typing_extensions import Annotated
+from typing import Annotated
 import typer
 
 app = typer.Typer()
