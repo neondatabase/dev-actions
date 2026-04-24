@@ -71,6 +71,11 @@ runs:
       run: |
         set -euo pipefail
 
+        AUTH_HEADER=()
+        if [ -n "${GITHUB_TOKEN:-}" ]; then
+          AUTH_HEADER=(-H "Authorization: Bearer ${GITHUB_TOKEN}")
+        fi
+
         if [ -z "$REF" ]; then
           echo "Empty github.action_ref, falling back to github.sha assuming local execution"
           REF="${SHA}"
@@ -82,7 +87,7 @@ runs:
           n=0
           tags_json=""
           until [ "$n" -ge 5 ]; do
-            if tags_json=$(curl --fail --silent --show-error --location "https://api.github.com/repos/neondatabase/dev-actions/git/matching-refs/tags"); then
+            if tags_json=$(curl --fail --silent --show-error --location "${AUTH_HEADER[@]}" "https://api.github.com/repos/neondatabase/dev-actions/git/matching-refs/tags"); then
               break
             fi
             n=$((n + 1))
@@ -104,6 +109,7 @@ runs:
       env:
         REF: ${{ github.action_ref }}
         SHA: ${{ github.event.pull_request.head.sha || github.sha }}
+        GITHUB_TOKEN: ${{ github.token }}
 
     - name: Download deploy-queue binary
       shell: bash
