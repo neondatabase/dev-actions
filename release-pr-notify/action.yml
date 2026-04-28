@@ -16,7 +16,7 @@ runs:
   steps:
       - name: Generate Slack Message
         id: generate-slack-message
-        uses: actions/github-script@v6
+        uses: actions/github-script@ed597411d8f924073f98dfc5c65a23a2325f34cd # v8
         with:
           retries: 5
           result-encoding: string
@@ -26,14 +26,14 @@ runs:
             return await script({ github, context })
 
       - name: Get a file with Slack message ID from GitHub Actions cache
-        uses: actions/cache/restore@v3
+        uses: actions/cache/restore@cdf6c1fa76f9f475f3d7449005a359c84ca0f306 # v5.0.3
         with:
           path: release-notify.json
           key: release-pr-notify-${{ github.event.number }}.json
 
       - name: Get a file with Slack message ID from GitHub Actions cache (fallback)
         id: posted-message-fallback
-        uses: actions/github-script@v6
+        uses: actions/github-script@ed597411d8f924073f98dfc5c65a23a2325f34cd # v8
         with:
           retries: 5
           result-encoding: string
@@ -72,7 +72,7 @@ runs:
 
       - name: Send Slack message
         id: slack
-        uses: slackapi/slack-github-action@v1
+        uses: slackapi/slack-github-action@fcfb566f8b0aab22203f066d80ca1d7e4b5d05b3 # v1.27.1
         with:
           channel-id: ${{ inputs.slack-channel-id }}
           update-ts: ${{ steps.message.outputs.update-ts }}
@@ -88,14 +88,14 @@ runs:
 
       - name: Save a file with Slack message ID to GitHub Actions cache
         if: steps.message.outputs.cache-hit != 'true'
-        uses: actions/cache/save@v3
+        uses: actions/cache/save@cdf6c1fa76f9f475f3d7449005a359c84ca0f306 # v5.0.3
         with:
           path: release-notify.json
           key: release-pr-notify-${{ github.event.number }}.json${{ steps.slack.outputs.ts }}
 
       - name: Delete a file with Slack message ID from GitHub Actions cache
         if: always() && github.event.action == 'closed'
-        uses: actions/github-script@v6
+        uses: actions/github-script@ed597411d8f924073f98dfc5c65a23a2325f34cd # v8
         with:
           retries: 5
           script: |
